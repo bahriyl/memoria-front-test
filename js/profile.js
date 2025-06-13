@@ -208,11 +208,13 @@ document.addEventListener('DOMContentLoaded', () => {
             dateItem.appendChild(dateDay);
             dateCalendar.appendChild(dateItem);
 
-            // Store the full date for later use
-            dateItem.dataset.fullDate = date.toISOString().split('T')[0];
+            // Store the date components directly instead of ISO string
+            dateItem.dataset.day = date.getDate();
+            dateItem.dataset.month = date.getMonth() + 1; // getMonth() is 0-indexed
+            dateItem.dataset.year = date.getFullYear();
         }
 
-        // Set initial selected date (today)
+        // Set initial selected date (today) - use the same formatting logic
         const todayFormatted = `${String(today.getDate()).padStart(2, '0')}.${String(today.getMonth() + 1).padStart(2, '0')}.${today.getFullYear()}`;
         selectedDateEl.textContent = todayFormatted;
 
@@ -225,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Generate dates on page load
     generateDates();
 
-    // Date selection
+    // Date selection event handler
     document.addEventListener('click', (e) => {
         if (e.target.closest('.date-item')) {
             const clickedItem = e.target.closest('.date-item');
@@ -236,9 +238,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add selected class to clicked item
             clickedItem.classList.add('selected');
 
-            // Update selected date display
-            const fullDate = new Date(clickedItem.dataset.fullDate);
-            const formattedDate = `${String(fullDate.getDate()).padStart(2, '0')}.${String(fullDate.getMonth() + 1).padStart(2, '0')}.${fullDate.getFullYear()}`;
+            // Get the stored date components
+            const day = parseInt(clickedItem.dataset.day);
+            const month = parseInt(clickedItem.dataset.month);
+            const year = parseInt(clickedItem.dataset.year);
+
+            // Format the date using the same logic as initial date
+            const formattedDate = `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
             selectedDateEl.textContent = formattedDate;
 
             // Update liturgy details
