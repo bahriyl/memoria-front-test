@@ -43,6 +43,8 @@ header {
     display: flex;
     align-items: center;
     padding: var(--spacing-sm);
+    padding-bottom: 2px;
+    padding-top: 5px;
     background-color: var(--color-bg);
     position: fixed;
     top: 0;
@@ -51,12 +53,6 @@ header {
     background: var(--color-bg);
     z-index: 200;
     /* higher than drawer & overlay */
-}
-
-/* push your main content down so it isn’t hidden behind the fixed topbar */
-main.container {
-    margin-top: 56px;
-    /* or whatever your topbar height is */
 }
 
 .menu-btn {
@@ -94,7 +90,8 @@ main.container {
 h2 {
     margin: var(--spacing-lg) 0 var(--spacing-md);
     margin-bottom: 1.9rem;
-    margin-top: 1rem;
+    margin-top: 16px;
+    margin-left: 2px;
     font-family: var(--font-base);
     font-size: 1.5rem;
     font-weight: 600;
@@ -107,6 +104,7 @@ h2 {
     padding-bottom: 0.6rem;
     overflow-x: auto;
     margin-bottom: 0.2rem;
+    margin-left: 2px;
 
     /* hide scrollbars on all browsers */
     -ms-overflow-style: none;
@@ -150,10 +148,14 @@ h2 {
 
 /* Search Bar */
 .search-bar {
-    width: 100%;
-    max-width: 400px;
     gap: var(--spacing-sm);
-    margin-bottom: 15px;
+    margin-bottom: 13px;
+
+    /* Break out of container padding but keep 7px from screen edges */
+    margin-left: calc(-1 * var(--spacing-md) + 12px);
+    margin-right: calc(-1 * var(--spacing-md) + 12px);
+    width: calc(100% + 2 * var(--spacing-md) - 24px);
+    max-width: none;
 }
 
 .search-bar input {
@@ -188,7 +190,14 @@ h2 {
 
 .search-bar button svg {
     stroke: #90959C !important;
+}
+
+.search-btn svg {
     stroke-width: 1.7px;
+}
+
+.favorite-btn svg {
+    stroke-width: 1.65px;
 }
 
 .search-btn svg {
@@ -208,8 +217,8 @@ h2 {
 }
 
 .favorite-btn.active svg {
-    fill: #1B8B59;
-    stroke: #1B8B59 !important;
+    fill: #90959C;
+    stroke: #90959C !important;
 }
 
 /* Add a little transition */
@@ -221,10 +230,11 @@ h2 {
 #count {
     margin: var(--spacing-sm) 0;
     font-family: var(--font-base);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--color-text);
-    margin-bottom: 15px;
+    margin-bottom: 8px;
+    margin-left: 2px;
 }
 
 /* People List */
@@ -232,6 +242,11 @@ h2 {
     list-style: none;
     padding: 0;
     margin: 0;
+    margin-left: 2px;
+}
+
+.people-list::-webkit-scrollbar {
+    display: none;
 }
 
 .people-list li {
@@ -265,8 +280,8 @@ h2 {
 .person-cemetery {
     margin: 0;
     font-family: var(--font-base);
-    font-size: 0.75rem;
-    color: var(--color-muted);
+    font-size: 0.73rem;
+    color: #333333;
     font-weight: 500;
 }
 
@@ -275,8 +290,8 @@ h2 {
 }
 
 .notable {
-    font-size: 0.75rem;
-    color: var(--color-muted);
+    font-size: 0.73rem;
+    color: #333333;
     margin-left: var(--spacing-sm);
     font-weight: 500;
 }
@@ -380,9 +395,9 @@ h2 {
 
 /* Side-drawer container */
 .side-menu {
-    top: 56px;
+    top: 47px;
     /* start right below the topbar */
-    height: calc(100vh - 56px);
+    height: calc(100vh - 47px);
     position: fixed;
     left: -80vw;
     /* hidden off-screen */
@@ -496,16 +511,14 @@ body {
     z-index: 200;
 }
 
-main.container {
-    /* assume your topbar is 56px tall; adjust if different */
-    margin-top: 56px;
-}
-
 /* 3) Turn main into a column flexbox and cap its height */
 main.container {
     display: flex;
     flex-direction: column;
     height: calc(100vh - 56px);
+    padding: var(--spacing-md);
+    overflow-y: auto;
+    margin-top: 48px;
 }
 
 /* 4) Everything above the list (h2, .filters, .search-bar, #count) stays at natural size */
@@ -513,27 +526,6 @@ main.container>h2,
 main.container>.filters,
 main.container>.search-bar {
     flex: none;
-}
-
-.scroll-container {
-    flex: 1;
-    overflow-y: auto;
-}
-
-/* (Optional) hide inner scrollbar if you prefer only the outer one) */
-.scroll-container::-webkit-scrollbar {
-    display: none;
-}
-
-/* 5) Let only the people-list grow & scroll */
-.people-list {
-    flex: 1;
-    overflow-y: auto;
-}
-
-.people-list::-webkit-scrollbar {
-    display: none;
-    /* Chrome, Safari, Opera */
 }
 
 /* ─── Clear-button base ─── */
@@ -600,4 +592,16 @@ main.container>.search-bar {
 /* once it’s valid (i.e. value ≠ ""), paint it black */
 .year-pill select:valid {
     color: var(--color-text);
+}
+
+/* prevent any horizontal scrolling */
+html,
+body {
+    overflow-x: hidden;
+}
+
+/* only allow vertical scroll inside the main area */
+main.container {
+    overflow-y: auto;
+    overflow-x: hidden;
 }

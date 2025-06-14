@@ -282,7 +282,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             function updateSelectionNumbers() {
                 selectedPhotos.forEach((photoIndex, selectionOrder) => {
-                    const photoElement = document.querySelectorAll('.photos-list li')[photoIndex];
+                    const photoElement = document.querySelectorAll('.photos-list li')[0];
+                    console.log(photoIndex);
+                    console.log(photoElement);
                     const circle = photoElement.querySelector('.photo-selection-circle');
                     if (circle) {
                         circle.textContent = selectionOrder + 1;
