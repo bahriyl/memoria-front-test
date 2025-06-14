@@ -248,6 +248,7 @@ body {
 
 /* Each LI scroll-snaps into place */
 .photos-list li {
+    position: relative;
     flex: 0 0 auto;
     width: 160px;
     height: 198px;
@@ -255,6 +256,109 @@ body {
     overflow: hidden;
     background: #eee;
     scroll-snap-align: start;
+    cursor: pointer;
+}
+
+/* Selection overlay (hidden by default) */
+.photo-selection-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    display: none;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 12px;
+    cursor: pointer;
+}
+
+/* Show overlay when in selection mode */
+.profile-photos.selection-mode .photo-selection-overlay {
+    display: flex;
+}
+
+/* Selection circle */
+.photo-selection-circle {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: #1B8B59;
+    color: white;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    z-index: 2;
+}
+
+/* Selected state */
+.photos-list li.selected .photo-selection-circle {
+    background: #1B8B59;
+    border-color: #1B8B59;
+    display: flex;
+}
+
+/* Check mark */
+.selection-check {
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.photos-list li.selected .selection-check {
+    opacity: 1;
+}
+
+/* Delete button styling */
+#delete-photo-btn {
+    display: none;
+    padding: 0.5rem 1rem;
+    background-color: #DC3545;
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 510;
+    font-family: 'Montserrat', sans-serif;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-left: auto;
+}
+
+#delete-photo-btn:hover {
+    background-color: #C82333;
+}
+
+/* Update photos controls to handle delete button */
+.photos-controls {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    align-items: center;
+}
+
+/* Selection mode cursor for photos */
+.profile-photos.selection-mode .photos-list li {
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.profile-photos.selection-mode .photos-list li.selected {
+    opacity: 1;
+}
+
+.profile-photos.selection-mode .photos-list img {
+    pointer-events: none;
 }
 
 /* The images */

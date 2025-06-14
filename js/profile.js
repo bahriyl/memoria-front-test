@@ -81,15 +81,38 @@ document.addEventListener('DOMContentLoaded', () => {
             const photosListEl = document.querySelector('.photos-list');
             const addPhotoBtn = document.getElementById('add-photo-btn');
             const choosePhotoBtn = document.getElementById('choose-photo-btn');
+            let isSelectionMode = false;
+            let selectedPhotos = [];
 
             if (Array.isArray(data.photos) && data.photos.length) {
-                data.photos.forEach(url => {
+                data.photos.forEach((url, index) => {
                     const li = document.createElement('li');
+                    li.dataset.photoIndex = index;
+                    li.dataset.photoUrl = url;
+
                     const img = document.createElement('img');
                     img.src = url;
                     img.alt = data.name + ' — фото';
+
+                    // Add selection overlay (initially hidden)
+                    const overlay = document.createElement('div');
+                    overlay.className = 'photo-selection-overlay';
+                    overlay.innerHTML = `
+                        <div class="photo-selection-circle">
+                            <div class="selection-check">✓</div>
+                        </div>
+                    `;
+
                     li.appendChild(img);
+                    li.appendChild(overlay);
                     photosListEl.appendChild(li);
+
+                    // Add click handler for selection
+                    li.addEventListener('click', () => {
+                        if (isSelectionMode) {
+                            togglePhotoSelection(li, url);
+                        }
+                    });
                 });
             } else {
                 // optionally show a placeholder
@@ -99,9 +122,205 @@ document.addEventListener('DOMContentLoaded', () => {
                 photosListEl.appendChild(li);
             }
 
-            // Wire up the photo buttons
+            // Add this new function for photo selection
+            function togglePhotoSelection(photoElement, photoUrl) {
+                const isSelected = selectedPhotos.has(photoUrl);
+
+                if (isSelected) {
+                    selectedPhotos.delete(photoUrl);
+                    photoElement.classList.remove('selected');
+                } else {
+                    selectedPhotos.add(photoUrl);
+                    photoElement.classList.add('selected');
+                }
+
+                updateDeleteButton();
+            }
+
+            // Add this function to update delete button state
+            function updateDeleteButton() {
+                const deleteBtn = document.getElementById('delete-photo-btn');
+                if (deleteBtn) {
+                    deleteBtn.style.display = selectedPhotos.size > 0 ? 'block' : 'none';
+                    deleteBtn.textContent = `Видалити (${selectedPhotos.size})`;
+                }
+            }
+
+            // Add this function to toggle selection mode
+            function toggleSelectionMode() {
+                isSelectionMode = !isSelectionMode;
+                const photosSection = document.querySelector('.profile-photos');
+                const chooseBtn = document.getElementById('choose-photo-btn');
+                const deleteBtn = document.getElementById('delete-photo-btn');
+
+                if (isSelectionMode) {
+                    photosSection.classList.add('selection-mode');
+                    chooseBtn.textContent = 'Скасувати';
+                    deleteBtn.style.display = 'none';
+                } else {
+                    photosSection.classList.remove('selection-mode');
+                    chooseBtn.textContent = 'Вибрати';
+                    deleteBtn.style.display = 'none';
+                    // Clear all selections
+                    selectedPhotos.clear();
+                    document.querySelectorAll('.photos-list li').forEach(li => {
+                        li.classList.remove('selected');
+                    });
+                }
+            }
+
+            // Add this function to handle photo deletion
+            async function deleteSelectedPhotos() {
+                if (selectedPhotos.size === 0) return;
+
+                const confirmDelete = confirm(`Ви впевнені, що хочете видалити ${selectedPhotos.size} фото?`);
+                if (!confirmDelete) return;
+
+                try {
+                    // Example API request - replace with your actual endpoint
+                    const deletePromises = Array.from(selectedPhotos).map(photoUrl =>
+                        fetch(`${API_BASE}/${personId}/photos`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ photoUrl })
+                        })
+                    );
+
+                    await Promise.all(deletePromises);
+
+                    // Remove deleted photos from DOM
+                    selectedPhotos.forEach(photoUrl => {
+                        const photoElement = document.querySelector(`[data-photo-url="${photoUrl}"]`);
+                        if (photoElement) {
+                            photoElement.remove();
+                        }
+                    });
+
+                    // Reset selection state
+                    selectedPhotos.clear();
+                    toggleSelectionMode(); // Exit selection mode
+
+                    alert('Фото успішно видалено!');
+
+                } catch (error) {
+                    console.error('Error deleting photos:', error);
+                    alert('Помилка при видаленні фото. Спробуйте ще раз.');
+                }
+            }
+
+            function enterSelectionMode() {
+                isSelectionMode = true;
+                selectedPhotos = [];
+
+                // Update button states
+                addPhotoBtn.textContent = 'Скасувати';
+                choosePhotoBtn.textContent = 'Видалити (0)';
+
+                // Add selection mode class
+                document.querySelector('.profile-photos').classList.add('selection-mode');
+
+                // Add click handlers to photos
+                const photoItems = document.querySelectorAll('.photos-list li');
+                photoItems.forEach((li, index) => {
+                    // Add selection circle
+                    const circle = document.createElement('div');
+                    circle.className = 'photo-selection-circle';
+                    li.appendChild(circle);
+
+                    // Add click handler
+                    li.addEventListener('click', () => togglePhotoSelection(li, index));
+                });
+            }
+
+            function exitSelectionMode() {
+                isSelectionMode = false;
+                selectedPhotos = [];
+
+                // Reset button states
+                addPhotoBtn.textContent = 'Додати';
+                choosePhotoBtn.textContent = 'Вибрати';
+
+                // Remove selection mode class
+                document.querySelector('.profile-photos').classList.remove('selection-mode');
+
+                // Remove selection circles and reset states
+                const photoItems = document.querySelectorAll('.photos-list li');
+                photoItems.forEach(li => {
+                    li.classList.remove('selected');
+                    const circle = li.querySelector('.photo-selection-circle');
+                    if (circle) circle.remove();
+
+                    // Remove click handlers by cloning the element
+                    const newLi = li.cloneNode(true);
+                    li.parentNode.replaceChild(newLi, li);
+                });
+            }
+
+            function togglePhotoSelection(photoElement, photoIndex) {
+                if (!isSelectionMode) return;
+
+                const isSelected = photoElement.classList.contains('selected');
+                const circle = photoElement.querySelector('.photo-selection-circle');
+
+                if (isSelected) {
+                    // Deselect
+                    photoElement.classList.remove('selected');
+                    const selectionIndex = selectedPhotos.indexOf(photoIndex);
+                    selectedPhotos.splice(selectionIndex, 1);
+                } else {
+                    // Select
+                    photoElement.classList.add('selected');
+                    selectedPhotos.push(photoIndex);
+                }
+
+                // Update circle number and button text
+                updateSelectionNumbers();
+                choosePhotoBtn.textContent = `Видалити (${selectedPhotos.length})`;
+            }
+
+            function updateSelectionNumbers() {
+                selectedPhotos.forEach((photoIndex, selectionOrder) => {
+                    const photoElement = document.querySelectorAll('.photos-list li')[photoIndex];
+                    const circle = photoElement.querySelector('.photo-selection-circle');
+                    if (circle) {
+                        circle.textContent = selectionOrder + 1;
+                    }
+                });
+            }
+
+            addPhotoBtn.addEventListener('click', () => {
+                if (isSelectionMode) {
+                    // Cancel selection
+                    exitSelectionMode();
+                } else {
+                    // Open modal (existing functionality)
+                    filesToUpload = [];
+                    photoList.innerHTML = '';
+                    updatePhotoListVisibility();
+                    modal.classList.add('open');
+                }
+            });
+
             choosePhotoBtn.addEventListener('click', () => {
-                window.location.href = `choose-photo.html?personId=${personId}`;
+                if (isSelectionMode) {
+                    // Delete selected photos (implement your deletion logic here)
+                    console.log('Delete photos:', selectedPhotos);
+                    // Here you would typically make an API call to delete the photos
+                    alert(`Видалити ${selectedPhotos.length} фото?`);
+                    exitSelectionMode();
+                } else {
+                    // Enter selection mode
+                    enterSelectionMode();
+                }
+            });
+
+            // Add event listener for delete button (add this after your existing button listeners)
+            document.addEventListener('click', (e) => {
+                if (e.target.id === 'delete-photo-btn') {
+                    deleteSelectedPhotos();
+                }
             });
         } catch (err) {
             console.error(err);
