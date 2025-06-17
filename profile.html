@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Memoria — Профіль</title>
     <link rel="stylesheet" href="css/profile.css">
 </head>
@@ -166,6 +166,28 @@
                     <input type="text" id="sms-code-input" placeholder="Введіть код, надісланий вам на номер" required>
                 </label>
                 <button type="submit" class="modal-submit-btn">Додати фото</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ─── Edit Bio Modal ─── -->
+    <div id="editBioModal" class="modal-overlay">
+        <div class="modal">
+            <button class="modal-close">&times;</button>
+            <h2 class="modal-title">Підтвердьте зміни</h2>
+            <form id="editBioForm" class="modal-form">
+                <label>
+                    <span>Номер телефону</span>
+                    <div class="input-with-action">
+                        <input type="tel" id="edit-phone-input" placeholder="Введіть свій номер телефону" required>
+                        <button type="button" id="send-bio-code-btn" class="action-link">Надіслати код</button>
+                    </div>
+                </label>
+                <label>
+                    <span>Код</span>
+                    <input type="text" id="edit-sms-code-input" placeholder="Введіть код" required>
+                </label>
+                <button type="submit" class="modal-submit-btn">Підтвердити</button>
             </form>
         </div>
     </div>

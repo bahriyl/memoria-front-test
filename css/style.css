@@ -144,6 +144,7 @@ h2 {
     background-color: var(--color-bg-light);
     border-radius: var(--radius-md);
     padding: 0 0.75rem;
+    padding-left: 2px;
 }
 
 /* Search Bar */
@@ -348,6 +349,9 @@ h2 {
 }
 
 .year-pill select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
     width: 100%;
     background: transparent;
     border: none;
@@ -357,19 +361,30 @@ h2 {
     font-weight: 460;
     color: var(--color-placeholder);
     appearance: none;
-    padding-right: 0rem;
+    padding-right: calc(var(--spacing-md) + 2px);
+    /* вільне місце під стрілку */
 }
 
 .year-pill::after {
     content: '';
     position: absolute;
-    right: var(--spacing-md);
-    width: 12px;
-    height: 12px;
+    top: 50%;
+    right: calc(var(--spacing-md) - 8px);
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    background-size: 20px 20px;  /* ↑ scale SVG to fit */
     background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat center;
     pointer-events: none;
-    display: none !important;
-    content: none !important;
+}
+
+.year-pill select:valid {
+    color: var(--color-text);
+}
+
+/* hide the arrow once a non-empty <option> is selected */
+.year-pill:has(select:valid)::after {
+    display: none;
 }
 
 /* Overlay under the menu */
@@ -598,6 +613,7 @@ main.container>.search-bar {
 html,
 body {
     overflow-x: hidden;
+    overflow-y: auto;
 }
 
 /* only allow vertical scroll inside the main area */

@@ -70,12 +70,86 @@ document.addEventListener('DOMContentLoaded', () => {
                 // If it doesn't overflow, the toggle is already removed, so we do nothing.
             }
 
-            // “Змінити” button for the bio (this part remains the same)
-            if (bioEditBtn) {
-                bioEditBtn.addEventListener('click', () => {
-                    window.location.href = `edit-bio.html?personId=${personId}`;
+            // 1) Switch to edit mode
+            bioEditBtn.addEventListener('click', enterBioEdit);
+
+            function enterBioEdit() {
+                // Hide the “… більше” toggle if present
+                bioToggleEl && (bioToggleEl.style.display = 'none');
+
+                // Replace <p> with a <textarea>
+                const textarea = document.createElement('textarea');
+                textarea.id = 'bio-editor';
+                textarea.value = fullBio;
+                textarea.style.width = '100%';
+                textarea.style.minHeight = '120px';
+                textarea.style.boxSizing = 'border-box';
+                bioContentEl.replaceWith(textarea);
+
+                // Change the “Змінити” button into “Підтвердити”
+                bioEditBtn.textContent = 'Підтвердити';
+                bioEditBtn.removeEventListener('click', enterBioEdit);
+                bioEditBtn.addEventListener('click', openBioConfirmModal);
+
+                // Add a “Скасувати” button
+                const cancel = document.createElement('button');
+                cancel.id = 'bio-cancel-btn';
+                cancel.type = 'button';
+                cancel.className = 'btn bio-edit-btn';
+                cancel.textContent = 'Скасувати';
+                bioEditBtn.insertAdjacentElement('afterend', cancel);
+                cancel.addEventListener('click', () => {
+                    window.location.reload(); // simplest way to revert everything
                 });
             }
+
+            // 2) Open the modal to send/enter code
+            function openBioConfirmModal() {
+                document.getElementById('editBioModal').classList.add('open');
+            }
+
+            // 3) Handle modal “send code” + “submit”
+            const bioModal = document.getElementById('editBioModal');
+            const sendBioCodeBtn = document.getElementById('send-bio-code-btn');
+            const bioForm = document.getElementById('editBioForm');
+
+            sendBioCodeBtn.addEventListener('click', async () => {
+                const phone = document.getElementById('edit-phone-input').value;
+                // TODO: call your SMS-API here…
+                alert(`Код надіслано на ${phone}`);
+            });
+
+            bioForm.addEventListener('submit', async e => {
+                e.preventDefault();
+                const code = document.getElementById('edit-sms-code-input').value;
+                const newBio = document.getElementById('bio-editor').value;
+
+                // TODO: verify code with your backend…
+                // await fetch(`${API_BASE}/${personId}/verifyBioCode`, { … })
+
+                // Then push updated bio
+                const res = await fetch(`${API_BASE}/${personId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bio: newBio })
+                });
+                if (!res.ok) throw new Error(res.statusText);
+
+                // On success: close modal & update UI
+                bioModal.classList.remove('open');
+                document.getElementById('bio-cancel-btn').remove();
+                bioEditBtn.textContent = 'Змінити';
+                bioEditBtn.removeEventListener('click', openBioConfirmModal);
+                bioEditBtn.addEventListener('click', enterBioEdit);
+
+                // Restore the <p> with updated text and re-init toggle logic
+                const updatedP = document.createElement('p');
+                updatedP.className = 'bio-content';
+                updatedP.id = 'bio-content';
+                updatedP.textContent = newBio;
+                document.querySelector('.profile-bio').appendChild(updatedP);
+                // (you can re-run your overflow/toggle check here if desired)
+            });
 
             //  ─── Photographs gallery ───
             const photosListEl = document.querySelector('.photos-list');

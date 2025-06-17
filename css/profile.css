@@ -16,10 +16,20 @@ body {
 
 .profile-hero {
     position: relative;
-    height: 200px;
+    left: 50%;
+    margin-left: -50vw;
+    width: 100vw;
+    box-sizing: border-box;
+
+    /* absorb the notch inset right into the header */
+    padding-top: constant(safe-area-inset-top);
+    padding-top: env(safe-area-inset-top);
+
+    /* keep your intended 200px of “true” hero height */
+    height: calc(200px + constant(safe-area-inset-top));
+    height: calc(200px + env(safe-area-inset-top));
+
     background: url('https://pbs.twimg.com/media/Fq4UD5RXoAAo9OB.jpg') center/cover no-repeat;
-    margin: 0;
-    padding: 0;
 }
 
 .profile-avatar {
