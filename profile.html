@@ -11,7 +11,14 @@
 <body>
     <main class="profile-container">
         <header class="profile-hero">
-            <!-- background is set via CSS -->
+            <!-- ← back arrow -->
+            <a href="index.html" class="back-button" aria-label="Повернутися">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
+
             <img class="profile-avatar" src="" alt="Фото особи" />
         </header>
 
@@ -20,12 +27,21 @@
             <p class="profile-years"></p>
             <p class="profile-cemetery"></p>
             <a href="#" class="location-button">
-                <svg class="location-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
-                    width="24px" height="24px">
-                    <path d="M0 0h24v24H0V0z" fill="none" />
-                    <path
-                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                <svg class="location-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"
+                    fill="none">
+
+                    <!-- Outer pin outline -->
+                    <path d="M12 2
+       C8.13 2 5 5.13 5 9
+       c0 5.25 7 13 7 13
+       s7 -7.75 7 -13
+       c0 -3.87 -3.13 -7 -7 -7z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round" />
+
+                    <!-- Inner circle -->
+                    <circle cx="12" cy="9" r="2.5" fill="currentColor" />
                 </svg>
+
 
                 <span id="action-btn">Локація місця поховання</span>
             </a>
@@ -35,13 +51,19 @@
         <section class="profile-bio">
             <div class="bio-header">
                 <h2 class="bio-title">Життєпис</h2>
-                <button class="btn bio-edit-btn" id="bio-edit">Змінити</button>
+                <div class="bio-buttons">
+                    <button class="btn bio-edit-btn" id="bio-edit">Змінити</button>
+                </div>
             </div>
 
-            <p class="bio-content" id="bio-content">
-                <span class="bio-toggle" id="bio-toggle">... більше</span>
-            </p>
+            <div class="bio-body">
+                <p class="bio-content collapsed" id="bio-content">
+                    <!-- JS will inject fullBio text here... -->
+                    <span class="bio-toggle" id="bio-toggle">… більше</span>
+                </p>
+            </div>
         </section>
+
 
         <!-- Photographs section -->
         <section class="profile-photos">

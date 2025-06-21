@@ -1,7 +1,7 @@
 // js/profile.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    const API_BASE = 'https://memoria-test-app-ifisk.ondigitalocean.app/api/people';
+    const API_BASE = 'http://192.168.3.70:5000/api/people';
     const params = new URLSearchParams(window.location.search);
     const personId = params.get('personId');
     if (!personId) return;
@@ -31,8 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Name, years, cemetery
             nameEl.textContent = data.name;
-            yearsEl.textContent = `${data.birthYear} – ${data.deathYear || ''}`.trim();
-            cemeteryEl.textContent = data.cemetery || '';
+            yearsEl.textContent = `${data.birthDate} ${data.birthYear} – ${data.deathDate} ${data.deathYear || ''}`.trim();
+            cemeteryEl.textContent = data.cemetery.split(", ")[0] || '';
 
             // Action button (view vs add location)
             if (data.location?.lat && data.location?.lng) {
@@ -52,20 +52,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // B. Check if the content is actually taller than its collapsed container
             const isOverflowing = bioContentEl.scrollHeight > bioContentEl.clientHeight;
+            console.log(isOverflowing);
 
             if (isOverflowing) {
-                // If it overflows, re-attach the toggle and make it work
-                bioContentEl.appendChild(bioToggleEl); // Append INSIDE the paragraph
-                bioToggleEl.style.display = 'inline'; // Make it visible
-                bioToggleEl.textContent = '... більше'; // Set initial text
+                // restore the toggle *inside* the bio-content paragraph
+                bioContentEl.appendChild(bioToggleEl);
+                bioToggleEl.style.display = 'inline';
+                bioToggleEl.textContent = '... більше';
 
-                // Wire up the “більше / менше” toggle
+                // make sure there’s a bit of right padding so the span doesn’t get clipped
+                bioContentEl.style.paddingRight = '0.1rem';
+
+                // wire up the “… більше / менше” toggle
                 bioToggleEl.addEventListener('click', () => {
-                    const isNowExpanded = bioContentEl.classList.toggle('expanded');
-                    // Update text based on new state
-                    bioToggleEl.textContent = isNowExpanded ? 'менше' : '... більше';
+                    const expanded = bioContentEl.classList.toggle('expanded');
+                    bioToggleEl.textContent = expanded ? 'менше' : '... більше';
                 });
-
             } else {
                 // If it doesn't overflow, the toggle is already removed, so we do nothing.
             }

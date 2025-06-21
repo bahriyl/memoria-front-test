@@ -35,21 +35,25 @@ body {
 .profile-avatar {
     position: absolute;
     bottom: -40px;
-    left: 22%;
+    left: 23%;
     transform: translateX(-50%);
     width: 149px;
     height: 149px;
-    border: 4px solid #fff;
+    border: 3px solid #fff;
     border-radius: 50%;
     object-fit: cover;
     background: #eee;
 }
 
 .profile-info {
-    padding: 60px 1rem 1rem;
+    padding: 50px 1rem 1rem;
     text-align: left;
     background-color: #FFFFFF;
-    border-radius: 0 0 20px 20px;
+    border-radius: 0 0 9px 9px;
+    border: 0.5px solid #BFBFBF;
+    border-top: none;
+    border-left: none;
+    border-right: none;
 }
 
 .profile-name {
@@ -57,13 +61,14 @@ body {
     font-size: 19px;
     font-weight: 570;
     font-family: 'Montserrat', sans-serif;
+    color: #1C170D;
 }
 
 .profile-years,
 .profile-cemetery {
     margin: 4px 0;
     font-size: 15px;
-    color: #666;
+    color: #1C170D;
     font-family: 'Montserrat', sans-serif;
     font-weight: 480;
 }
@@ -73,8 +78,9 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 14px 24px;
+    padding: 14px 20px;
     width: 100%;
+    height: 41px;
     margin-top: 22px;
     /* Makes the button take the full width of its container */
     box-sizing: border-box;
@@ -92,7 +98,7 @@ body {
     /* Text and Font */
     font-family: 'Montserrat', sans-serif;
     font-size: 16px;
-    font-weight: 500;
+    font-weight: 570;
     /* A medium font weight */
     text-decoration: none;
     /* Removes underline from the <a> tag */
@@ -116,16 +122,20 @@ body {
 /* ─── Biography ─── */
 .profile-bio {
     background-color: #fff;
-    border-radius: 20px;
+    border-radius: 9px;
     padding: 1rem;
+    padding-bottom: 18px;
     margin-top: 6px;
+    border: 0.5px solid #BFBFBF;
+    border-left: none;
+    border-right: none;
 }
 
 .profile-bio .bio-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 0.75rem;
+    margin-bottom: 10px;
     flex-direction: column;
     gap: 16px;
 }
@@ -137,7 +147,7 @@ body {
 }
 
 .bio-edit-btn {
-    display: flex;
+    display: inline-block;
     align-items: center;
     align-self: flex-start;
     justify-content: center;
@@ -155,20 +165,24 @@ body {
     font-weight: 510;
     font-family: 'Montserrat', sans-serif;
     cursor: pointer;
+    position: static;
+    margin: 0;
 }
 
 .bio-content {
     position: relative;
     /* for absolutely positioned toggle */
-    font-size: 1rem;
+    font-size: 15px;
+    font-weight: 480;
     line-height: 1.5;
     color: #000;
-    max-height: 4.5em;
-    /* clamp to ~3 lines */
+    max-height: calc(1.5em * 4);
+    /* clamp to 4 lines */
     overflow: hidden;
     transition: max-height 0.3s ease;
     padding-right: 0;
     /* room for the toggle */
+    margin: 0 0 0rem;
 }
 
 /* when expanded, let it grow and reveal overflow */
@@ -177,9 +191,21 @@ body {
     overflow: visible;
 }
 
+/* контейнер для всіх “кнопок” біля біо */
+.bio-controls {
+    display: inline-flex;
+    /* інлайн-флекс щоб в лінію */
+    align-items: center;
+    /* вирівняти по базовій лінії тексту */
+    gap: 0.5rem;
+    /* відстань між кнопками */
+    margin-top: 0.5rem;
+    /* якщо треба відсунути вниз від тексту */
+}
+
 /* toggle link */
 .bio-toggle {
-    position: absolute;
+    position: static;
     bottom: 0.1em;
     /* just above the bottom edge */
     right: 0.5rem;
@@ -189,11 +215,11 @@ body {
     color: #000;
     font-weight: 600;
     cursor: pointer;
-    display: inline;
+    display: inline-block;
     /* make sure it shows */
     z-index: 1;
     /* on top of the fading text */
-    margin: 0 0 0 .25rem;
+    margin: 0;
     float: none;
 }
 
@@ -203,6 +229,45 @@ body {
     background: transparent;
     padding-left: 0.25rem;
 }
+
+/* textarea-блок у вигляді картки */
+#bio-editor {
+    width: 100%;
+    box-sizing: border-box;
+
+    /* фон і скруглення */
+    background-color: #F1F3F5;
+    border: none;
+    border-radius: 7px;
+
+    /* відступи всередині */
+    padding: 10px 15px;
+
+    /* шрифт та кольори */
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    line-height: 24px;
+    color: #1C170D;
+    /* трохи темніший сірий для тексту */
+
+    /* щоб не зменшувати блок */
+    min-height: 150px;
+
+    /* забороняємо бачити контур при фокусі, але додаємо легку тінь */
+    outline: none;
+    transition: box-shadow .2s;
+}
+
+#bio-editor:focus {
+    box-shadow: inset 0 0 0 2px #A5B4FC;
+}
+
+/* стиль для плейсхолдера */
+#bio-editor::placeholder {
+    color: #9CA3AF;
+    opacity: 1;
+}
+
 
 /* ─── Photographs ─── */
 .profile-photos {
@@ -243,30 +308,52 @@ body {
 /* Scroll wrapper */
 .photos-scroll {
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x mandatory;
 }
 
 /* The UL itself */
 .photos-list {
-    display: flex;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 198px;
+    grid-template-rows: 198px 198px;
+    grid-template-columns: repeat(4, 1fr);
     gap: 0.75rem;
     padding: 0;
     margin: 0;
     list-style: none;
 }
 
-/* Each LI scroll-snaps into place */
+/* force odd items into the first row */
+.photos-list li:nth-child(odd) {
+    grid-row: 1;
+}
+
+/* force even items into the second row */
+.photos-list li:nth-child(even) {
+    grid-row: 2;
+}
+
 .photos-list li {
-    position: relative;
-    flex: 0 0 auto;
-    width: 160px;
-    height: 198px;
+    width: 100%;
+    aspect-ratio: 1;
+    /* fill the grid cell */
+    height: 0;
+    padding-bottom: 100%;
+    /* maintain a 1:1 aspect ratio */
     border-radius: 4px;
     overflow: hidden;
-    background: #eee;
-    scroll-snap-align: start;
-    cursor: pointer;
+    position: relative;
+}
+
+.photos-list li img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 /* Selection overlay (hidden by default) */
@@ -985,4 +1072,187 @@ body {
     font-weight: 500;
     font-family: 'Montserrat', sans-serif;
     white-space: nowrap;
+}
+
+.back-button {
+    /* position unchanged */
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    left: 12px;
+
+    /* remove background circle */
+    background: transparent;
+    padding: 8px;
+    padding-left: 0;
+    /* keeps the tap area comfy */
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    transition: none;
+}
+
+.back-button:hover {
+    /* no hover background either */
+    background: transparent;
+}
+
+.back-button svg {
+    /* white, slightly thicker stroke */
+    stroke: #fff;
+    stroke-width: 1.5;
+    width: 30px;
+    height: 30px;
+}
+
+.bio-body {
+    position: relative;
+    /* for absolutely-positioned toggle */
+}
+
+/* 3-line collapse */
+.bio-content {
+    position: relative;
+    overflow: hidden;
+    /* 3 lines */
+    padding-right: 4rem;
+    /* room for the toggle at end */
+    transition: max-height .3s;
+}
+
+/* when expanded, show all text */
+.bio-content.expanded {
+    max-height: none;
+}
+
+/* the inline toggle at the end of text */
+.bio-toggle {
+    position: absolute;
+    bottom: 0.1em;
+    /* just above bottom of the last line */
+    right: 0.5rem;
+    /* inset from the right edge */
+    background: #fff;
+    /* covers text behind it */
+    padding: 0 .25rem;
+    cursor: pointer;
+    font-weight: 600;
+    color: #000;
+}
+
+/* once expanded, make it part of the flow on its own line */
+.bio-content.expanded .bio-toggle {
+    position: static;
+    float: right;
+    background: transparent;
+    padding: 0 .25rem;
+}
+
+.bio-buttons {
+    display: inline-flex;
+    gap: 0.5rem;
+}
+
+/* 1) scroll container */
+.photos-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.5rem;
+    /* give room for shadow or padding */
+}
+
+/* 2) two-row, column-flow grid */
+.photos-list {
+    display: grid;
+    grid-auto-flow: column;
+    /* fill down then over */
+    grid-auto-columns: 198px;
+    /* fixed thumbnail width */
+    grid-template-rows: 198px 198px;
+    /* two fixed thumbnail heights */
+    gap: 0.75rem;
+    /* match your spacing */
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* 3) make images cover their cells */
+.photos-list li {
+    overflow: hidden;
+    border-radius: 0.5rem;
+}
+
+.photos-list li img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.photos-list {
+    display: inline-grid;
+    /* shrink-to-content in the inline axis */
+    grid-auto-flow: column;
+    /* fill down then over */
+    grid-auto-columns: 198px;
+    /* each column is 198px wide */
+    grid-template-rows: 198px 198px;
+    /* two rows, each 198px tall */
+    gap: 0.75rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.photos-list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 198px;
+    grid-template-rows: 198px 198px;
+    gap: 0.75rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+
+    /* **new**: make the container only as wide as its grid cells */
+    width: max-content;
+}
+
+/* 1) Keep the horizontal scroll wrapper */
+.photos-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 2) Make the UL shrink‐to‐its‐content width, flow column-by-column, two rows */
+.photos-list {
+    display: grid;
+    /* flow items down then to the next column */
+    grid-auto-flow: column;
+    /* each column is 198px wide */
+    grid-auto-columns: 198px;
+    /* exactly two rows, each 198px tall */
+    grid-template-rows: 198px 198px;
+    gap: 0.75rem;
+
+    /* THIS is the key: force the grid to size to its children */
+    width: max-content;
+
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* 3) Ensure each <li> and its <img> fill their cell */
+.photos-list li {
+    overflow: hidden;
+    border-radius: 0.5rem;
+}
+
+.photos-list li img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
