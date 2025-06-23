@@ -16,7 +16,7 @@
   <aside class="side-menu" id="side-menu">
     <ul class="side-menu__list">
       <li class="side-menu__item"><a href="#">Головна сторінка</a></li>
-      <li class="side-menu__item"><a href="/add_person.html">Добавити особу</a></li>
+      <li class="side-menu__item"><a href="add_person.html">Добавити особу</a></li>
       <li class="side-menu__item"><a href="/buy_premium">Придбати Преміум QR</a></li>
       <li class="side-menu__item"><a href="/notable">Видатні особи України</a></li>
       <li class="side-menu__item"><a href="/funeral_services">Ритуальні послуги</a></li>
@@ -100,25 +100,16 @@
     const sideMenu = document.getElementById('side-menu');
     const overlay = document.getElementById('overlay');
 
-    function openMenu() {
-      sideMenu.classList.add('open');
-      overlay.classList.add('open');
-    }
-    function closeMenu() {
+    // toggle open/close when clicking the button
+    menuBtn.addEventListener('click', () => {
+      sideMenu.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+
+    // always close when clicking outside
+    overlay.addEventListener('click', () => {
       sideMenu.classList.remove('open');
       overlay.classList.remove('open');
-    }
-
-    menuBtn.addEventListener('click', openMenu);
-    overlay.addEventListener('click', closeMenu);
-  </script>
-  <script>
-    // run on every page
-    document.querySelectorAll('.side-menu__item a').forEach(link => {
-      // compare current URL path (or full href) to the link’s href
-      if (link.href === window.location.href) {
-        link.parentElement.classList.add('current');
-      }
     });
   </script>
 </body>
