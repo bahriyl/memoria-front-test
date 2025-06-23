@@ -15,8 +15,8 @@
     <!-- Side-drawer menu -->
     <aside class="side-menu" id="side-menu">
         <ul class="side-menu__list">
-            <li class="side-menu__item"><a href="#">Головна сторінка</a></li>
-            <li class="side-menu__item"><a href="/add_person">Добавити особу</a></li>
+            <li class="side-menu__item"><a href="/index.html">Головна сторінка</a></li>
+            <li class="side-menu__item"><a href="/add_person.html">Добавити особу</a></li>
             <li class="side-menu__item"><a href="/buy_premium">Придбати Преміум QR</a></li>
             <li class="side-menu__item"><a href="/notable">Видатні особи України</a></li>
             <li class="side-menu__item"><a href="/funeral_services">Ритуальні послуги</a></li>
@@ -51,12 +51,33 @@
 
             <!-- Рік народження та рік смерті -->
             <div class="form-group year-group">
-                <select id="birthYear" name="birthYear">
-                    <option value="" disabled selected>Рік народження</option>
-                </select>
-                <select id="deathYear" name="deathYear">
-                    <option value="" disabled selected>Рік смерті</option>
-                </select>
+                <div class="year-pill">
+                    <select id="birthYear" name="birthYear" required>
+                        <option value="" disabled selected>Рік народження</option>
+                    </select>
+                    <button type="button" class="icon-btn clear-btn" id="clear-birth"
+                        aria-label="Скинути рік народження">
+                        <!-- your “×” SVG here exactly as in city/cem clear-btn -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="year-pill">
+                    <select id="deathYear" name="deathYear" required>
+                        <option value="" disabled selected>Рік смерті</option>
+                    </select>
+                    <button type="button" class="icon-btn clear-btn" id="clear-death" aria-label="Скинути рік смерті">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <!-- Назва населеного пункту -->
@@ -102,10 +123,21 @@
             <!-- Додаткові поля для видатної особи -->
             <div id="notable-fields" class="notable-fields">
                 <div class="form-group">
-                    <select id="activityArea" name="activityArea">
-                        <option value="" disabled selected>Сфера діяльності</option>
-                        <option value="Актор" disabled selected>Актор</option>
-                    </select>
+                    <div class="year-pill">
+                        <select id="activityArea" name="activityArea" required>
+                            <option value="" disabled selected>Сфера діяльності</option>
+                            <option value="Актор">Актор</option>
+                            <option value="Письменник">Письменник</option>
+                        </select>
+                        <button type="button" class="icon-btn clear-btn" id="clear-activity"
+                            aria-label="Скинути сферу діяльності">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <input type="url" id="internetLinks" name="internetLinks"

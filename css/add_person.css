@@ -170,7 +170,7 @@ header {
 
 .container h2 {
     margin-top: 76px;
-    margin-bottom: 25px;
+    margin-bottom: 20px;
     font-size: 24px;
 }
 
@@ -185,28 +185,113 @@ h2 {
 
 /* 11) Inputs, Selects, Textareas */
 input[type="text"],
+input[type="url"],
 select,
-textarea,
-input,
-input::placeholder {
+textarea {
     width: 100%;
     height: 49px;
     padding: 12px;
+    padding-left: 22px;
     border: none;
     border-radius: 12px;
     background: #EFF2F5;
     font-family: 'Montserrat', sans-serif;
     font-size: 16px;
     font-weight: 460;
-    color: #72767D;
+    color: #222222;
     outline: none;
     resize: vertical;
 }
 
+textarea {
+    height: 150px;
+    padding-top: 16px;
+    line-height: 26px;
+}
+
+textarea::placeholder {
+    color: #72767D;
+    line-height: 26px;
+    font-size: 16px;
+}
+
+input[type="text"]::placeholder {
+    color: #72767D;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 460;
+}
+
+input[type="url"]::placeholder {
+    color: #72767D;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 460;
+}
+
 .year-group {
     display: flex;
-    gap: 12px;
+    gap: var(--spacing-sm);
 }
+
+.year-pill {
+    position: relative;
+    flex: 1;
+}
+
+.year-pill select {
+    padding-right: calc(var(--spacing-md) + 2.5rem);
+}
+
+.year-pill .clear-btn {
+    display: none;
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--color-muted);
+}
+
+.year-pill select:valid+.clear-btn {
+    display: flex;
+}
+
+.year-group select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    /* make room on the right */
+    padding-right: 8px;
+    padding-left: 8px;
+    background-color: #EFF2F5;
+    border-radius: 12px;
+    border: none;
+    height: 49px;
+    width: 100%;
+    font-size: 16px;
+    color: #72767D;
+}
+
+.year-group select {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 19px;
+    color: var(--color-muted);
+}
+
+.year-group select:valid {
+    color: var(--color-text);
+    background-image: none;
+    padding-right: 8px;
+}
+
+.year-pill select:valid+.clear-btn {
+    display: flex;
+}
+
 
 /* 12) Checkboxes */
 .checkbox-group label {
@@ -220,8 +305,8 @@ input::placeholder {
 
 .checkbox-group input[type="checkbox"] {
     margin-right: 8px;
-    width: 23px;
-    height: 23px;
+    width: 23px !important;
+    height: 23px !important;
 }
 
 .checkbox-desc {
@@ -245,6 +330,10 @@ input[type="checkbox"] {
     cursor: pointer;
     transition: background 0.2s ease;
     background-color: #FFFFFF;
+    transform: scale(0.95);
+    transform-origin: top left;
+    margin-right: 0.4em;
+    /* adjust for the shrunken size */
 }
 
 input[type="checkbox"]::after {
@@ -260,22 +349,50 @@ input[type="checkbox"]:checked::after {
     transform: scale(1);
 }
 
+#activityArea {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    /* pill shape */
+    width: 100%;
+    height: 49px;
+    padding: 12px 8px 12px 22px;
+    border: none;
+    border-radius: 12px;
+    background:
+        #EFF2F5 url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 18px center;
+    background-size: 19px;
+    font-size: 16px;
+    color: var(--color-muted);
+}
+
+#activityArea:valid {
+    background-image: none;
+    color: var(--color-text);
+}
+
+
 /* 12.1) Checkbox-group background */
 .checkbox-group {
     background: var(--color-bg-light);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
+    padding-bottom: 6px;
+    padding-top: 20px;
 }
 
 /* 13) Submit Button */
 .submit-btn {
     width: 100%;
+    height: 49px;
     padding: 14px;
-    background: #397355;
+    background: #1B8B59;
     color: white;
     border: none;
     border-radius: 12px;
-    font-size: 16px;
+    font-size: 17px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
     cursor: pointer;
 }
 

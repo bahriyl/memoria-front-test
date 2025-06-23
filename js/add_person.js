@@ -1,7 +1,24 @@
-const API_URL = 'http://192.168.42.192:5000';
+const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app/';
 
 // Після завантаження сторінки заповнимо селекти року
 document.addEventListener('DOMContentLoaded', () => {
+    // at the very top of the DOMContentLoaded callback
+    const menuBtn = document.getElementById('menu-btn');
+    const sideMenu = document.getElementById('side-menu');
+    const overlay = document.getElementById('overlay');
+
+    // toggle the drawer on button click
+    menuBtn.addEventListener('click', () => {
+        sideMenu.classList.toggle('open');
+        overlay.classList.toggle('open');
+    });
+
+    // close when clicking the backdrop
+    overlay.addEventListener('click', () => {
+        sideMenu.classList.remove('open');
+        overlay.classList.remove('open');
+    });
+
     const birthSelect = document.getElementById('birthYear');
     const deathSelect = document.getElementById('deathYear');
     const currentYear = new Date().getFullYear();
@@ -28,6 +45,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const cemSuggest = document.getElementById('cemetery-suggestions');
 
     let cityTimer, cemTimer;
+
+    async function fetchCemeteries(search = '') {
+        const params = new URLSearchParams({
+            search,
+            area: cityInput.value || ''
+        });
+        try {
+            const res = await fetch(`${API_URL}/api/cemeteries?${params}`);
+            const list = await res.json();
+            cemSuggest.innerHTML = list.length
+                ? list.map(c => `<li>${c}</li>`).join('')
+                : `<li class="no-results">Збігів не знайдено</li>`;
+            cemSuggest.style.display = 'block';
+        } catch (e) {
+            console.error(e);
+        }
+    }
 
     // === CITY ===
     // show/hide clear-button
@@ -85,27 +119,23 @@ document.addEventListener('DOMContentLoaded', () => {
     cemInput.addEventListener('input', () => {
         clearCemBtn.style.display = cemInput.value ? 'flex' : 'none';
         clearTimeout(cemTimer);
-        cemTimer = setTimeout(async () => {
+        cemTimer = setTimeout(() => {
             if (cemInput.value.length < 1) {
                 cemSuggest.innerHTML = '';
                 cemSuggest.style.display = 'none';
-                return;
-            }
-            try {
-                const params = new URLSearchParams({
-                    search: cemInput.value,
-                    area: cityInput.value || ''
-                });
-                const res = await fetch(`${API_URL}/api/cemeteries?${params}`);
-                const list = await res.json();
-                cemSuggest.innerHTML = list.length
-                    ? list.map(c => `<li>${c}</li>`).join('')
-                    : `<li class="no-results">Збігів не знайдено</li>`;
-                cemSuggest.style.display = 'block';
-            } catch (e) {
-                console.error(e);
+            } else {
+                fetchCemeteries(cemInput.value);
             }
         }, 300);
+    });
+
+    cemInput.addEventListener('focus', () => {
+        // only show when a city is chosen
+        if (!cityInput.value) return;
+        // hide the clear-x until they actually pick one
+        clearCemBtn.style.display = 'none';
+        // fetch *all* cemeteries for that city (empty search)
+        fetchCemeteries('');
     });
 
     cemSuggest.addEventListener('click', e => {
@@ -206,5 +236,49 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(err);
             alert('Помилка мережі. Перевірте підключення.');
         }
+    });
+
+    const birthSelector = document.getElementById('birthYear');
+    const deathSelector = document.getElementById('deathYear');
+    const clearBirth = document.getElementById('clear-birth');
+    const clearDeath = document.getElementById('clear-death');
+
+    // init visibility
+    clearBirth.style.display = birthSelector.value ? 'flex' : 'none';
+    clearDeath.style.display = deathSelector.value ? 'flex' : 'none';
+
+    // on change, toggle button
+    birthSelector.addEventListener('change', () => {
+        clearBirth.style.display = birthSelector.value ? 'flex' : 'none';
+    });
+    deathSelector.addEventListener('change', () => {
+        clearDeath.style.display = deathSelector.value ? 'flex' : 'none';
+    });
+
+    // on click, clear
+    clearBirth.addEventListener('click', () => {
+        birthSelector.value = '';
+        clearBirth.style.display = 'none';
+    });
+    clearDeath.addEventListener('click', () => {
+        deathSelector.value = '';
+        clearDeath.style.display = 'none';
+    });
+
+    const clearActivity = document.getElementById('clear-activity');
+    const activitySelect = document.getElementById('activityArea');
+
+    // init visibility
+    clearActivity.style.display = activitySelect.value ? 'flex' : 'none';
+
+    // on change, toggle button
+    activitySelect.addEventListener('change', () => {
+        clearActivity.style.display = activitySelect.value ? 'flex' : 'none';
+    });
+
+    // on click, clear
+    clearActivity.addEventListener('click', () => {
+        activitySelect.value = '';
+        clearActivity.style.display = 'none';
     });
 });
