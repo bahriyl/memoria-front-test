@@ -11,26 +11,6 @@ function debounce(fn, ms) {
 
 document.addEventListener('DOMContentLoaded', () => {
     //
-    // 1) DELIVERY DETAILS MODAL SETUP
-    //
-    const deliveryModal = document.getElementById('deliveryModal');
-    const modalCloseBtn = document.getElementById('deliveryModalClose');
-    const modalSubmitBtn = document.getElementById('deliveryModalSubmit');
-    // const mainSubmitBtn = document.getElementById('submitBtn');
-
-    // ensure modal is hidden on load
-    deliveryModal.hidden = true;
-
-    // close modal on × click
-    modalCloseBtn.addEventListener('click', () => {
-        deliveryModal.hidden = true;
-    });
-    // close modal when clicking outside the content
-    deliveryModal.addEventListener('click', e => {
-        if (e.target === deliveryModal) deliveryModal.hidden = true;
-    });
-
-    //
     // 2) FILTER ELEMENTS & RESULT BLOCKS
     //
     const nameInput = document.getElementById('searchName');
@@ -217,26 +197,5 @@ document.addEventListener('DOMContentLoaded', () => {
     //
     addPersonBtn.addEventListener('click', () => {
         window.location.href = '/add_person.html';
-    });
-
-    //
-    // 8) OPEN THE MODAL
-    //
-    mainSubmitBtn.addEventListener('click', e => {
-        e.preventDefault();
-        // only open if someone is selected
-        if (!selectedPerson) return;
-        deliveryModal.hidden = false;
-    });
-
-    //
-    // 9) FINAL SUBMIT INSIDE THE MODAL
-    //
-    modalSubmitBtn.addEventListener('click', e => {
-        e.preventDefault();
-        // TODO: fire your delivery‐details API call here...
-        // for now, just close
-        deliveryModal.hidden = true;
-        alert('Заявку прийнято! Ми з вами зв’яжемося.');
     });
 });
