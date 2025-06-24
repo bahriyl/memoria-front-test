@@ -87,6 +87,69 @@
         </div>
     </main>
 
+    <!-- DELIVERY DETAILS MODAL -->
+    <div id="deliveryModal" class="modal-overlay" hidden>
+        <div class="modal-content">
+            <button id="deliveryModalClose" class="modal-close" aria-label="Закрити">&times;</button>
+
+            <h2 class="modal-title">Вкажіть деталі доставки</h2>
+
+            <div class="modal-form">
+                <div class="form-group">
+                    <input type="text" id="delName" placeholder="Вкажіть ваш ПІБ…" />
+                </div>
+                <div class="form-group suggestions-container">
+                    <input type="text" id="delCity" placeholder="Населений пункт…" autocomplete="off" />
+                    <button class="icon-btn clear-btn" id="clearDelCity" aria-label="Очистити">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                    <ul class="suggestions-list" id="delCitySuggestions"></ul>
+                </div>
+                <div class="form-group">
+                    <input type="tel" id="delPhone" placeholder="Вкажіть ваш номер телефону…" />
+                </div>
+                <div class="form-group suggestions-container">
+                    <input type="text" id="delBranch" placeholder="Відділення НП…" autocomplete="off" />
+                    <button class="icon-btn clear-btn" id="clearDelBranch" aria-label="Очистити">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                    <ul class="suggestions-list" id="delBranchSuggestions"></ul>
+                </div>
+            </div>
+
+            <h3 class="modal-subtitle">Спосіб оплати</h3>
+
+            <label class="radio-row">
+                <input type="radio" name="payment" value="cod" checked />
+                <span>Накладний платіж (700 грн + доставка)</span>
+            </label>
+
+            <label class="radio-row modal-pay-now">
+                <input type="radio" name="payment" value="online" />
+                <span>Оплатити зараз</span>
+                <span class="pay-icons">
+                    <img src="/img/apple-pay.png" alt="Apple Pay" />
+                    <img src="/img/google-pay.png" alt="G Pay" />
+                    <img src="/img/visa.png" alt="Visa" />
+                    <img src="/img/mastercard.png" alt="MasterCard" />
+                </span>
+            </label>
+
+            <button id="deliveryModalSubmit" class="modal-submit-btn">
+                Оформити заявку
+            </button>
+        </div>
+    </div>
+
+
     <script src="js/premium_qr_person.js"></script>
 </body>
 

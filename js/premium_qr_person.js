@@ -11,6 +11,26 @@ function debounce(fn, ms) {
 
 document.addEventListener('DOMContentLoaded', () => {
     //
+    // 1) DELIVERY DETAILS MODAL SETUP
+    //
+    const deliveryModal = document.getElementById('deliveryModal');
+    const modalCloseBtn = document.getElementById('deliveryModalClose');
+    const modalSubmitBtn = document.getElementById('deliveryModalSubmit');
+    const mainSubmitBtn = document.getElementById('submitBtn');
+
+    // ensure modal is hidden on load
+    deliveryModal.hidden = true;
+
+    // close modal on × click
+    modalCloseBtn.addEventListener('click', () => {
+        deliveryModal.hidden = true;
+    });
+    // close modal when clicking outside the content
+    deliveryModal.addEventListener('click', e => {
+        if (e.target === deliveryModal) deliveryModal.hidden = true;
+    });
+
+    //
     // 2) FILTER ELEMENTS & RESULT BLOCKS
     //
     const nameInput = document.getElementById('searchName');
@@ -30,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const foundContainer = document.getElementById('foundContainer');
     const selectedContainer = document.getElementById('selectedContainer');
     const selectedList = document.getElementById('selectedList');
-    const mainSubmitBtn = document.getElementById('submitBtn');
 
     let selectedPerson = null;
 
@@ -198,4 +217,170 @@ document.addEventListener('DOMContentLoaded', () => {
     addPersonBtn.addEventListener('click', () => {
         window.location.href = '/add_person.html';
     });
+
+    //
+    // 8) OPEN THE MODAL
+    //
+    mainSubmitBtn.addEventListener('click', e => {
+        e.preventDefault();
+        // only open if someone is selected
+        // if (!selectedPerson) return;
+        deliveryModal.hidden = false;
+    });
+
+    //
+    // 9) FINAL SUBMIT INSIDE THE MODAL
+    //
+    modalSubmitBtn.addEventListener('click', e => {
+        e.preventDefault();
+        // TODO: fire your delivery‐details API call here...
+        // for now, just close
+        deliveryModal.hidden = true;
+        alert('Заявку прийнято! Ми з вами зв’яжемося.');
+    });
+
+    // ————————————————————————————————————————
+    // 10) Nova Poshta “delCity” auto-suggestions
+    // ————————————————————————————————————————
+    const delCityInput = document.getElementById('delCity');
+    const clearDelCityBtn = document.getElementById('clearDelCity');
+    const delCitySuggest = document.getElementById('delCitySuggestions');
+
+    let selectedCityRef = null;
+
+    function setupNPPCitySuggestions(input, clearBtn, listEl) {
+        clearBtn.style.display = 'none';
+
+        const doFetch = debounce(async () => {
+            const q = input.value.trim();
+            if (!q) {
+                listEl.innerHTML = '';
+                listEl.style.display = 'none';
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/api/settlements?q=${encodeURIComponent(q)}`);
+                const json = await res.json();
+                const addresses = (json.data?.[0]?.Addresses) || [];
+
+                if (addresses.length === 0) {
+                    listEl.innerHTML = '<li class="no-results">Нічого не знайдено</li>';
+                } else {
+                    listEl.innerHTML = addresses
+                        .map(addr =>
+                            // render Present, keep Ref in data-ref
+                            `<li data-ref="${addr.Ref}">${addr.Present}</li>`
+                        )
+                        .join('');
+                }
+                listEl.style.display = 'block';
+            } catch (e) {
+                console.error('NP API error', e);
+            }
+        }, 300);
+
+        input.addEventListener('input', () => {
+            clearBtn.style.display = input.value ? 'flex' : 'none';
+            doFetch();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            input.value = '';
+            clearBtn.style.display = 'none';
+            listEl.innerHTML = '';
+            listEl.style.display = 'none';
+            selectedCityRef = null;
+            input.focus();
+        });
+
+        listEl.addEventListener('click', e => {
+            if (e.target.tagName === 'LI') {
+                // fill input with Present
+                input.value = e.target.textContent;
+                // store the Ref for later
+                selectedCityRef = e.target.dataset.ref;
+                listEl.style.display = 'none';
+                clearBtn.style.display = 'flex';
+                console.log('Selected city Ref:', selectedCityRef);
+            }
+        });
+    }
+
+    setupNPPCitySuggestions(delCityInput, clearDelCityBtn, delCitySuggest);
+
+    // ————————————————————————————————————————
+    // 11) Nova Poshta “delBranch” auto-suggestions
+    // ————————————————————————————————————————
+    const delBranchInput = document.getElementById('delBranch');
+    const clearDelBranchBtn = document.getElementById('clearDelBranch');
+    const delBranchSuggest = document.getElementById('delBranchSuggestions');
+
+    // will hold the chosen branch Ref
+    let selectedBranchRef = null;
+
+    function setupNPBranchSuggestions(input, clearBtn, listEl) {
+        clearBtn.style.display = 'none';
+
+        const doFetch = debounce(async () => {
+            const q = input.value.trim();
+            // nothing to do if no city yet or no q
+            if (!q || !selectedCityRef) {
+                listEl.innerHTML = '';
+                listEl.style.display = 'none';
+                selectedBranchRef = null;
+                return;
+            }
+
+            try {
+                const url = `${API_URL}/api/warehouses`
+                    + `?cityRef=${encodeURIComponent(selectedCityRef)}`
+                    + `&q=${encodeURIComponent(q)}`;
+                const res = await fetch(url);
+                const json = await res.json();
+                const warehouses = json.data || [];
+
+                if (warehouses.length === 0) {
+                    listEl.innerHTML = '<li class="no-results">Нічого не знайдено</li>';
+                } else {
+                    listEl.innerHTML = warehouses
+                        .map(w =>
+                            // show the human-readable Description and keep Ref
+                            `<li data-ref="${w.Ref}">${w.Description}</li>`
+                        )
+                        .join('');
+                }
+                listEl.style.display = 'block';
+            } catch (err) {
+                console.error('NP getWarehouses error', err);
+            }
+        }, 300);
+
+        input.addEventListener('input', () => {
+            clearBtn.style.display = input.value ? 'flex' : 'none';
+            doFetch();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            input.value = '';
+            clearBtn.style.display = 'none';
+            listEl.innerHTML = '';
+            listEl.style.display = 'none';
+            selectedBranchRef = null;
+            input.focus();
+        });
+
+        listEl.addEventListener('click', e => {
+            if (e.target.tagName === 'LI') {
+                input.value = e.target.textContent;
+                selectedBranchRef = e.target.dataset.ref;
+                listEl.style.display = 'none';
+                clearBtn.style.display = 'flex';
+                console.log('Selected branch Ref:', selectedBranchRef);
+            }
+        });
+    }
+
+    // initialize
+    setupNPBranchSuggestions(delBranchInput, clearDelBranchBtn, delBranchSuggest);
 });
