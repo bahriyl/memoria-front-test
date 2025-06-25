@@ -308,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         amount: 100,        // сума в копійках
                         ccy: 980,           // UAH
                         // Після оплати Monopay поверне юзера сюди з invoiceId у query
-                        redirectUrl: `${window.location.origin}/?invoiceQr=true`,
+                        redirectUrl: window.location.pathname + '?invoiceQr=true',
                         webHookUrl: `${API_URL}/api/monopay/webhook`,
                         merchantPaymInfo: {
                             // тут можна передати довільну зовнішню референцію,
