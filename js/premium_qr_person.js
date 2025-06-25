@@ -36,6 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const nameInput = document.getElementById('searchName');
     const birthSelect = document.getElementById('birthYearFilter');
     const deathSelect = document.getElementById('deathYearFilter');
+    const clearBirthBtn = document.getElementById('clearBirth');
+    const clearDeathBtn = document.getElementById('clearDeath');
     const cemInput = document.getElementById('cemeteryFilter');
     const clearCemBtn = document.getElementById('clearCemetery');
     const cemSuggest = document.getElementById('cemSuggestions');
@@ -52,6 +54,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedList = document.getElementById('selectedList');
 
     let selectedPerson = null;
+
+    birthSelect.addEventListener('change', () => {
+        clearBirthBtn.style.display = birthSelect.value ? 'flex' : 'none';
+        triggerFetch();
+    });
+
+    clearBirthBtn.addEventListener('click', () => {
+        birthSelect.value = '';
+        clearBirthBtn.style.display = 'none';
+        triggerFetch();
+    });
+
+    deathSelect.addEventListener('change', () => {
+        clearDeathBtn.style.display = deathSelect.value ? 'flex' : 'none';
+        triggerFetch();
+    });
+
+    clearDeathBtn.addEventListener('click', () => {
+        deathSelect.value = '';
+        clearDeathBtn.style.display = 'none';
+        triggerFetch();
+    });
 
     //
     // 3) POPULATE YEARS
@@ -91,7 +115,13 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const res = await fetch(`${API_URL}/api/${endpoint}?search=${encodeURIComponent(q)}`);
                 const arr = await res.json();
-                listEl.innerHTML = arr.map(item => `<li>${item}</li>`).join('');
+
+                if (arr.length === 0) {
+                    listEl.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
+                } else {
+                    listEl.innerHTML = arr.map(item => `<li>${item}</li>`).join('');
+                }
+
                 listEl.style.display = 'block';
             } catch (e) {
                 console.error(e);
@@ -155,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="years">${p.birthYear} - ${p.deathYear}</div>
           </div>
           <button aria-label="Select">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/>
               <line x1="5"  y1="12" x2="19" y2="12"/>
             </svg>
@@ -198,17 +228,25 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="years">${p.birthYear} - ${p.deathYear}</div>
         </div>
         <button aria-label="Deselect">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="6"  y1="12" x2="18" y2="12"/>
           </svg>
         </button>
       </li>`;
         selectedList.querySelector('button').addEventListener('click', () => {
+            // скидати вибір
+            selectedPerson = null;
+
+            // приховуємо секцію обраної особи і повертаємось до списку
             selectedContainer.hidden = true;
             foundContainer.hidden = false;
+
+            // якщо раніше показувалася помилка — сховати її
+            document.getElementById('selectError').hidden = true;
         });
         foundContainer.hidden = true;
         selectedContainer.hidden = false;
+        document.getElementById('selectError').hidden = true;
     }
 
     //
@@ -221,22 +259,101 @@ document.addEventListener('DOMContentLoaded', () => {
     //
     // 8) OPEN THE MODAL
     //
+    const selectError = document.getElementById('selectError');
+
     mainSubmitBtn.addEventListener('click', e => {
         e.preventDefault();
-        // only open if someone is selected
-        // if (!selectedPerson) return;
+
+        // якщо ніхто не вибраний — показати помилку і нічого більше не робити
+        if (!selectedPerson) {
+            selectError.hidden = false;
+            return;
+        }
+        // якщо є вибір — сховати помилку і відкрити модалку
+        selectError.hidden = true;
         deliveryModal.hidden = false;
     });
 
     //
     // 9) FINAL SUBMIT INSIDE THE MODAL
     //
-    modalSubmitBtn.addEventListener('click', e => {
+    modalSubmitBtn.addEventListener('click', async e => {
         e.preventDefault();
-        // TODO: fire your delivery‐details API call here...
-        // for now, just close
-        deliveryModal.hidden = true;
-        alert('Заявку прийнято! Ми з вами зв’яжемося.');
+
+        const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+        const errorEl = document.getElementById('paymentError');
+        errorEl.hidden = true;
+        errorEl.textContent = '';
+
+        // Дані для вашого /api/orders
+        const deliveryData = {
+            personId: selectedPerson.id,
+            personName: selectedPerson.name,
+            name: document.getElementById('delName').value.trim(),
+            cityRef: selectedCityRef,
+            cityName: selectedCityName,
+            branchRef: selectedBranchRef,
+            branchDesc: selectedBranchDescription,
+            phone: document.getElementById('delPhone').value.trim(),
+            paymentMethod: paymentMethod
+        };
+
+        try {
+            if (paymentMethod === 'online') {
+                // 1) Створюємо інвойс через Monopay (через ваш бекенд)
+                const invoiceRes = await fetch(`${API_URL}/api/merchant/invoice/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount: 100,        // сума в копійках
+                        ccy: 980,           // UAH
+                        // Після оплати Monopay поверне юзера сюди з invoiceId у query
+                        redirectUrl: `${window.location.origin}/?invoiceQr=true`,
+                        webHookUrl: `${API_URL}/api/monopay/webhook`,
+                        merchantPaymInfo: {
+                            // тут можна передати довільну зовнішню референцію,
+                            // або залишити порожнім, якщо не потрібна
+                            destination: 'Оплата QR-заявки',
+                            comment: `Замовлення ${selectedPerson.name}`
+                        }
+                    })
+                });
+                if (!invoiceRes.ok) throw new Error('Не вдалось створити інвойс');
+                const { invoiceId, pageUrl } = await invoiceRes.json();
+
+                // 2) Створюємо запис у MongoDB зі статусом pending і додаємо invoiceId
+                const orderPayload = {
+                    ...deliveryData,
+                    invoiceId,             // додаємо поле invoiceId
+                    status: 'pending'      // за потреби
+                };
+                const orderRes = await fetch(`${API_URL}/api/orders`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderPayload)
+                });
+                if (!orderRes.ok) throw new Error('Не вдалось створити заявку');
+                const { orderId } = await orderRes.json();
+
+                // 3) Редіректимо клієнта на сторінку оплати
+                // Щоб Monopay повернув correct invoiceId, можна формувати redirectUrl з уже відомим invoiceId:
+                window.location.href = `${pageUrl}?redirectUrl=${encodeURIComponent(`${window.location.origin}/order-success?orderId=${orderId}&invoiceId=${invoiceId}`)}`;
+            } else {
+                // COD: просто створюємо заявку й закриваємо модалку
+                const codRes = await fetch(`${API_URL}/api/orders`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(deliveryData)
+                });
+                if (!codRes.ok) throw new Error('Не вдалось створити заявку');
+                deliveryModal.hidden = true;
+                alert('Заявку прийнято! Менеджер з вами зв’яжеться.');
+            }
+        } catch (err) {
+            errorEl.textContent = err.message;
+            errorEl.hidden = false;
+            console.error(err);
+        }
     });
 
     // ————————————————————————————————————————
@@ -247,6 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const delCitySuggest = document.getElementById('delCitySuggestions');
 
     let selectedCityRef = null;
+    let selectedCityName = '';
 
     function setupNPPCitySuggestions(input, clearBtn, listEl) {
         clearBtn.style.display = 'none';
@@ -300,6 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.value = e.target.textContent;
                 // store the Ref for later
                 selectedCityRef = e.target.dataset.ref;
+                selectedCityName = e.target.textContent;
                 listEl.style.display = 'none';
                 clearBtn.style.display = 'flex';
                 console.log('Selected city Ref:', selectedCityRef);
@@ -318,6 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // will hold the chosen branch Ref
     let selectedBranchRef = null;
+    let selectedBranchDescription = '';
 
     function setupNPBranchSuggestions(input, clearBtn, listEl) {
         clearBtn.style.display = 'none';
@@ -374,6 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.tagName === 'LI') {
                 input.value = e.target.textContent;
                 selectedBranchRef = e.target.dataset.ref;
+                selectedBranchDescription = e.target.textContent;
                 listEl.style.display = 'none';
                 clearBtn.style.display = 'flex';
                 console.log('Selected branch Ref:', selectedBranchRef);

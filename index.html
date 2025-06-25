@@ -92,6 +92,16 @@
     <div id="loading" class="loading">Завантаження…</div>
   </main>
 
+  <!-- Invoice Confirmation Modal -->
+  <div id="invoiceModal" class="modal">
+    <div class="modal__content">
+      <p class="modal__message">
+        Дякуємо за замовлення! Наш менеджер незабаром з Вами зв'яжеться
+      </p>
+      <button id="invoiceModalClose" class="modal__close-btn">OK</button>
+    </div>
+  </div>
+
   <!-- Основна логіка табів, фільтрів, автодоповнення і рендеру -->
   <script src="js/people.js"></script>
   <script>
@@ -110,6 +120,27 @@
     overlay.addEventListener('click', () => {
       sideMenu.classList.remove('open');
       overlay.classList.remove('open');
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('invoiceQr') === 'true') {
+        const modal = document.getElementById('invoiceModal');
+        const closeBtn = document.getElementById('invoiceModalClose');
+
+        // показати
+        modal.classList.add('open');
+
+        // закрити при кліку на кнопку
+        closeBtn.addEventListener('click', () => {
+          modal.classList.remove('open');
+          // видалити параметр з URL (без перезавантаження)
+          const url = new URL(window.location.href);
+          url.searchParams.delete('invoiceQr');
+          window.history.replaceState({}, '', url);
+        });
+      }
     });
   </script>
 </body>

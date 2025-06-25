@@ -78,11 +78,11 @@ input[type="text"] {
     font-size: 16px;
     font-family: 'Montserrat', sans-serif;
     font-weight: 460;
-    color: #72767D;
+    color: #222222;
     outline: none;
 }
 
-input::placeholder {
+input[type="text"]::placeholder {
     color: #72767D;
 }
 
@@ -106,6 +106,7 @@ input::placeholder {
     border-radius: var(--radius-md);
     background: #EFF2F5;
     font-size: 16px;
+    font-weight: 460;
     font-family: 'Montserrat', sans-serif;
     color: #72767D;
     appearance: none;
@@ -115,6 +116,10 @@ input::placeholder {
     background-repeat: no-repeat;
     background-position: right 12px center;
     background-size: 1em;
+}
+
+.year-pill select:valid {
+    color: #222222;
 }
 
 /* clear-button (no arrow) */
@@ -131,8 +136,11 @@ input::placeholder {
     color: var(--color-muted);
 }
 
-.year-pill select:valid+.clear-btn {
-    display: flex;
+.year-pill .clear-btn svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke: currentColor;
+    stroke-width: 2;
 }
 
 /* 8) Suggestions (cemetery & area) */
@@ -150,7 +158,7 @@ input::placeholder {
     border-radius: var(--radius-md);
     background: #EFF2F5;
     font-size: 16px;
-    color: #72767D;
+    color: #222222;
     outline: none;
 }
 
@@ -168,10 +176,10 @@ input::placeholder {
 }
 
 .suggestions-container .clear-btn svg {
-    width: 1.9rem;
-    height: 1.9rem;
-    stroke: #90959C !important;
-    stroke-width: 1.7px;
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke: var(--color-muted) !important;
+    stroke-width: 2;
 }
 
 .suggestions-list {
@@ -210,7 +218,7 @@ input::placeholder {
 #foundLabel,
 #selectedContainer p {
     font-size: 0.875rem;
-    margin: 0 0 var(--spacing-sm);
+    margin: 0 0 18px;
 }
 
 .people-list {
@@ -222,8 +230,6 @@ input::placeholder {
 .people-list li {
     display: flex;
     align-items: center;
-    padding: var(--spacing-sm) var(--spacing-md);
-    margin-bottom: var(--spacing-sm);
 }
 
 .people-list li:last-child {
@@ -231,11 +237,11 @@ input::placeholder {
 }
 
 .people-list img {
-    width: 40px;
-    height: 40px;
+    width: 54px;
+    height: 54px;
     border-radius: 50%;
     object-fit: cover;
-    margin-right: var(--spacing-md);
+    margin-right: 12px;
 }
 
 .people-list .info {
@@ -243,26 +249,29 @@ input::placeholder {
 }
 
 .people-list .name {
-    font-size: 1rem;
-    font-weight: 500;
+    font-size: 15px;
+    font-weight: 550;
 }
 
 .people-list .years {
-    font-size: 0.875rem;
-    color: var(--color-muted);
+    font-size: 0.73rem;
+    font-weight: 500;
+    color: #333333;
+    margin-top: 2px;
 }
 
 .people-list button {
-    background: var(--color-accent);
+    background: #1B8B59;
     border: none;
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 25px;
+    height: 25px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     color: #fff;
+    margin-right: 12px;
 }
 
 .people-list button svg {
@@ -288,23 +297,22 @@ input::placeholder {
     /* keep your existing styles: */
     height: 49px;
     padding: 14px;
-    background: var(--color-accent);
+    margin-bottom: 21px;
+    background: #1B8B59;
     color: #fff;
     border: none;
     border-radius: 12px;
-    font-size: 1rem;
+    font-size: 17px;
     font-family: var(--font-base);
     font-weight: 600;
     cursor: pointer;
 }
 
-.submit-btn:hover {
-    background: #1A6C45;
-}
-
 /* ---- found label ---- */
 #foundLabel {
-    font-size: 0.875rem;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'Montserrat', sans-serif;
     color: var(--color-text);
     margin: 0 0 var(--spacing-sm);
     margin-bottom: 8px;
@@ -319,8 +327,8 @@ input::placeholder {
 #foundList li {
     display: flex;
     align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--color-border);
+    padding: 10px 0;
+    border-bottom: 0.75px solid var(--color-border);
 }
 
 #foundList li:last-child {
@@ -328,8 +336,8 @@ input::placeholder {
 }
 
 #foundList li img {
-    width: 40px;
-    height: 40px;
+    width: 54px;
+    height: 54px;
     border-radius: 50%;
     object-fit: cover;
     margin-right: 12px;
@@ -340,33 +348,35 @@ input::placeholder {
 }
 
 #foundList li .info .name {
-    font-size: 1rem;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 550;
     color: var(--color-text);
     line-height: 1.2;
 }
 
 #foundList li .info .years {
-    font-size: 0.875rem;
-    color: var(--color-muted);
+    font-size: 0.73rem;
+    font-weight: 500;
+    color: #333333;
     margin-top: 2px;
 }
 
 #foundList li button {
-    background: var(--color-accent);
+    background: #1B8B59;
     border: none;
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 25px;
+    height: 25px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    margin-right: 12px;
 }
 
 #foundList li button svg {
-    width: 16px;
-    height: 16px;
+    width: 30px;
+    height: 30px;
     stroke: #fff;
 }
 
@@ -462,7 +472,7 @@ input::placeholder {
 /* heading */
 .modal-title {
     margin: 0 0 var(--spacing-md);
-    font-family: var(--font-heading);
+    font-family: var(--font-base);
     font-size: 1.25rem;
     font-weight: 600;
     text-align: center;
@@ -477,8 +487,6 @@ input::placeholder {
     width: 100%;
     height: 49px;
     padding: 12px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
     font-family: var(--font-base);
     font-size: 16px;
     outline: none;
@@ -533,7 +541,7 @@ input::placeholder {
     position: relative;
     width: 100%;
     height: 49px;
-    background: var(--color-accent);
+    background: #1B8B59;
     color: #fff;
     border: none;
     border-radius: var(--radius-md);

@@ -373,7 +373,8 @@ h2 {
     transform: translateY(-50%);
     width: 20px;
     height: 20px;
-    background-size: 20px 20px;  /* ↑ scale SVG to fit */
+    background-size: 20px 20px;
+    /* ↑ scale SVG to fit */
     background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat center;
     pointer-events: none;
 }
@@ -620,4 +621,51 @@ body {
 main.container {
     overflow-y: auto;
     overflow-x: hidden;
+}
+
+/* ===== Invoice Confirmation Modal ===== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+}
+
+.modal.open {
+    display: flex;
+}
+
+.modal__content {
+    background: var(--color-bg);
+    padding: 1.5rem;
+    border-radius: var(--radius-md);
+    max-width: 90%;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal__message {
+    margin: 0 0 1rem;
+    font-size: 1rem;
+    color: var(--color-text);
+}
+
+.modal__close-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    background: var(--color-accent);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.modal__close-btn:hover {
+    opacity: 0.9;
 }
