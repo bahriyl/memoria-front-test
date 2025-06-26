@@ -249,7 +249,7 @@ main.container {
     padding: 8px 12px;
     background: var(--color-bg-light);
     border-radius: 14px;
-    margin: 8px var(--spacing-md);
+    margin: 25px var(--spacing-md);
     gap: 8px;
     height: 50px;
 }
