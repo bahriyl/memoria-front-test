@@ -1,7 +1,7 @@
 // js/profile.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    const API_BASE = 'http://192.168.3.70:5000/api/people';
+    const API_BASE = 'https://memoria-test-app-ifisk.ondigitalocean.app/api/people';
     const params = new URLSearchParams(window.location.search);
     const personId = params.get('personId');
     if (!personId) return;

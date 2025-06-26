@@ -19,7 +19,7 @@
     --radius-md: 14px;
 }
 
-/* 2) Reset & Base */
+/* Reset & Base */
 *,
 *::before,
 *::after {
@@ -40,53 +40,60 @@ body {
     padding-bottom: 80px;
 }
 
-/* 6) Main Container */
+/* Main Container */
 .container {
     max-width: 400px;
     margin: 0 auto 24px;
-    /* top margin to clear header */
-    padding: 0 16px;
-    padding-top: 2rem;
+    padding: 2rem 16px 0;
     position: relative;
+    padding-bottom: calc(49px
+            /*btn-height*/
+            + 21px
+            /*gap*/
+            + 16px
+            /*optional extra*/
+        );
 }
 
 h2 {
-    position: relative;
-    z-index: 2;
-    margin: 0 0 25px;
-    margin-top: 34px;
-    margin-left: 0;
-    font-family: var(--font-base);
+    margin: 50px 0 25px;
     font-size: 24px;
     font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
 }
 
-/* 7) Form Filters */
+/* Form Groups */
 .form-group {
     margin-bottom: 25px;
 }
 
-/* text input */
-input[type="text"] {
+/* Text inputs */
+input[type="text"],
+input[type="url"],
+textarea {
     width: 100%;
     height: 50px;
-    padding: 12px 12px;
-    padding-left: 22px;
+    padding: 12px;
     border: none;
     border-radius: var(--radius-md);
     background: #EFF2F5;
+    font-family: var(--font-base);
     font-size: 16px;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 460;
     color: #222222;
     outline: none;
 }
 
-input[type="text"]::placeholder {
+input::placeholder,
+textarea::placeholder {
     color: #72767D;
 }
 
-/* select pills */
+textarea {
+    resize: vertical;
+    height: 150px !important;
+}
+
+/* Select pills (years) */
 .year-group {
     display: flex;
     gap: var(--spacing-sm);
@@ -100,18 +107,15 @@ input[type="text"]::placeholder {
 .year-pill select {
     width: 100%;
     height: 49px;
-    padding: 12px;
-    padding-left: 22px;
+    padding: 12px 22px 12px 12px;
     border: none;
     border-radius: var(--radius-md);
     background: #EFF2F5;
     font-size: 16px;
-    font-weight: 460;
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--font-base);
     color: #72767D;
     appearance: none;
     cursor: pointer;
-    /* arrow */
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
@@ -122,7 +126,6 @@ input[type="text"]::placeholder {
     color: #222222;
 }
 
-/* clear-button (no arrow) */
 .year-pill .clear-btn {
     display: none;
     position: absolute;
@@ -143,23 +146,9 @@ input[type="text"]::placeholder {
     stroke-width: 2;
 }
 
-/* 8) Suggestions (cemetery & area) */
+/* Suggestions */
 .suggestions-container {
     position: relative;
-    width: 100%;
-}
-
-.suggestions-container input {
-    width: 100%;
-    height: 49px;
-    padding: 12px 12px;
-    padding-left: 22px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: #EFF2F5;
-    font-size: 16px;
-    color: #222222;
-    outline: none;
 }
 
 .suggestions-container .clear-btn {
@@ -191,7 +180,7 @@ input[type="text"]::placeholder {
     padding: 0;
     list-style: none;
     background: var(--color-bg);
-    border: 0.2px solid var(--color-border);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     max-height: 12em;
     overflow-y: auto;
@@ -214,11 +203,14 @@ input[type="text"]::placeholder {
     cursor: default;
 }
 
-/* 9) Found & Selected Lists */
+/* People lists */
 #foundLabel,
 #selectedContainer p {
-    font-size: 0.875rem;
-    margin: 0 0 18px;
+    font-size: 14px;
+    font-family: var(--font-base);
+    font-weight: 500;
+    color: #333333;
+    margin-bottom: 18px;
 }
 
 .people-list {
@@ -230,10 +222,7 @@ input[type="text"]::placeholder {
 .people-list li {
     display: flex;
     align-items: center;
-}
-
-.people-list li:last-child {
-    margin-bottom: 0;
+    margin-bottom: var(--spacing-sm);
 }
 
 .people-list img {
@@ -249,14 +238,16 @@ input[type="text"]::placeholder {
 }
 
 .people-list .name {
+    font-family: var(--font-base);
     font-size: 15px;
     font-weight: 550;
+    color: #202124;
 }
 
 .people-list .years {
     font-size: 0.73rem;
     font-weight: 500;
-    color: #333333;
+    color: #333;
     margin-top: 2px;
 }
 
@@ -270,8 +261,8 @@ input[type="text"]::placeholder {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: #fff;
     margin-right: 12px;
+    color: #fff;
 }
 
 .people-list button svg {
@@ -280,114 +271,36 @@ input[type="text"]::placeholder {
     stroke: #fff;
 }
 
-/* 10) Submit Button */
-.submit-btn {
-    position: fixed;
-    bottom: env(safe-area-inset-bottom, 16px);
-    /* for iOS notch + 16px fallback */
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 32px);
-    /* full width minus your horizontal page padding */
-    max-width: 400px;
-    /* match your container’s max-width */
-    margin: 0 auto;
-    z-index: 200;
-    /* above your content */
-    /* keep your existing styles: */
+/* Additional fields select */
+#activityArea {
+    width: 100%;
     height: 49px;
-    padding: 14px;
-    margin-bottom: 21px;
-    background: #1B8B59;
-    color: #fff;
+    padding: 12px 22px 12px 12px;
     border: none;
-    border-radius: 12px;
-    font-size: 17px;
+    border-radius: var(--radius-md);
+    background: #EFF2F5;
+    font-size: 16px;
     font-family: var(--font-base);
-    font-weight: 600;
+    color: #72767D;
+    appearance: none;
     cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 1em;
 }
 
-/* ---- found label ---- */
-#foundLabel {
-    font-size: 13px;
-    font-weight: 500;
-    font-family: 'Montserrat', sans-serif;
-    color: var(--color-text);
-    margin: 0 0 var(--spacing-sm);
-    margin-bottom: 8px;
+#activityArea:valid {
+    color: #222222;
 }
 
-#foundList {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-#foundList li {
-    display: flex;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 0.75px solid var(--color-border);
-}
-
-#foundList li:last-child {
-    border-bottom: none;
-}
-
-#foundList li img {
-    width: 54px;
-    height: 54px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-right: 12px;
-}
-
-#foundList li .info {
-    flex: 1;
-}
-
-#foundList li .info .name {
-    font-size: 15px;
-    font-weight: 550;
-    color: var(--color-text);
-    line-height: 1.2;
-}
-
-#foundList li .info .years {
-    font-size: 0.73rem;
-    font-weight: 500;
-    color: #333333;
-    margin-top: 2px;
-}
-
-#foundList li button {
-    background: #1B8B59;
-    border: none;
-    border-radius: 50%;
-    width: 25px;
-    height: 25px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    margin-right: 12px;
-}
-
-#foundList li button svg {
-    width: 30px;
-    height: 30px;
-    stroke: #fff;
-}
-
-/* ---- no‐results block ---- */
+/* No-results */
 .no-results {
     text-align: center;
-    margin: var(--spacing-md) 0 var(--spacing-md);
-    color: var(--color-text);
-    font-size: 1rem;
+    margin: var(--spacing-md) 0;
 }
 
+/* Add-person fallback button */
 .add-person-btn {
     background: #EFF2F5;
     border: none;
@@ -430,129 +343,82 @@ input[type="text"]::placeholder {
     stroke-linejoin: round;
 }
 
-/* overlay dims the page */
-.modal-overlay {
+/* Submit button */
+.submit-btn {
     position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    bottom: 21px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 32px);
+    max-width: 400px;
+    height: 49px;
+    background: #1B8B59;
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
     z-index: 1000;
 }
 
-.modal-overlay[hidden] {
-    display: none !important;
+/* Error message */
+.error-message {
+    color: #c00;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
 }
 
-/* white panel */
-.modal-content {
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 300;
+}
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     background: var(--color-bg);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg) var(--spacing-md);
+    border-radius: 12px;
+    padding: 24px 16px;
     width: 90%;
     max-width: 360px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    position: relative;
+    text-align: center;
+    z-index: 301;
 }
 
-/* close “×” */
 .modal-close {
     position: absolute;
     top: 12px;
     right: 12px;
     background: none;
     border: none;
-    font-size: 1.5rem;
-    line-height: 1;
-    color: var(--color-text);
+    font-size: 1.25rem;
+    color: #90959C;
     cursor: pointer;
 }
 
-/* heading */
-.modal-title {
-    margin: 0 0 var(--spacing-md);
-    font-family: var(--font-base);
-    font-size: 1.25rem;
-    font-weight: 600;
-    text-align: center;
-}
-
-/* form fields */
-.modal-form .form-group {
-    margin-bottom: var(--spacing-md);
-}
-
-.modal-form input {
-    width: 100%;
-    height: 49px;
-    padding: 12px;
-    font-family: var(--font-base);
+.modal-text {
+    margin: 32px 0 24px;
     font-size: 16px;
-    outline: none;
+    color: var(--color-text);
+    line-height: 1.4;
 }
 
-/* subtitle */
-.modal-subtitle {
-    margin: var(--spacing-md) 0 var(--spacing-sm);
-    font-family: var(--font-base);
-    font-size: 1rem;
-    text-align: center;
-}
-
-/* radio row */
-.radio-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: var(--spacing-sm);
-    font-family: var(--font-base);
-    font-size: 0.9375rem;
-}
-
-.radio-row input[type="radio"] {
-    accent-color: var(--color-accent);
-}
-
-/* “Оплатити зараз” line */
-.modal-pay-now {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    font-family: var(--font-base);
-    font-size: 0.875rem;
-    margin-bottom: var(--spacing-lg);
-}
-
-.pay-icons {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-left: auto;
-}
-
-.pay-icons img {
-    height: 24px;
-}
-
-/* bottom button */
-.modal-submit-btn {
-    position: relative;
-    width: 100%;
-    height: 49px;
-    background: #1B8B59;
+.modal-ok {
+    padding: 12px 32px;
+    background: #397355;
     color: #fff;
     border: none;
-    border-radius: var(--radius-md);
-    font-family: var(--font-base);
-    font-size: 1rem;
-    font-weight: 600;
+    border-radius: 8px;
+    font-size: 16px;
     cursor: pointer;
-}
-
-.error-message {
-    color: #c00;
-    font-size: 0.9rem;
-    margin-top: 0.5rem;
 }
