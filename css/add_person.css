@@ -185,7 +185,6 @@ h2 {
 
 /* 11) Inputs, Selects, Textareas */
 input[type="text"],
-input[type="url"],
 select,
 textarea {
     width: 100%;
@@ -216,12 +215,6 @@ textarea::placeholder {
 }
 
 input[type="text"]::placeholder {
-    color: #72767D;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 460;
-}
-
-input[type="url"]::placeholder {
     color: #72767D;
     font-family: 'Montserrat', sans-serif;
     font-weight: 460;
@@ -323,7 +316,7 @@ input[type="checkbox"] {
     width: 23px;
     height: 23px;
     margin: 0;
-    border: 0.3px solid #797777;
+    border: 0.3px solid #B1B1B1;
     border-radius: 6px;
     display: inline-grid;
     place-content: center;
@@ -336,17 +329,11 @@ input[type="checkbox"] {
     /* adjust for the shrunken size */
 }
 
-input[type="checkbox"]::after {
-    content: "";
-    width: 0.5em;
-    height: 0.5em;
-    transform: scale(0);
-    transition: transform 0.1s ease-in-out;
-    box-shadow: inset 1em 1em var(--color-accent);
-}
-
-input[type="checkbox"]:checked::after {
-    transform: scale(1);
+.checkbox-group input[type="checkbox"]:checked {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12l5 5l10-12' fill='none' stroke='%231B8B59' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 65%;
 }
 
 #activityArea {
@@ -363,10 +350,10 @@ input[type="checkbox"]:checked::after {
         #EFF2F5 url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 18px center;
     background-size: 19px;
     font-size: 16px;
-    color: var(--color-muted);
+    color: #72767D;
 }
 
-#activityArea:valid {
+#activityArea:required:valid {
     background-image: none;
     color: var(--color-text);
 }
@@ -394,10 +381,6 @@ input[type="checkbox"]:checked::after {
     font-family: 'Montserrat', sans-serif;
     font-weight: 600;
     cursor: pointer;
-}
-
-.submit-btn:hover {
-    background: #2f5a47;
 }
 
 /* 14) Suggestions */
@@ -522,4 +505,10 @@ input[type="checkbox"]:checked::after {
     border-radius: 8px;
     font-size: 16px;
     cursor: pointer;
+}
+
+.error-message {
+    color: red;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
 }

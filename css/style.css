@@ -207,8 +207,8 @@ h2 {
 }
 
 .favorite-btn svg {
-    width: 1.35rem;
-    height: 1.35rem;
+    width: 1.30rem;
+    height: 1.30rem;
 }
 
 /* override any stroke on these specific icons */
@@ -510,31 +510,31 @@ h2 {
     cursor: default;
 }
 
-/* 1) Prevent the whole page from scrolling */
-html,
-body {
-    height: 100%;
-    margin: 0;
-    overflow: hidden;
-}
-
 /* 2) Make the topbar stick and push the content down */
 .topbar {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
+    height: 56px;
+    /* explicitly match this in JS/markup if you want */
     z-index: 200;
 }
 
 /* 3) Turn main into a column flexbox and cap its height */
 main.container {
+    position: fixed;
+    top: 56px;
+    /* exactly the header’s height */
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 56px);
     padding: var(--spacing-md);
+    padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
-    margin-top: 48px;
+    overflow-x: hidden;
 }
 
 /* 4) Everything above the list (h2, .filters, .search-bar, #count) stays at natural size */
@@ -610,17 +610,11 @@ main.container>.search-bar {
     color: var(--color-text);
 }
 
-/* prevent any horizontal scrolling */
 html,
 body {
-    overflow-x: hidden;
-    overflow-y: auto;
-}
-
-/* only allow vertical scroll inside the main area */
-main.container {
-    overflow-y: auto;
-    overflow-x: hidden;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
 }
 
 /* ===== Invoice Confirmation Modal ===== */

@@ -192,7 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
 
         // gather values
-        const name = document.getElementById('fullName').value.trim();
+        const fullNameInput = document.getElementById('fullName');
+        const name = fullNameInput.value.trim();
+        const fullNameError = document.getElementById('fullNameError');
         const birthYear = document.getElementById('birthYear').value;
         const deathYear = document.getElementById('deathYear').value;
         const area = document.getElementById('city').value.trim();
@@ -201,6 +203,37 @@ document.addEventListener('DOMContentLoaded', () => {
         let occupation = '';
         let link = '';
         let bio = '';
+
+        // clear any previous error
+        fullNameError.textContent = '';
+        fullNameError.style.display = 'none';
+
+        // 1) no dots allowed
+        if (name.includes('.')) {
+            fullNameError.textContent = "Введіть повне ім'я";
+            fullNameError.style.display = 'block';
+            fullNameInput.focus();
+            return;
+        }
+
+        // split name once
+        const parts = name.split(/\s+/).filter(Boolean);
+
+        // 2) must contain at least three words
+        if (parts.length < 3) {
+            fullNameError.textContent = "Введіть повне ім'я";
+            fullNameError.style.display = 'block';
+            fullNameInput.focus();
+            return;
+        }
+
+        // 3) each word must be longer than 1 character
+        if (parts.some(part => part.length <= 1)) {
+            fullNameError.textContent = "Введіть повне ім'я";
+            fullNameError.style.display = 'block';
+            fullNameInput.focus();
+            return;
+        }
 
         if (document.getElementById('notablePerson').checked) {
             occupation = document.getElementById('activityArea').value;
@@ -226,10 +259,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const json = await res.json();
             if (json.success) {
                 showModal();
-                form.reset();
-                // hide notable-fields if needed
-                document.getElementById('notable-fields').style.display = 'none';
-            } else {
+                const closeBtn = document.getElementById('modal-close');
+                const okBtn = document.getElementById('modal-ok');
+
+                closeBtn.addEventListener('click', hideModal);
+
+                // ← replace your existing line with this:
+                okBtn.addEventListener('click', () => {
+                    hideModal();
+                    window.location.reload();
+                });
+            }
+            else {
                 alert('Щось пішло не так. Спробуйте ще раз.');
             }
         } catch (err) {

@@ -188,7 +188,7 @@ function renderFilterControls() {
         <input
           type="text"
           id="area"
-          placeholder="Оберіть населений пункт..."
+          placeholder="Введіть населений пункт..."
           autocomplete="off"
           value="${filterState.area}"
         />
@@ -319,7 +319,7 @@ function renderFilterControls() {
         <input
           type="text"
           id="cemetery"
-          placeholder="Оберіть кладовище…"
+          placeholder="Введіть назву кладовища…"
           autocomplete="off"
           value="${filterState.cemetery}"
         />

@@ -146,6 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5) FETCH & RENDER PEOPLE
     //
     async function fetchPeople() {
+        const foundLabel = document.getElementById('foundLabel')
+        
         // only search if at least one filter has a value
         const hasFilter =
             nameInput.value.trim() ||
@@ -155,12 +157,15 @@ document.addEventListener('DOMContentLoaded', () => {
             areaInput.value.trim();
 
         if (!hasFilter) {
-            // clear everything
-            foundLabel.textContent = '';
+            // no filters → hide label + clear list
+            foundLabel.hidden = true;
             foundList.innerHTML = '';
             noResults.hidden = true;
             return;
         }
+
+        // filters are active → show the label
+        foundLabel.hidden = false;
 
         // build query params
         const params = new URLSearchParams();

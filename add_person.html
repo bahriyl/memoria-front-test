@@ -46,7 +46,8 @@
         <form id="personForm">
             <!-- ПІБ -->
             <div class="form-group">
-                <input type="text" id="fullName" name="fullName" placeholder="Введіть ПІБ…" />
+                <input type="text" id="fullName" name="fullName" placeholder="Введіть ПІБ…" required/>
+                <div id="fullNameError" class="error-message" style="display:none;"></div>
             </div>
 
             <!-- Рік народження та рік смерті -->
@@ -83,7 +84,7 @@
             <!-- Назва населеного пункту -->
             <div class="form-group suggestions-container">
                 <input type="text" id="city" name="city" placeholder="Введіть назву населеного пункту…"
-                    autocomplete="off" />
+                    autocomplete="off" required />
                 <button class="icon-btn clear-btn" id="clear-city" aria-label="Очистити">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
@@ -96,7 +97,7 @@
 
             <!-- Вибір кладовища -->
             <div class="form-group suggestions-container">
-                <input type="text" id="cemetery" name="cemetery" placeholder="Оберіть кладовище…" autocomplete="off" />
+                <input type="text" id="cemetery" name="cemetery" placeholder="Оберіть кладовище…" autocomplete="off" required />
                 <button class="icon-btn clear-btn" id="clear-cem" aria-label="Очистити">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
@@ -124,7 +125,7 @@
             <div id="notable-fields" class="notable-fields">
                 <div class="form-group">
                     <div class="year-pill">
-                        <select id="activityArea" name="activityArea" required>
+                        <select id="activityArea" name="activityArea">
                             <option value="" disabled selected>Сфера діяльності</option>
                             <option value="Актор">Актор</option>
                             <option value="Письменник">Письменник</option>
@@ -140,12 +141,12 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <input type="url" id="internetLinks" name="internetLinks"
+                    <input type="text" id="internetLinks" name="internetLinks"
                         placeholder="Посилання на інтернет джерела" />
                 </div>
                 <div class="form-group">
                     <textarea id="achievements" name="achievements" rows="4"
-                        placeholder="Вкажіть чим саме людина є видатною, вкажіть її досягнення та успіхи…"></textarea>
+                        placeholder="Опишіть досягнення завдяки яким людину вважають видатною..."></textarea>
                 </div>
             </div>
 
