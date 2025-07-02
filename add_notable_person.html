@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Додати видатну особу</title>
+    <link rel="stylesheet" href="css/add_notable_person.css" />
+</head>
+
+<body>
+    <main class="container">
+        <button class="back-btn" type="button" aria-label="Назад" onclick="history.back()">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </button>
+
+        <h2>Додати видатну особу</h2>
+
+        <form id="personForm">
+            <!-- 1) Пошук за ПІБ -->
+            <div class="form-group">
+                <input type="text" id="searchName" placeholder="Введіть ПІБ…" autocomplete="off" />
+            </div>
+
+            <!-- 2) Рік народження / смерті -->
+            <div class="form-group year-group">
+                <div class="year-pill">
+                    <select id="birthYearFilter" required>
+                        <option value="" disabled selected>Рік народження</option>
+                    </select>
+                    <button class="icon-btn clear-btn" id="clearBirth" aria-label="Очистити поле">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="year-pill">
+                    <select id="deathYearFilter" required>
+                        <option value="" disabled selected>Рік смерті</option>
+                    </select>
+                    <button class="clear-btn" id="clearDeath" aria-label="Очистити поле">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3) Населений пункт -->
+            <div class="form-group suggestions-container">
+                <input type="text" id="areaFilter" placeholder="Введіть населений пункт…" autocomplete="off" />
+                <button class="clear-btn" id="clearArea" aria-label="Очистити">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+                <ul class="suggestions-list" id="areaSuggestions"></ul>
+            </div>
+
+            <!-- 4) Кладовище -->
+            <div class="form-group suggestions-container">
+                <input type="text" id="cemeteryFilter" placeholder="Введіть назву кладовища…" autocomplete="off" />
+                <button class="clear-btn" id="clearCemetery" aria-label="Очистити">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+                <ul class="suggestions-list" id="cemSuggestions"></ul>
+            </div>
+
+            <!-- 5) Знайдено -->
+            <div id="foundContainer">
+                <p id="foundLabel">Знайдено (0):</p>
+                <div id="noResults" class="no-results" hidden>
+                    <p>Особи не знайдено</p>
+                    <button id="addPersonBtn" class="add-person-btn">Додати особу</button>
+                </div>
+                <ul class="people-list" id="foundList"></ul>
+            </div>
+
+            <!-- 6) Обрано + додаткові поля -->
+            <div id="selectedContainer" hidden>
+                <p>Вибрано:</p>
+                <ul class="people-list" id="selectedList"></ul>
+
+                <!-- три додаткові поля -->
+                <div id="notable-fields" class="notable-fields">
+                    <div class="form-group">
+                        <div class="year-pill">
+                            <select id="activityArea" name="activityArea" required>
+                                <option value="" disabled selected>Сфера діяльності</option>
+                                <option value="Актор">Актор</option>
+                                <option value="Письменник">Письменник</option>
+                            </select>
+                            <button type="button" class="icon-btn clear-btn" id="clear-activity"
+                                aria-label="Скинути сферу діяльності">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="internetLinks" name="internetLinks"
+                            placeholder="Посилання на інтернет джерела" />
+                    </div>
+                    <div class="form-group">
+                        <textarea id="achievements" name="achievements" rows="4"
+                            placeholder="Опишіть досягнення завдяки яким людину вважають видатною..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7) Кнопка відправки та помилка -->
+            <div class="form-group">
+                <div id="submitError" class="error-message" hidden></div>
+                <button type="button" class="submit-btn" id="submitBtn">Надіслати на модерацію</button>
+            </div>
+        </form>
+
+        <!-- Success Modal -->
+        <div id="modal-overlay" class="modal-overlay" hidden></div>
+        <div id="success-modal" class="modal" hidden>
+            <button id="modal-close" class="modal-close">&times;</button>
+            <p class="modal-text">
+                Успішно відправлено на модерацію, ми сповістимо вас коли буде готово!
+            </p>
+            <button id="modal-ok" class="modal-ok">Готово</button>
+        </div>
+    </main>
+
+    <script src="js/add_notable_person.js"></script>
+</body>
+
+</html>

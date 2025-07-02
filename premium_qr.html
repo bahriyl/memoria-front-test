@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Преміум QR — Memoria</title>
+    <link rel="stylesheet" href="css/premium_qr.css" />
+</head>
+
+<body>
+    <!-- Overlay & Side-Menu (same markup as your main pages) -->
+    <div class="overlay" id="overlay"></div>
+    <aside class="side-menu" id="side-menu">
+        <ul class="side-menu__list">
+            <li class="side-menu__item"><a href="index.html">Головна сторінка</a></li>
+            <li class="side-menu__item"><a href="add_person.html">Добавити особу</a></li>
+            <li class="side-menu__item current"><a href="premium_qr.html">Придбати Преміум QR</a></li>
+            <li class="side-menu__item"><a href="notable.html">Видатні особи України</a></li>
+            <li class="side-menu__item"><a href="ritual_services.html">Ритуальні послуги</a></li>
+            <li class="side-menu__item"><a href="chat.html">Чат-підтримка</a></li>
+        </ul>
+        <div class="side-menu__footer">
+            <a href="terms.html">Угода та конфіденційність</a>
+        </div>
+    </aside>
+
+    <!-- Topbar -->
+    <header class="topbar">
+        <button id="menu-btn" class="menu-btn" aria-label="Меню">
+            <!-- hamburger icon -->
+            <svg viewBox="0 0 28 26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"
+                stroke-linejoin="round">
+                <line x1="2" y1="4" x2="26" y2="4" />
+                <line x1="2" y1="12" x2="26" y2="12" />
+                <line x1="2" y1="20" x2="14" y2="20" />
+            </svg>
+        </button>
+        <h1 class="title" onclick="location.href='index.html'">Memoria</h1>
+    </header>
+
+    <!-- Video section -->
+    <div class="video-wrapper">
+        <video id="premiumVideo" playsinline webkit-playsinline preload="metadata"
+            controlsList="nodownload noremoteplayback" disablePictureInPicture
+            src="https://media.w3.org/2010/05/sintel/trailer.mp4" poster="/img/premium_qr_poster.jpg"></video>
+
+        <!-- big play overlay -->
+        <button class="overlay-play" id="overlayPlay" aria-label="Play">
+            <svg viewBox="0 0 24 24" fill="white">
+                <path d="M8 5v14l11-7z"></path>
+            </svg>
+        </button>
+
+        <!-- custom controls -->
+        <div class="controls" id="controls">
+            <input type="range" id="progress" min="0" max="100" value="0" />
+            <button id="playPause" aria-label="Pause">
+                <svg id="playPauseIcon" viewBox="0 0 24 24" fill="currentColor">
+                    <!-- initially hidden; swapped in JS -->
+                    <path id="pauseIcon" d="M6 19h4V5H6zm8-14v14h4V5z"></path>
+                </svg>
+            </button>
+            <span id="timeLabel">0:00</span>
+        </div>
+    </div>
+
+    <main class="container">
+        <!-- Title & Features List -->
+        <h2>Преміум QR</h2>
+        <ul class="features-list">
+            <li>
+                <h3>Персональний QR-код на пам’ятнику</h3>
+                <p>Швидкий та зручний доступ до сторінки вашої близької людини.</p>
+            </li>
+            <li>
+                <h3>Повний контроль над сторінкою</h3>
+                <p>Лише ви маєте можливість публікувати та вносити зміни.</p>
+            </li>
+            <li>
+                <h3>Більше простору для збереження пам’яті</h3>
+                <p>Можливість розміщати 100 фото та 20 відео.</p>
+            </li>
+            <li>
+                <h3>Відсутність реклами</h3>
+                <p>Переглядайте сторінку без нав’язливої реклами.</p>
+            </li>
+            <li>
+                <h3>Спільний альбом</h3>
+                <p>Місце, де друзі та родичі можуть розміщати фото та відео, для збереження спільної памʼятті про близьку людину.</p>
+            </li>
+            <li>
+                <p class="premium-qr-notes">Персональний QR-код, а також інструкція з використання, надсилаються поштою
+                    разом із усім необхідним
+                    для легкого прикріплення на памʼятник.</p>
+            </li>
+        </ul>
+
+        <!-- Purchase Button -->
+        <button class="submit-btn">Придбати / Вартість 700 грн</button>
+    </main>
+
+    <script src="js/premium_qr.js"></script>
+</body>
+
+</html>

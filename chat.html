@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Memoria Chat Support</title>
+    <!-- Chat page styles -->
+    <link rel="stylesheet" href="css/chat.css">
+</head>
+
+<body>
+    <!-- Overlay & Side Menu (same as main site) -->
+    <div class="overlay" id="overlay"></div>
+    <aside class="side-menu" id="side-menu">
+        <ul class="side-menu__list">
+            <li class="side-menu__item"><a href="index.html">Головна сторінка</a></li>
+            <li class="side-menu__item"><a href="add_person.html">Добавити особу</a></li>
+            <li class="side-menu__item"><a href="premium_qr.html">Придбати Преміум QR</a></li>
+            <li class="side-menu__item"><a href="notable.html">Видатні особи України</a></li>
+            <li class="side-menu__item"><a href="ritual_services.html">Ритуальні послуги</a></li>
+            <li class="side-menu__item current"><a href="chat.html">Чат-підтримка</a></li>
+        </ul>
+        <div class="side-menu__footer">
+            <a href="terms">Угода та конфіденційність</a>
+        </div>
+    </aside>
+
+    <!-- Top bar -->
+    <header class="topbar">
+        <button id="menu-btn" class="menu-btn" aria-label="Меню">
+            <svg width="28" height="26" viewBox="0 0 28 26" fill="none" stroke="currentColor" stroke-width="2.6"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="2" y1="12" x2="26" y2="12" />
+                <line x1="2" y1="4" x2="26" y2="4" />
+                <line x1="2" y1="20" x2="14" y2="20" />
+            </svg>
+        </button>
+        <h1 class="title" onclick="window.location.reload()">Memoria</h1>
+    </header>
+
+    <!-- Main chat area -->
+    <main class="container">
+        <h2 class="chat-title">Чат - підтримка</h2>
+        <div class="chat-container">
+            <div id="messages" class="messages"></div>
+            <form id="chatForm" class="input-bar">
+                <button type="button" class="icon-btn attach-btn" aria-label="Прикріпити файл">
+                    <img class="attach-icon" src="/img/attach-btn.png" alt="Прикріпити файл" />
+                </button>
+                <div id="previewContainer" class="preview-container"></div>
+                <input type="file" id="fileInput" accept="image/*" hidden />
+                <input id="msgInput" autocomplete="off" placeholder="Повідомлення…" />
+                <button type="submit" class="icon-btn send-btn" aria-label="Відправити">
+                    <img class="send-icon" src="/img/send-msg-btn.png" alt="Відправити" />
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Menu toggle logic -->
+    <script>
+        const menuBtn = document.getElementById('menu-btn');
+        const sideMenu = document.getElementById('side-menu');
+        const overlay = document.getElementById('overlay');
+        menuBtn.addEventListener('click', () => {
+            sideMenu.classList.toggle('open'); overlay.classList.toggle('open');
+        });
+        overlay.addEventListener('click', () => {
+            sideMenu.classList.remove('open'); overlay.classList.remove('open');
+        });
+    </script>
+
+    <!-- Socket.IO + Chat logic -->
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js" crossorigin="anonymous">
+    </script>
+    <script src="js/chat.js"></script>
+</body>
+
+</html>

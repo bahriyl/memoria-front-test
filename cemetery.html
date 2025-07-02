@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Деталі цвинтаря</title>
+    <link rel="stylesheet" href="css/style.css"><!-- ваша глобальна стилізація -->
+    <link rel="stylesheet" href="css/cemetery.css"><!-- нижче свої стилі -->
+</head>
+
+<body>
+    <!-- верхня панель із кнопкою «назад» -->
+    <header class="topbar">
+        <button id="back-btn" class="back-btn" aria-label="Назад">
+            <!-- стрілка назад -->
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </button>
+    </header>
+
+    <main class="container cemetery-page">
+        <!-- тут будемо підставляти назву -->
+        <h2 id="cemeteryName" class="cemetery-title">Завантаження…</h2>
+
+        <!-- зображення цвинтаря -->
+        <div class="cemetery-image">
+            <img id="cemeteryImage" src="" alt="Фото цвинтаря" />
+        </div>
+
+        <!-- контакти -->
+        <section class="contacts">
+            <h3>Контакти:</h3>
+            <p id="cemeteryAddress"></p>
+            <p id="cemeteryPhone"></p>
+        </section>
+
+        <!-- опис -->
+        <section class="description">
+            <h3>Про цвинтар</h3>
+            <p id="cemeteryDescription"></p>
+        </section>
+    </main>
+
+    <script src="js/cemetery.js"></script>
+</body>
+
+</html>

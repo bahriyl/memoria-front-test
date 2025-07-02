@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ритуальні послуги</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/ritual_services.css" />
+</head>
+
+<body>
+    <!-- Overlay for closing the menu -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Side-drawer menu -->
+    <aside class="side-menu" id="side-menu">
+        <ul class="side-menu__list">
+            <li class="side-menu__item"><a href="index.html">Головна сторінка</a></li>
+            <li class="side-menu__item"><a href="add_person.html">Добавити особу</a></li>
+            <li class="side-menu__item"><a href="premium_qr.html">Придбати Преміум QR</a></li>
+            <li class="side-menu__item"><a href="notable.html">Видатні особи України</a></li>
+            <li class="side-menu__item current"><a href="ritual_services.html">Ритуальні послуги</a></li>
+            <li class="side-menu__item"><a href="chat.html">Чат-підтримка</a></li>
+        </ul>
+        <div class="side-menu__footer">
+            <a href="terms">Угода та конфіденційність</a>
+        </div>
+    </aside>
+
+    <!-- Top bar -->
+    <header class="topbar">
+        <button id="menu-btn" class="menu-btn" aria-label="Меню">
+            <!-- Three lines icon, як на прикладі -->
+            <svg width="28" height="26" viewBox="0 0 28 26" fill="none" stroke="currentColor" stroke-width="2.6"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="2" y1="12" x2="26" y2="12" />
+                <line x1="2" y1="4" x2="26" y2="4" />
+                <line x1="2" y1="20" x2="14" y2="20" />
+            </svg>
+        </button>
+        <h1 class="title" onClick="window.location.reload();">Memoria</h1>
+    </header>
+
+    <main class="container">
+        <h2 class="page-title">Ритуальні послуги</h2>
+        <div id="filter-controls" class="search-bar suggestions-container">
+            <button class="icon-btn search-btn" aria-label="Пошук">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+            </button>
+
+            <input id="searchInput" type="text" placeholder="Введіть населений пункт…" autocomplete="off" />
+
+            <button class="icon-btn clear-btn" id="clear-search" aria-label="Очистити">
+                <!-- simple “×” -->
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+            <ul class="suggestions-list" id="searchSuggestions"></ul>
+        </div>
+
+        <!-- Блок при нульових прямих результатах -->
+        <div id="noResults" class="no-results" style="display:none">
+            <p>На жаль, у <span id="noResultsLocation"></span> немає доступних пропозицій</p>
+            <p>Найближчі до вас:</p>
+        </div>
+
+        <div id="companiesContainer" class="companies-container">
+            <!-- сюди JS вкачує групи та пункти -->
+        </div>
+    </main>
+
+    <script src="js/ritual_services.js"></script>
+</body>
+
+</html>

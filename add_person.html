@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Додати особу — Memoria</title>
+    <link rel="stylesheet" href="css/add_person.css">
+</head>
+
+<body>
+    <!-- Overlay for closing the menu -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Side-drawer menu -->
+    <aside class="side-menu" id="side-menu">
+        <ul class="side-menu__list">
+            <li class="side-menu__item"><a href="index.html">Головна сторінка</a></li>
+            <li class="side-menu__item current"><a href="add_person.html">Добавити особу</a></li>
+            <li class="side-menu__item"><a href="premium_qr.html">Придбати Преміум QR</a></li>
+            <li class="side-menu__item"><a href="notable.html">Видатні особи України</a></li>
+            <li class="side-menu__item"><a href="ritual_services.html">Ритуальні послуги</a></li>
+            <li class="side-menu__item"><a href="chat.html">Чат-підтримка</a></li>
+        </ul>
+        <div class="side-menu__footer">
+            <a href="/terms">Угода та конфіденційність</a>
+        </div>
+    </aside>
+
+    <!-- Top bar -->
+    <header class="topbar">
+        <button id="menu-btn" class="menu-btn" aria-label="Меню">
+            <svg width="28" height="26" viewBox="0 0 28 26" fill="none" stroke="currentColor" stroke-width="2.6"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="2" y1="12" x2="26" y2="12" />
+                <line x1="2" y1="4" x2="26" y2="4" />
+                <line x1="2" y1="20" x2="14" y2="20" />
+            </svg>
+        </button>
+        <h1 class="title" onclick="location.reload()">Memoria</h1>
+    </header>
+
+    <!-- Основний контент -->
+    <main class="container">
+        <h2>Додати особу</h2>
+        <form id="personForm">
+            <!-- ПІБ -->
+            <div class="form-group">
+                <input type="text" id="fullName" name="fullName" placeholder="Введіть ПІБ…" required/>
+                <div id="fullNameError" class="error-message" style="display:none;"></div>
+            </div>
+
+            <!-- Рік народження та рік смерті -->
+            <div class="form-group year-group">
+                <div class="year-pill">
+                    <select id="birthYear" name="birthYear" required>
+                        <option value="" disabled selected>Рік народження</option>
+                    </select>
+                    <button type="button" class="icon-btn clear-btn" id="clear-birth"
+                        aria-label="Скинути рік народження">
+                        <!-- your “×” SVG here exactly as in city/cem clear-btn -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="year-pill">
+                    <select id="deathYear" name="deathYear" required>
+                        <option value="" disabled selected>Рік смерті</option>
+                    </select>
+                    <button type="button" class="icon-btn clear-btn" id="clear-death" aria-label="Скинути рік смерті">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Назва населеного пункту -->
+            <div class="form-group suggestions-container">
+                <input type="text" id="city" name="city" placeholder="Введіть населений пункт…"
+                    autocomplete="off" required />
+                <button class="icon-btn clear-btn" id="clear-city" aria-label="Очистити">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+                <ul class="suggestions-list" id="location-suggestions"></ul>
+            </div>
+
+            <!-- Вибір кладовища -->
+            <div class="form-group suggestions-container">
+                <input type="text" id="cemetery" name="cemetery" placeholder="Введіть назву кладовища…" autocomplete="off" required />
+                <button class="icon-btn clear-btn" id="clear-cem" aria-label="Очистити">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+                <ul class="suggestions-list" id="cemetery-suggestions"></ul>
+            </div>
+
+
+            <!-- Видатна особа -->
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="notablePerson" name="notablePerson" />
+                    <span>Видатна особа</span>
+                </label>
+                <p class="checkbox-desc">
+                    Видатна особа — це людина, яка досягла значних успіхів у певній сфері, такій як:
+                    мистецтво, наука, культура, політика тощо.
+                </p>
+            </div>
+
+            <!-- Додаткові поля для видатної особи -->
+            <div id="notable-fields" class="notable-fields">
+                <div class="form-group">
+                    <div class="year-pill">
+                        <select id="activityArea" name="activityArea">
+                            <option value="" disabled selected>Сфера діяльності</option>
+                            <option value="Актор">Актор</option>
+                            <option value="Письменник">Письменник</option>
+                        </select>
+                        <button type="button" class="icon-btn clear-btn" id="clear-activity"
+                            aria-label="Скинути сферу діяльності">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <input type="text" id="internetLinks" name="internetLinks"
+                        placeholder="Посилання на інтернет джерела" />
+                </div>
+                <div class="form-group">
+                    <textarea id="achievements" name="achievements" rows="4"
+                        placeholder="Опишіть досягнення завдяки яким людину вважають видатною..."></textarea>
+                </div>
+            </div>
+
+
+            <!-- Кнопка відправити -->
+            <div class="form-group">
+                <button type="submit" class="submit-btn">
+                    Надіслати на модерацію
+                </button>
+            </div>
+        </form>
+
+        <!-- Success Modal -->
+        <div id="modal-overlay" class="modal-overlay" hidden></div>
+        <div id="success-modal" class="modal" hidden>
+            <button id="modal-close" class="modal-close">&times;</button>
+            <p class="modal-text">
+                Успішно відправлено на модерацію, ми сповістимо вас коли буде готово!
+            </p>
+            <button id="modal-ok" class="modal-ok">Готово</button>
+        </div>
+    </main>
+
+    <script src="js/add_person.js"></script>
+</body>
+
+</html>

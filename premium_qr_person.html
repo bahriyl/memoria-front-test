@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Преміум QR — Оберіть особу</title>
+    <!-- page-specific overrides -->
+    <link rel="stylesheet" href="css/premium_qr_person.css" />
+</head>
+
+<body>
+    <main class="container">
+        <button class="back-btn" type="button" aria-label="Назад" onclick="history.back()">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </button>
+
+        <h2>Оберіть особу</h2>
+
+        <!-- 1) Name filter -->
+        <div class="form-group">
+            <input type="text" id="searchName" placeholder="Введіть ПІБ…" autocomplete="off" />
+        </div>
+
+        <!-- 2) Year filters -->
+        <!-- instead of two <select>…</select> you’ll have one clickable pill: -->
+        <div class="form-group">
+            <div class="year-pill" id="lifeYearsPicker">
+                <div class="year-display" id="lifeYearsDisplay">Роки життя</div>
+
+                <button type="button" id="clearYears" class="icon-btn clear-btn" aria-label="Очистити роки життя"
+                    hidden>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+
+                <!-- hidden by default until you click the pill -->
+                <div class="years-panel hidden" id="yearsPanel">
+                    <div class="years-header">
+                        <div class="col">Рік народження</div>
+                        <div class="col">Рік смерті</div>
+                    </div>
+                    <div class="years-body">
+                        <ul class="year-list" id="birthYearsList"></ul>
+                        <ul class="year-list" id="deathYearsList"></ul>
+                    </div>
+                    <button type="button" class="done-btn" id="yearsDoneBtn">Готово</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- keep hidden native inputs for form submission: -->
+        <input type="hidden" id="birthYear" name="birthYear" />
+        <input type="hidden" id="deathYear" name="deathYear" />
+
+        <!-- 3) Area (city) filter -->
+        <div class="form-group suggestions-container">
+            <input type="text" id="areaFilter" placeholder="Введіть населений пункт…" autocomplete="off" />
+            <button class="icon-btn clear-btn" id="clearArea" aria-label="Очистити">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+            <ul class="suggestions-list" id="areaSuggestions"></ul>
+        </div>
+
+        <!-- 4) Cemetery filter -->
+        <div class="form-group suggestions-container">
+            <input type="text" id="cemeteryFilter" placeholder="Введіть назву кладовища..." autocomplete="off" />
+            <button class="icon-btn clear-btn" id="clearCemetery" aria-label="Очистити">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+            <ul class="suggestions-list" id="cemSuggestions"></ul>
+        </div>
+
+        <!-- 5) Selected list (moved up) -->
+        <div id="selectedContainer" hidden>
+            <p>Вибрано:</p>
+            <ul class="people-list" id="selectedList"></ul>
+        </div>
+
+        <!-- 6) Found list (moved down) -->
+        <div id="foundContainer">
+            <p id="foundLabel" hidden>Знайдено (0):</p>
+            <!-- no‐results container -->
+            <div id="noResults" class="no-results" hidden>
+                <p>Особи не знайдено</p>
+                <button id="addPersonBtn" class="add-person-btn">Додати особу</button>
+            </div>
+            <ul class="people-list" id="foundList"></ul>
+        </div>
+
+
+        <!-- 7) Submit -->
+        <div class="form-group">
+            <!-- контейнер для помилки, схований за замовчуванням -->
+            <div id="selectError" class="error-message" hidden>
+                Будь ласка, виберіть особу
+            </div>
+
+            <button type="button" class="submit-btn" id="submitBtn">Оформити заявку</button>
+        </div>
+    </main>
+
+    <!-- DELIVERY DETAILS MODAL -->
+    <div id="deliveryModal" class="modal-overlay" hidden>
+        <div class="modal-content">
+            <button id="deliveryModalClose" class="modal-close" aria-label="Закрити">&times;</button>
+
+            <h2 class="modal-title">Вкажіть деталі доставки</h2>
+
+            <div class="modal-form">
+                <div class="form-group">
+                    <input type="text" id="delName" placeholder="Вкажіть ваш ПІБ…" />
+                </div>
+                <div class="form-group suggestions-container">
+                    <input type="text" id="delCity" placeholder="Населений пункт…" autocomplete="off" />
+                    <button class="icon-btn clear-btn" id="clearDelCity" aria-label="Очистити">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                    <ul class="suggestions-list" id="delCitySuggestions"></ul>
+                </div>
+                <div class="form-group">
+                    <input type="text" id="delPhone" placeholder="Вкажіть ваш номер телефону…" />
+                </div>
+                <div class="form-group suggestions-container">
+                    <input type="text" id="delBranch" placeholder="Відділення НП…" autocomplete="off" />
+                    <button class="icon-btn clear-btn" id="clearDelBranch" aria-label="Очистити">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                    <ul class="suggestions-list" id="delBranchSuggestions"></ul>
+                </div>
+            </div>
+
+            <h3 class="modal-subtitle">Спосіб оплати</h3>
+
+            <label class="radio-row">
+                <input type="radio" name="payment" value="cod" checked />
+                <span>Накладний платіж (700 грн + доставка)</span>
+            </label>
+
+            <label class="radio-row modal-pay-now">
+                <input type="radio" name="payment" value="online" />
+                <span>Оплатити зараз</span>
+                <span class="pay-icons">
+                    <img src="/img/apple-pay.png" alt="Apple Pay" />
+                    <img src="/img/google-pay.png" alt="G Pay" />
+                    <img src="/img/visa.png" alt="Visa" />
+                    <img src="/img/mastercard.png" alt="MasterCard" />
+                </span>
+            </label>
+
+            <!-- Контейнер для помилок платежу -->
+            <div id="paymentError" class="error-message" hidden></div>
+
+            <button id="deliveryModalSubmit" class="modal-submit-btn">
+                Оформити заявку
+            </button>
+        </div>
+    </div>
+
+
+    <script src="js/premium_qr_person.js"></script>
+</body>
+
+</html>

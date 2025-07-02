@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Memoria</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <!-- Overlay for closing the menu -->
+  <div class="overlay" id="overlay"></div>
+
+  <!-- Side-drawer menu -->
+  <aside class="side-menu" id="side-menu">
+    <ul class="side-menu__list">
+      <li class="side-menu__item current"><a href="index.html">Головна сторінка</a></li>
+      <li class="side-menu__item"><a href="add_person.html">Добавити особу</a></li>
+      <li class="side-menu__item"><a href="premium_qr.html">Придбати Преміум QR</a></li>
+      <li class="side-menu__item"><a href="notable.html">Видатні особи України</a></li>
+      <li class="side-menu__item"><a href="ritual_services.html">Ритуальні послуги</a></li>
+      <li class="side-menu__item"><a href="chat.html">Чат-підтримка</a></li>
+    </ul>
+    <div class="side-menu__footer">
+      <a href="terms">Угода та конфіденційність</a>
+    </div>
+  </aside>
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <button id="menu-btn" class="menu-btn" aria-label="Меню">
+      <!-- Three lines icon, як на прикладі -->
+      <svg width="28" height="26" viewBox="0 0 28 26" fill="none" stroke="currentColor" stroke-width="2.6"
+        stroke-linecap="round" stroke-linejoin="round">
+        <line x1="2" y1="12" x2="26" y2="12" />
+        <line x1="2" y1="4" x2="26" y2="4" />
+        <line x1="2" y1="20" x2="14" y2="20" />
+      </svg>
+    </button>
+    <h1 class="title" onClick="window.location.reload();">Memoria</h1>
+  </header>
+
+  <main class="container">
+    <!-- Заголовок -->
+    <h2 id="pageTitle" class="page-title">Кладовища України</h2>
+
+    <!-- Вкладки-фільтри -->
+    <nav class="filters">
+      <button class="filter active" data-filter="person">Особа</button>
+      <button class="filter" data-filter="years">Роки життя</button>
+      <button class="filter" data-filter="area">Населений пункт</button>
+      <button class="filter" data-filter="cemetery">Кладовище</button>
+    </nav>
+
+    <!-- Динамічні контролі (інпут/селекти/….) -->
+    <div id="filter-controls" class="search-bar">
+      <!-- кнопка з лупою -->
+      <button class="icon-btn search-btn" aria-label="Пошук">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#90959C" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      </button>
+
+      <!-- поле вводу -->
+      <input type="text" placeholder="Введіть ПІБ…" />
+
+      <!-- кнопка зірочки -->
+      <button class="icon-btn favorite-btn" aria-label="У обране">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#90959C" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <polygon points="12 17.27 18.18 21 16.54 13.97 
+                           22 9.24 14.81 8.63 12 2 
+                           9.19 8.63 2 9.24 7.46 13.97 
+                           5.82 21 12 17.27" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Даталіст для “area” та "cemetery" підказок -->
+    <datalist id="location-suggestions"></datalist>
+    <datalist id="cemetery-suggestions"></datalist>
+
+    <!-- Лічильник знайдених записів -->
+    <p id="count">Знайдено: <span id="total">0</span> осіб</p>
+    <!-- Список людей -->
+    <ul id="people-list" class="people-list"></ul>
+
+    <!-- Спіннер -->
+    <div id="loading" class="loading">Завантаження…</div>
+  </main>
+
+  <!-- Invoice Confirmation Modal -->
+  <div id="invoiceModal" class="modal">
+    <div class="modal__content">
+      <p class="modal__message">
+        Дякуємо за замовлення! Наш менеджер незабаром з Вами зв'яжеться
+      </p>
+      <button id="invoiceModalClose" class="modal__close-btn">OK</button>
+    </div>
+  </div>
+
+  <!-- Основна логіка табів, фільтрів, автодоповнення і рендеру -->
+  <script src="js/people.js"></script>
+  <script>
+    // drawer toggle logic
+    const menuBtn = document.getElementById('menu-btn');
+    const sideMenu = document.getElementById('side-menu');
+    const overlay = document.getElementById('overlay');
+
+    // toggle open/close when clicking the button
+    menuBtn.addEventListener('click', () => {
+      sideMenu.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+
+    // always close when clicking outside
+    overlay.addEventListener('click', () => {
+      sideMenu.classList.remove('open');
+      overlay.classList.remove('open');
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('invoiceQr') === 'true') {
+        const modal = document.getElementById('invoiceModal');
+        const closeBtn = document.getElementById('invoiceModalClose');
+
+        // показати
+        modal.classList.add('open');
+
+        // закрити при кліку на кнопку
+        closeBtn.addEventListener('click', () => {
+          modal.classList.remove('open');
+          // видалити параметр з URL (без перезавантаження)
+          const url = new URL(window.location.href);
+          url.searchParams.delete('invoiceQr');
+          window.history.replaceState({}, '', url);
+        });
+      }
+    });
+  </script>
+</body>
+
+</html>

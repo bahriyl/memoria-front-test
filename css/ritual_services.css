@@ -1,0 +1,154 @@
+/* Базові змінні */
+:root {
+    --color-text: #222222;
+    --color-muted: #666666;
+    --color-bg-light: #F2F4F7;
+    --spacing-sm: 0.75rem;
+    --spacing-md: 1rem;
+    --radius-md: 0.5rem;
+}
+
+.topbar {
+    padding: 5px 8px 2px 8px !important;
+}
+
+.menu-btn {
+    padding: 8px !important;
+}
+
+/* Контейнер сторінки */
+.container {
+    padding: var(--spacing-md);
+    overflow-y: auto;
+}
+
+/* Тайтл */
+.page-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 23px;
+}
+
+.search-bar {
+    border-radius: 14px !important;
+}
+
+.search-bar .clear-btn {
+    display: none;
+}
+
+/* Блок “нічого не знайдено” */
+.no-results {
+    text-align: center;
+    color: var(--color-muted);
+    margin-bottom: 24px;
+}
+
+.no-results p {
+    margin: 4px 0;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1rem;
+}
+
+/* Категорія */
+.category-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 18px;
+    font-weight: 570;
+    margin: 11px 0 12px;
+    color: var(--color-text);
+}
+
+/* Список майстерень */
+.company-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.company-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 0.75px solid #DCDCDC;
+}
+
+.company-item:last-child {
+    border-bottom: none;
+}
+
+/* Логотип */
+.company-item img {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: var(--spacing-md);
+}
+
+/* Інфо */
+.company-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.company-name {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 550;
+    color: #202124;
+}
+
+.company-address {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11.3px;
+    font-weight: 500;
+    color: #333333;
+    margin-top: 4px;
+}
+
+.logo {
+    margin-left: auto;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #025831;
+    cursor: pointer;
+}
+
+/* wrap + dropdown */
+.suggestions-container {
+    position: relative;
+    width: 100%;
+}
+
+/* the dropdown itself */
+.suggestions-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 12em;
+    margin: 0.25rem 0;
+    padding: 0;
+    list-style: none;
+    background: var(--color-bg);
+    border: 0.2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow-y: auto;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: none;
+    /* hidden until we have items */
+    z-index: 50;
+}
+
+.suggestions-list li {
+    padding: 0.5em 1em;
+    cursor: pointer;
+    font-family: var(--font-base);
+}
+
+.suggestions-list li:hover {
+    background: var(--color-bg-light);
+}

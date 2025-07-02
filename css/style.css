@@ -1,0 +1,674 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;750&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;460;500;550;570;600;700;750&display=swap');
+
+/* Theme Variables */
+:root {
+    --font-base: 'Montserrat', sans-serif;
+    --font-heading: 'Plus Jakarta Sans', sans-serif;
+    --color-text: #222222;
+    --color-muted: #666666;
+    --color-bg: #ffffff;
+    --color-bg-light: #F2F4F7;
+    --color-border: #DCDCDC;
+    --color-accent: #025831;
+    --color-placeholder: #63666C;
+    --spacing-xs: 0.5rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --radius-md: 14px;
+}
+
+/* Reset */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* Base Styles */
+body {
+    margin: 0;
+    font-family: var(--font-base);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+}
+
+header {
+    border-bottom: 0.75px solid var(--color-border);
+}
+
+/* Layout */
+.topbar {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm);
+    padding-bottom: 2px;
+    padding-top: 5px;
+    background-color: var(--color-bg);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-bg);
+    z-index: 200;
+    /* higher than drawer & overlay */
+}
+
+.menu-btn {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #202124;
+}
+
+.menu-btn svg {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.title {
+    margin: 0;
+    /* reset default h1 margins */
+    margin-left: auto;
+    /* push it to the right */
+    margin-right: 0.4rem;
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-weight: 750;
+    color: var(--color-accent);
+}
+
+.container {
+    padding: var(--spacing-md);
+}
+
+/* Typography */
+h2 {
+    margin: var(--spacing-lg) 0 var(--spacing-md);
+    margin-bottom: 1.9rem;
+    margin-top: 16px;
+    margin-left: 2px;
+    font-family: var(--font-base);
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+/* Filters */
+.filters {
+    display: flex;
+    gap: var(--spacing-md);
+    padding-bottom: 0.6rem;
+    overflow-x: auto;
+    margin-bottom: 0.2rem;
+    margin-left: 2px;
+
+    /* hide scrollbars on all browsers */
+    -ms-overflow-style: none;
+    /* IE & Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+.filters::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari, Opera */
+}
+
+.filter {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: var(--font-base);
+    font-size: 0.875rem;
+    font-weight: 550;
+    color: var(--color-placeholder);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.filter.active {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+/* Shared "pill" style for search and year select */
+.search-bar,
+.year-pill {
+    display: flex;
+    align-items: center;
+    height: 49px;
+    background-color: var(--color-bg-light);
+    border-radius: var(--radius-md);
+    padding: 0 0.75rem;
+    padding-left: 2px;
+}
+
+/* Search Bar */
+.search-bar {
+    gap: var(--spacing-sm);
+    margin-bottom: 13px;
+
+    /* Break out of container padding but keep 7px from screen edges */
+    margin-left: calc(-1 * var(--spacing-md) + 12px);
+    margin-right: calc(-1 * var(--spacing-md) + 12px);
+    width: calc(100% + 2 * var(--spacing-md) - 24px);
+    max-width: none;
+}
+
+.search-bar input {
+    flex: 1;
+    height: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+    color: var(--color-text);
+    padding: 0;
+    padding-left: 4px;
+    position: relative;
+    font-family: var(--font-base);
+    font-weight: 460;
+}
+
+.search-bar input::placeholder {
+    color: var(--color-placeholder);
+    font-family: var(--font-base);
+    font-weight: 460;
+}
+
+.search-bar button {
+    display: flex;
+    align-items: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.search-bar button svg {
+    stroke: #90959C !important;
+}
+
+.search-btn svg {
+    stroke-width: 1.7px;
+}
+
+.favorite-btn svg {
+    stroke-width: 1.65px;
+}
+
+.search-btn svg {
+    width: 1.37rem;
+    height: 1.37rem;
+}
+
+.favorite-btn svg {
+    width: 1.30rem;
+    height: 1.30rem;
+}
+
+/* override any stroke on these specific icons */
+.search-btn svg,
+.favorite-btn svg {
+    stroke: #90959C !important;
+}
+
+.favorite-btn.active svg {
+    fill: #90959C;
+    stroke: #90959C !important;
+}
+
+/* Add a little transition */
+.favorite-btn svg {
+    transition: fill 0.2s, stroke 0.2s;
+}
+
+/* Count */
+#count {
+    margin: var(--spacing-sm) 0;
+    font-family: var(--font-base);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text);
+    margin-bottom: 8px;
+    margin-left: 2px;
+}
+
+/* People List */
+.people-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    margin-left: 2px;
+}
+
+.people-list::-webkit-scrollbar {
+    display: none;
+}
+
+.people-list li {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 0.75px solid var(--color-border);
+}
+
+.people-list img {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: var(--spacing-md);
+}
+
+.person-info {
+    flex: 1;
+}
+
+.person-name {
+    margin: 0;
+    font-family: var(--font-base);
+    font-size: 0.9375rem;
+    font-weight: 550;
+    margin-bottom: 2px;
+}
+
+.person-years,
+.person-cemetery {
+    margin: 0;
+    font-family: var(--font-base);
+    font-size: 0.73rem;
+    color: #333333;
+    font-weight: 500;
+}
+
+.person-cemetery {
+    visibility: hidden;
+}
+
+.notable {
+    font-size: 0.73rem;
+    color: #333333;
+    margin-left: var(--spacing-sm);
+    font-weight: 500;
+}
+
+/* Loading */
+.loading {
+    display: none;
+    text-align: center;
+    padding: var(--spacing-md);
+    color: var(--color-muted);
+}
+
+/* Suggestions */
+.suggestions-container {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+}
+
+.suggestions-list {
+    position: absolute;
+    top: 100%;
+    width: 100%;
+    max-height: 10.5em;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-top: none;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background: var(--color-bg);
+}
+
+.suggestions-list li {
+    padding: 0.5em 1em;
+    cursor: pointer;
+    font-family: var(--font-base);
+}
+
+.suggestions-list li:hover {
+    background-color: var(--color-bg-light);
+}
+
+/* Year Pills */
+.years-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.year-pill {
+    flex: 1;
+    position: relative;
+}
+
+.year-pill select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: var(--font-base);
+    font-size: 1rem;
+    font-weight: 460;
+    color: var(--color-placeholder);
+    appearance: none;
+    padding-right: calc(var(--spacing-md) + 2px);
+    /* вільне місце під стрілку */
+}
+
+.year-pill::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: calc(var(--spacing-md) - 8px);
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    background-size: 20px 20px;
+    /* ↑ scale SVG to fit */
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat center;
+    pointer-events: none;
+}
+
+.year-pill select:valid {
+    color: var(--color-text);
+}
+
+/* hide the arrow once a non-empty <option> is selected */
+.year-pill:has(select:valid)::after {
+    display: none;
+}
+
+/* Overlay under the menu */
+.overlay {
+    top: 56px;
+    /* start right below the topbar */
+    height: calc(100vh - 56px);
+    position: fixed;
+    left: 0;
+    width: 100vw;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 100;
+    /* below menu */
+}
+
+.overlay.open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* Side-drawer container */
+.side-menu {
+    top: 47px;
+    /* start right below the topbar */
+    height: calc(100vh - 47px);
+    position: fixed;
+    left: -80vw;
+    /* hidden off-screen */
+    width: 80vw;
+    max-width: 300px;
+    background: var(--color-bg);
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+    transition: left 0.3s ease;
+    z-index: 101;
+    /* above overlay */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: var(--spacing-md) 0;
+}
+
+/* When open, slide into view */
+.side-menu.open {
+    left: 0;
+}
+
+/* Menu list styling */
+.side-menu__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.side-menu__item+.side-menu__item {
+    margin-top: var(--spacing-sm);
+}
+
+.side-menu__item a {
+    display: block;
+    padding: var(--spacing-xs) var(--spacing-lg);
+    font-family: var(--font-base);
+    font-size: 1rem;
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.side-menu__item a:hover {
+    background: var(--color-bg-light);
+}
+
+/* Footer link */
+.side-menu__footer {
+    padding: var(--spacing-xs) var(--spacing-lg);
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+.side-menu__footer a {
+    color: var(--color-muted);
+    text-decoration: none;
+}
+
+.side-menu__item.current>a {
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+/* Custom suggestions dropdown */
+.suggestions-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 12em;
+    margin: 0.25rem 0 0;
+    padding: 0;
+    list-style: none;
+    background: var(--color-bg);
+    border: 0.2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow-y: auto;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: none;
+    /* hidden by default */
+    z-index: 10;
+}
+
+.suggestions-list li {
+    padding: 0.5em 1em;
+    cursor: pointer;
+}
+
+.suggestions-list li:hover {
+    background-color: var(--color-bg-light);
+}
+
+.suggestions-list .no-results {
+    color: var(--color-muted);
+    cursor: default;
+}
+
+/* 2) Make the topbar stick and push the content down */
+.topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    /* explicitly match this in JS/markup if you want */
+    z-index: 200;
+}
+
+/* 3) Turn main into a column flexbox and cap its height */
+main.container {
+    position: fixed;
+    top: 56px;
+    /* exactly the header’s height */
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-md);
+    padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* 4) Everything above the list (h2, .filters, .search-bar, #count) stays at natural size */
+main.container>h2,
+main.container>.filters,
+main.container>.search-bar {
+    flex: none;
+}
+
+/* ─── Clear-button base ─── */
+.clear-btn {
+    display: none;
+    /* hide by default */
+    background: none;
+    border: none;
+    padding: 0;
+    margin-left: 60px;
+    /* little spacing from the field */
+    cursor: pointer;
+    align-self: center;
+    color: #90959C !important;
+}
+
+/* size the “×” for ALL clear-btns */
+.clear-btn svg {
+    width: 1.9rem;
+    height: 1.9em;
+    stroke: #90959C !important;
+    stroke-width: 1.7px;
+    color: #90959C !important;
+}
+
+/* 1) Turn off the gap but keep your side-padding */
+.search-bar {
+    position: relative;
+    /* for the absolute children */
+    padding: 0 var(--spacing-md);
+    gap: 0;
+    /* no more flex-gap */
+}
+
+/* 2) Absolutely pin both icons at the edges */
+.search-bar .search-btn,
+.search-bar .clear-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* 3) Keep them at the same distance from the left/right as the original padding */
+.search-bar .search-btn {
+    left: var(--spacing-md);
+}
+
+.search-bar .clear-btn {
+    right: var(--spacing-md);
+}
+
+/* 4) Give the input matching internal padding so text never runs under the icons */
+/*    – 1.37rem is your search-icon width; 1.9rem is your clear-icon width; var(--spacing-sm) is a tiny gap  */
+.search-bar input {
+    padding-left: calc(var(--spacing-md) + 1rem + var(--spacing-sm));
+    padding-right: calc(var(--spacing-md) + 1rem + var(--spacing-sm));
+}
+
+/* closed select shows placeholder grey */
+.year-pill select {
+    color: var(--color-placeholder);
+}
+
+/* once it’s valid (i.e. value ≠ ""), paint it black */
+.year-pill select:valid {
+    color: var(--color-text);
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+/* ===== Invoice Confirmation Modal ===== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+}
+
+.modal.open {
+    display: flex;
+}
+
+.modal__content {
+    background: var(--color-bg);
+    padding: 1.5rem;
+    border-radius: var(--radius-md);
+    max-width: 90%;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal__message {
+    margin: 0 0 1rem;
+    font-size: 1rem;
+    color: var(--color-text);
+}
+
+.modal__close-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    background: var(--color-accent);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.modal__close-btn:hover {
+    opacity: 0.9;
+}
+
+.page-title {
+    cursor: default;
+    color: #333;
+}
+
+.page-title.clickable {
+    cursor: pointer;
+}

@@ -1,0 +1,444 @@
+/* 1) Fonts + Theme Variables */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;750&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;460;500;550;600;700;750&display=swap');
+
+:root {
+    --font-base: 'Montserrat', sans-serif;
+    --font-heading: 'Plus Jakarta Sans', sans-serif;
+    --color-text: #222222;
+    --color-muted: #666666;
+    --color-bg: #ffffff;
+    --color-bg-light: #F2F4F7;
+    --color-border: #DCDCDC;
+    --color-accent: #025831;
+    --spacing-xs: 0.5rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --radius-sm: 8px;
+    --radius-md: 14px;
+}
+
+/* Reset & Base */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+body {
+    font-family: var(--font-base);
+    background: var(--color-bg);
+    color: var(--color-text);
+    padding-bottom: 80px;
+}
+
+/* Main Container */
+.container {
+    max-width: 400px;
+    margin: 0 auto 24px;
+    padding: 17px 16px 0;
+    position: relative;
+    padding-bottom: calc(49px
+            /*btn-height*/
+            + 21px
+            /*gap*/
+            + 16px
+            /*optional extra*/
+        );
+}
+
+h2 {
+    margin: 50px 0 25px;
+    font-size: 24px;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+}
+
+/* Form Groups */
+.form-group {
+    margin-bottom: 25px;
+}
+
+/* Text inputs */
+input[type="text"],
+textarea {
+    width: 100%;
+    height: 50px;
+    padding: 22px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: #EFF2F5;
+    font-family: var(--font-base);
+    font-size: 16px;
+    font-weight: 460;
+    color: #222222;
+    outline: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #72767D;
+}
+
+textarea {
+    resize: vertical;
+    height: 150px !important;
+}
+
+/* Select pills (years) */
+.year-group {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.year-pill {
+    position: relative;
+    flex: 1;
+}
+
+.year-pill select {
+    width: 100%;
+    height: 49px;
+    padding: 12px 22px 12px 12px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: #EFF2F5;
+    font-size: 16px;
+    font-family: var(--font-base);
+    color: #72767D;
+    appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 1em;
+}
+
+.year-pill select:valid {
+    color: #222222;
+}
+
+.year-pill .clear-btn {
+    display: none;
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--color-muted);
+}
+
+.year-pill .clear-btn svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+/* Suggestions */
+.suggestions-container {
+    position: relative;
+}
+
+.suggestions-container .clear-btn {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    display: none;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: #90959C !important;
+}
+
+.suggestions-container .clear-btn svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke: var(--color-muted) !important;
+    stroke-width: 2;
+}
+
+.suggestions-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin: 0.25rem 0 0;
+    padding: 0;
+    list-style: none;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    max-height: 12em;
+    overflow-y: auto;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: none;
+    z-index: 10;
+}
+
+.suggestions-list li {
+    padding: 0.5em 1em;
+    cursor: pointer;
+}
+
+.suggestions-list li:hover {
+    background: var(--color-bg-light);
+}
+
+.suggestions-list .no-results {
+    color: var(--color-muted);
+    cursor: default;
+}
+
+/* People lists */
+#foundLabel,
+#selectedContainer p {
+    font-size: 14px;
+    font-family: var(--font-base);
+    font-weight: 500;
+    color: #333333;
+    margin-bottom: 18px;
+}
+
+.people-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 33px;
+}
+
+.people-list li {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 0.75px solid var(--color-border);
+}
+
+.people-list li:last-child {
+    border: none;
+}
+
+.people-list img {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 12px;
+}
+
+.people-list .info {
+    flex: 1;
+}
+
+.people-list .name {
+    font-family: var(--font-base);
+    font-size: 15px;
+    font-weight: 550;
+    color: #202124;
+}
+
+.people-list .years {
+    font-size: 0.73rem;
+    font-weight: 500;
+    color: #333;
+    margin-top: 2px;
+}
+
+.people-list button {
+    background: #1B8B59;
+    border: none;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-right: 12px;
+    color: #fff;
+}
+
+.people-list button svg {
+    width: 1rem;
+    height: 1rem;
+    stroke: #fff;
+}
+
+#activityArea {
+    /* remove the native dropdown icon */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+
+    /* sizing & spacing */
+    width: 100%;
+    height: 49px;
+    padding: 12px 22px;
+    padding-right: 48px;
+    /* make room for the arrow */
+
+    /* visual style */
+    border: none;
+    border-radius: var(--radius-md);
+    background-color: #EFF2F5;
+    font-size: 16px;
+    font-family: var(--font-base);
+    font-weight: 460;
+    color: #72767D;
+    cursor: pointer;
+
+    /* your arrow SVG, positioned inside the pill */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    /* 16px from the right edge */
+    background-size: 1.25em;
+    /* scale the arrow up slightly */
+}
+
+#activityArea:valid {
+    color: #222222;
+    background-image: none;
+}
+
+/* No-results */
+.no-results {
+    text-align: center;
+    margin: var(--spacing-md) 0;
+}
+
+/* Add-person fallback button */
+.add-person-btn {
+    background: #EFF2F5;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+    font-size: 1rem;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.add-person-btn:hover {
+    background: #E0E2E5;
+}
+
+/* BACK BUTTON */
+.back-btn {
+    position: absolute;
+    top: 0.5rem;
+    /* slide it down from the very top of the container */
+    left: 0.75rem;
+    /* align with your input left edges */
+    z-index: 2;
+    /* above everything else in the container */
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.back-btn svg {
+    width: 30px;
+    height: 30px;
+}
+
+.back-btn svg polyline {
+    fill: none;
+    stroke: var(--color-text);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Submit button */
+.submit-btn {
+    position: fixed;
+    bottom: 21px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 32px);
+    max-width: 400px;
+    height: 49px;
+    background: #1B8B59;
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+/* Error message */
+.error-message {
+    color: #c00;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 300;
+}
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--color-bg);
+    border-radius: 12px;
+    padding: 24px 16px;
+    width: 90%;
+    max-width: 360px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    z-index: 301;
+}
+
+.modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    color: #90959C;
+    cursor: pointer;
+}
+
+.modal-text {
+    margin: 32px 0 24px;
+    font-size: 16px;
+    color: var(--color-text);
+    line-height: 1.4;
+}
+
+.modal-ok {
+    padding: 12px 32px;
+    background: #397355;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+}

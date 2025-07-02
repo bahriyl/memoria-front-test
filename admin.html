@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Memoria — Admin Chat</title>
+    <link rel="stylesheet" href="css/chat.css">
+</head>
+
+<body>
+    <div class="chat-container">
+        <aside id="chatList" class="chat-list"></aside>
+        <section class="chat-window">
+            <h2 id="chatTitle">Оберіть чат</h2>
+            <div id="messages" class="messages"></div>
+            <form id="adminForm" class="input-bar">
+                <input id="adminInput" autocomplete="off" placeholder="Ваша відповідь…" />
+                <button type="submit">➤</button>
+            </form>
+        </section>
+    </div>
+
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js" crossorigin="anonymous">
+    </script>
+    <script src="js/admin.js"></script>
+</body>
+
+</html>

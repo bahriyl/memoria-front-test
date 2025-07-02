@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Memoria — Профіль</title>
+    <link rel="stylesheet" href="css/profile.css">
+</head>
+
+<body>
+    <main class="profile-container">
+        <header class="profile-hero">
+            <!-- ← back arrow -->
+            <a href="index.html" class="back-button" aria-label="Повернутися">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
+
+            <img class="profile-avatar" src="" alt="Фото особи" />
+        </header>
+
+        <section class="profile-info">
+            <h1 class="profile-name"></h1>
+            <p class="profile-years"></p>
+            <p class="profile-cemetery"></p>
+            <a href="#" class="location-button">
+                <svg class="location-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"
+                    fill="none">
+
+                    <!-- Outer pin outline -->
+                    <path d="M12 2
+       C8.13 2 5 5.13 5 9
+       c0 5.25 7 13 7 13
+       s7 -7.75 7 -13
+       c0 -3.87 -3.13 -7 -7 -7z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round" />
+
+                    <!-- Inner circle -->
+                    <circle cx="12" cy="9" r="2.5" fill="currentColor" />
+                </svg>
+
+
+                <span id="action-btn">Локація місця поховання</span>
+            </a>
+        </section>
+
+        <!-- Biography section -->
+        <section class="profile-bio">
+            <div class="bio-header">
+                <h2 class="bio-title">Життєпис</h2>
+                <div class="bio-buttons">
+                    <button class="btn bio-edit-btn" id="bio-edit">Змінити</button>
+                </div>
+            </div>
+
+            <div class="bio-body">
+                <p class="bio-content collapsed" id="bio-content">
+                    <!-- JS will inject fullBio text here... -->
+                    <span class="bio-toggle" id="bio-toggle">… більше</span>
+                </p>
+            </div>
+        </section>
+
+
+        <!-- Photographs section -->
+        <section class="profile-photos">
+            <h2 class="photos-title">Фотографії</h2>
+            <div class="photos-controls">
+                <button id="add-photo-btn" class="btn photo-btn">Додати</button>
+                <button id="choose-photo-btn" class="btn photo-btn">Вибрати</button>
+                <button id="delete-photo-btn" class="btn photo-btn">Видалити</button>
+            </div>
+            <div class="photos-scroll">
+                <ul class="photos-list"></ul>
+            </div>
+        </section>
+
+        <section class="profile-liturgy">
+            <h2 class="liturgy-title">Електронна записка за упокій</h2>
+
+            <!-- Date Selection -->
+            <div class="liturgy-date">
+                <div class="date-header">
+                    <span class="date-label">Оберіть дату</span>
+                    <span class="selected-date"></span>
+                </div>
+                <div class="date-calendar">
+                    <!-- Dates will be generated dynamically by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Church Selection -->
+            <div class="liturgy-church">
+                <span class="church-label">Оберіть церкву</span>
+                <div class="church-options">
+                    <button class="church-btn selected">Собор Св. Юра</button>
+                    <button class="church-btn">Собор Петра і Павла</button>
+                </div>
+            </div>
+
+            <!-- Service Details -->
+            <div class="liturgy-details">
+                <div class="person-name"></div>
+                <div class="service-info"></div>
+            </div>
+
+            <!-- Donation Amount -->
+            <div class="liturgy-donation">
+                <span class="donation-label">Оберіть суму пожертви</span>
+                <div class="donation-options">
+                    <button class="donation-btn">50 грн</button>
+                    <button class="donation-btn selected">100 грн</button>
+                    <button class="donation-btn">200 грн</button>
+                    <button class="donation-btn">Інше</button>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button class="liturgy-submit">Надіслати записку в церкву</button>
+        </section>
+
+        <!-- Comments Section -->
+        <section class="profile-comments">
+            <h2 class="comments-title">Коментарі</h2>
+
+            <div class="comments-list">
+                <!-- Comments will be populated by JavaScript -->
+            </div>
+
+            <!-- Add Comment Form -->
+            <div class="add-comment">
+                <h3 class="add-comment-title">Додати коментар</h3>
+                <div class="comment-templates">
+                    <button class="template-btn">Щирі співчуття</button>
+                    <button class="template-btn">Вічна пам'ять та слава</button>
+                    <button class="template-btn">Співчуття рідним та близьким</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Relatives Section -->
+        <section class="profile-relatives">
+            <h2 class="relatives-title">Родичі</h2>
+
+            <div class="relatives-controls">
+                <button class="btn relatives-btn" id="add-relative-btn">Добавити</button>
+                <button class="btn relatives-btn" id="choose-relative-btn">Вибрати</button>
+            </div>
+
+            <div class="relatives-list">
+                <!-- Relatives will be populated by JavaScript -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ─── Add Photo Modal ─── -->
+    <div id="addPhotoModal" class="modal-overlay">
+        <div class="modal">
+            <button class="modal-close">&times;</button>
+            <h2 class="modal-title">Додати фото</h2>
+
+            <!-- 1) Button to launch file picker -->
+            <button id="pickPhotosBtn" class="modal-pick-btn">Вибрати фото</button>
+            <input type="file" id="photo-input" accept="image/*" multiple style="display: none;" />
+
+            <!-- 2) Previews of selected files -->
+            <div class="modal-photo-scroll">
+                <ul class="modal-photo-list"></ul>
+            </div>
+
+            <!-- 3) Phone + Code -->
+            <form id="addPhotoForm" class="modal-form">
+                <label>
+                    <span>Номер телефону</span>
+                    <div class="input-with-action">
+                        <input type="tel" id="phone-input" placeholder="Введіть свій номер телефону" required>
+                        <button type="button" id="send-code-btn" class="action-link">
+                            Надіслати код
+                        </button>
+                    </div>
+                </label>
+                <label>
+                    <span>Код</span>
+                    <input type="text" id="sms-code-input" placeholder="Введіть код, надісланий вам на номер" required>
+                </label>
+                <button type="submit" class="modal-submit-btn">Додати фото</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ─── Edit Bio Modal ─── -->
+    <div id="editBioModal" class="modal-overlay">
+        <div class="modal">
+            <button class="modal-close">&times;</button>
+            <h2 class="modal-title">Підтвердьте зміни</h2>
+            <form id="editBioForm" class="modal-form">
+                <label>
+                    <span>Номер телефону</span>
+                    <div class="input-with-action">
+                        <input type="tel" id="edit-phone-input" placeholder="Введіть свій номер телефону" required>
+                        <button type="button" id="send-bio-code-btn" class="action-link">Надіслати код</button>
+                    </div>
+                </label>
+                <label>
+                    <span>Код</span>
+                    <input type="text" id="edit-sms-code-input" placeholder="Введіть код" required>
+                </label>
+                <button type="submit" class="modal-submit-btn">Підтвердити</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/profile.js"></script>
+</body>
+
+</html>

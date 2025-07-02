@@ -1,0 +1,394 @@
+/* 1) Fonts + Theme Variables */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;460;480;500;550;570;600;700;750&display=swap');
+
+:root {
+  --font-base: 'Montserrat', sans-serif;
+  --font-heading: 'Plus Jakarta Sans', sans-serif;
+  --color-text: #222;
+  --color-muted: #63666C;
+  --color-bg: #fff;
+  --color-bg-light: #F2F4F7;
+  --color-border: #DCDCDC;
+  --color-accent: #025831;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --radius-md: 14px;
+}
+
+/* 2) Reset and Base */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-base);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* 3) Header + Topbar */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-bg);
+  border-bottom: 0.75px solid var(--color-border);
+  z-index: 200;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm);
+  padding-top: 5px;
+  padding-bottom: 2px;
+  height: 56px;
+}
+
+.title {
+  margin: 0;
+  margin-left: auto;
+  margin-right: 0.4rem;
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 750;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+/* 4) Hamburger Button */
+.menu-btn {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.menu-btn svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* 6) Overlay */
+.overlay {
+  position: fixed;
+  top: 56px;
+  /* below header */
+  left: 0;
+  width: 100vw;
+  height: calc(100vh - 56px);
+  background: rgba(0, \,0, \,0, \,0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 100;
+}
+
+.overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* 7) Side-Drawer Menu */
+.side-menu {
+  position: fixed;
+  top: 47px;
+  left: -80vw;
+  width: 80vw;
+  max-width: 300px;
+  height: calc(100vh - 47px);
+  background: var(--color-bg);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+  transition: left 0.3s ease;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--spacing-md) 0;
+}
+
+.side-menu.open {
+  left: 0;
+}
+
+/* 8) Menu Items */
+.side-menu__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.side-menu__item+.side-menu__item {
+  margin-top: var(--spacing-sm);
+}
+
+.side-menu__item a {
+  display: block;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-family: var(--font-base);
+  font-size: 1rem;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.side-menu__item a:hover {
+  background: var(--color-bg-light);
+}
+
+.side-menu__item.current>a {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* 9) Menu Footer */
+.side-menu__footer {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.side-menu__footer a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+/* 10) Page Container & Title */
+.container {
+  max-width: 400px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+h2 {
+  margin: 27px 0 16px;
+  font-family: var(--font-base);
+  font-size: 20px;
+  font-weight: 570;
+}
+
+/* VIDEO WRAPPER (final version) */
+.video-wrapper {
+  position: relative;
+  width: 100%;
+  height: 264px;
+  max-width: 400px;
+  margin: 56px auto 0;
+  /* sits below 56px header + 20px gap */
+  aspect-ratio: 1 / 1;
+  /* square—change to 16/9 if desired */
+  background: #000;
+  overflow: hidden;
+}
+
+.video-wrapper video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* big center “play” overlay */
+.overlay-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 89px;
+  height: 61px;
+  background: #168251;
+  border-radius: 15px;
+  /* keep or tweak as you like */
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.overlay-play svg {
+  width: 47px;
+  height: 47px;
+}
+
+/* hide native controls */
+.video-wrapper video::-internal-media-controls,
+.video-wrapper video::-webkit-media-controls {
+  display: none !important;
+}
+
+/* completely nuke every iOS‐only control layer */
+video::-webkit-media-controls,
+video::-webkit-media-controls-enclosure,
+video::-webkit-media-controls-panel,
+video::-webkit-media-controls-overlay-play-button,
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* custom controls bar */
+.controls {
+  position: absolute;
+  bottom: 8px;
+  height: 32px;
+  pointer-events: none;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+}
+
+#progress {
+  -webkit-appearance: none;
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+#progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  margin-top: 0px;
+}
+
+#playPause {
+  position: absolute;
+  left: 12px;
+  /* same padding you use elsewhere */
+  bottom: 45px;
+  /* halfway up .controls */
+  transform: translateY(50%);
+  /* shift it up onto the track */
+  width: 37px;
+  height: 22px;
+  background: #168251;
+  border: none;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: all;
+  z-index: 2;
+  display: none !important;
+}
+
+#playPause svg {
+  width: 1rem;
+  height: 1rem;
+  fill: #fff;
+}
+
+#timeLabel {
+  position: absolute;
+  right: 12px;
+  bottom: 45px;
+  width: 45px;
+  height: 22px;
+  transform: translateY(50%);
+  background: #168251;
+  color: #fff;
+  font-size: 13px;
+  /* remove your old padding */
+  padding: 0;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 2;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.controls #progress {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateY(-50%);
+  width: 95%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  pointer-events: all;
+  /* re-enable pointer on the track */
+  margin: 0;
+  /* kill any default margins */
+  transform: translate(-50%, -50%);
+}
+
+/* FEATURES LIST */
+.features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 41px;
+}
+
+.features-list li+li {
+  margin-top: 18px;
+}
+
+.features-list h3 {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.features-list p {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 480;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.premium-qr-notes {
+  margin-top: 31px !important;
+  font-style: italic;
+  font-weight: 480;
+}
+
+/* PURCHASE BUTTON (last version only) */
+.submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: #168251;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 17px;
+  font-family: var(--font-base);
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 21px;
+}
+
+.submit-btn:hover {
+  background: #1A6C45;
+}

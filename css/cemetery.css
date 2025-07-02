@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@480;600&display=swap');
+
+.cemetery-page {
+    padding-top: 16px;
+}
+
+.cemetery-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 42px;
+    margin-top: 0;
+    align-self: center;
+}
+
+.cemetery-image img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+    margin-bottom: 23px;
+}
+
+header {
+    border-bottom: none !important;
+}
+
+.back-btn {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.75rem;
+    z-index: 2;
+    background: none;
+    border: none;
+    padding: 0 !important;
+    cursor: pointer;
+}
+
+.back-btn svg {
+    width: 40px !important;
+    height: 30px !important;
+}
+
+.back-btn svg polyline {
+    fill: none;
+    stroke: var(--color-text);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.container {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.container::-webkit-scrollbar {
+    display: none;
+}
+
+
+.contacts h3,
+.description h3 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 19px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    margin-top: 0;
+}
+
+.description {
+    margin-top: 25px;
+}
+
+.contacts p,
+.description p {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 480;
+    margin: 0 0;
+    line-height: 1.5;
+}
+
+/* кнопка назад */
+.back-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+}
+
+.back-btn svg {
+    stroke: #333;
+    width: 24px;
+    height: 24px;
+}
