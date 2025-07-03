@@ -1,261 +1,365 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;460;480;500;510;550;570;600;700;750&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;460;480;500;510;550;570;600;700;750&display=swap");
 
 :root {
-    --accent: #1B8B59;
-    --light-bg: #f8f8f8;
-    --gray: #ccc;
-    --text: #222;
+  --accent: #1b8b59;
+  --light-bg: #f8f8f8;
+  --gray: #ccc;
+  --text: #222;
 }
 
 body {
-    margin: 0;
-    font-family: 'Montserrat', sans-serif;
-    background: #F7F7F7;
-    color: var(--text);
+  margin: 0;
+  font-family: "Montserrat", sans-serif;
+  background: #f7f7f7;
+  color: var(--text);
 }
 
 .ritual-header {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 12px;
-    z-index: 10;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  z-index: 10;
 }
 
 .ritual-back-btn {
-    background: none;
-    border: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 .back-icon {
-    width: 24px;
-    height: 24px;
-    fill: white;
+  width: 24px;
+  height: 24px;
+  fill: white;
 }
 
 .ritual-edit-label {
-    color: white;
-    font-weight: 500;
-    font-size: 15px;
+  color: white;
+  font-weight: 500;
+  font-size: 15px;
 }
 
 .ritual-container {
-    margin: 0;
+  margin: 0;
 }
 
 .ritual-hero {
-    width: 100%;
-    height: 200px;
-    overflow: hidden;
-    position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  position: relative;
 }
 
 .ritual-banner {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .ritual-info {
-    background: #FFFFFF;
-    padding: 23px 20px 20px;
-    border-bottom: 0.2px solid #BFBFBF;
-    border-bottom-left-radius: 9px;
-    border-bottom-right-radius: 9px;
+  background: #ffffff;
+  padding: 23px 20px 20px;
+  border-bottom: 0.2px solid #bfbfbf;
+  border-bottom-left-radius: 9px;
+  border-bottom-right-radius: 9px;
 }
 
 .ritual-name {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 19px;
-    font-weight: 570;
-    margin: 0 !important;
+  font-family: "Montserrat", sans-serif;
+  font-size: 19px;
+  font-weight: 570;
+  margin: 0 !important;
 }
 
 .ritual-address {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 15px;
-    font-weight: 480;
-    margin: 4px 0 2px 0;
+  font-family: "Montserrat", sans-serif;
+  font-size: 15px;
+  font-weight: 480;
+  margin: 4px 0 2px 0;
 }
 
 .ritual-phone {
-    margin: 0;
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 480;
 }
 
 .ritual-link-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    background-color: #1B8B59;
-    color: white;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 570;
-    font-size: 16px;
-    padding: 14px 24px;
-    border-radius: 14px;
-    text-decoration: none;
-    margin-top: 22px;
-    width: 100%;
-    height: 41px;
-    box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #1b8b59;
+  color: white;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 570;
+  font-size: 16px;
+  padding: 14px 24px;
+  border-radius: 14px;
+  text-decoration: none;
+  margin-top: 22px;
+  width: 100%;
+  height: 41px;
+  box-sizing: border-box;
 }
 
 .ritual-link-icon {
-    width: 20px;
-    height: 20px;
-    fill: white;
+  width: 20px;
+  height: 20px;
+  fill: white;
 }
 
 .ritual-description {
-    background: #FFFFFF;
-    margin-top: 6px;
-    padding: 20px;
-    border-top: 0.2px solid #BFBFBF;
-    border-bottom: 0.2px solid #BFBFBF;
-    border-radius: 9px;
+  background: #ffffff;
+  margin-top: 6px;
+  padding: 20px;
+  border-top: 0.2px solid #bfbfbf;
+  border-bottom: 0.2px solid #bfbfbf;
+  border-radius: 9px;
 }
 
 .ritual-description h2 {
-    margin-top: 0;
-    margin-bottom: 11px;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 19px;
-    font-weight: 570;
+  margin-top: 0;
+  margin-bottom: 11px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 19px;
+  font-weight: 570;
 }
 
 .edit-description-btn {
-    background-color: #F2F4F7;
-    color: #585858;
-    border: none;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 510;
-    font-size: 15px;
-    padding: 6px 14px;
-    border-radius: 14px;
-    cursor: pointer;
-    height: 30px;
+  background-color: #f2f4f7;
+  color: #585858;
+  border: none;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 510;
+  font-size: 15px;
+  padding: 6px 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  height: 30px;
 }
 
 .ritual-text {
-    width: 100%;
-    border: none;
-    background: var(--light-bg);
-    font-size: 15px;
-    padding: 12px;
-    resize: none;
-    margin-top: 8px;
-    border-radius: 8px;
-    box-sizing: border-box;
-    /* ← важливо для правильного padding */
+  width: 100%;
+  border: none;
+  background: var(--light-bg);
+  font-size: 15px;
+  padding: 12px;
+  resize: none;
+  margin-top: 8px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  /* ← важливо для правильного padding */
 }
 
 p.ritual-text {
-    background: none;
-    margin-top: 8px;
-    margin-bottom: 0;
-    padding: 0;
-    font-size: 15px;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 480;
-    line-height: 1.4;
+  background: none;
+  margin-top: 8px;
+  margin-bottom: 0;
+  padding: 0;
+  font-size: 15px;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 480;
+  line-height: 23px;
+}
+
+textarea {
+  width: 300px;
+  height: 105px;
+  font-family: "Montserrat", sans-serif;
 }
 
 .ritual-item-section {
-    background: #FFFFFF;
-    margin-top: 6px;
-    padding: 20px;
-    padding-right: 0;
-    border-top: 0.2px solid #BFBFBF;
-    border-bottom: 0.2px solid #BFBFBF;
-    border-radius: 9px;
+  background: #ffffff;
+  margin-top: 6px;
+  padding: 20px;
+  padding-top: 0;
+  padding-right: 0;
+  border-top: 0.2px solid #bfbfbf;
+  border-bottom: 0.2px solid #bfbfbf;
+  border-radius: 9px;
 }
 
 .ritual-item-section h2 {
-    margin-top: 0;
-    margin-bottom: 17px;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 19px;
-    font-weight: 570;
+  margin-top: 0;
+  margin-bottom: 0;
+  font-family: "Montserrat", sans-serif;
+  font-size: 19px;
+  font-weight: 570;
 }
 
 .item-images {
-    display: grid;
-    grid-auto-flow: column;
-    grid-template-rows: repeat(2, 198px);
-    gap: 3px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 3px;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, 198px);
+  gap: 3px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 3px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
 
 .item-images img {
-    width: 160px;
-    height: 198px;
-    object-fit: cover;
-    border-radius: 4px;
-    scroll-snap-align: start;
-    flex-shrink: 0;
+  width: 160px;
+  height: 198px;
+  object-fit: cover;
+  border-radius: 4px;
+  scroll-snap-align: start;
+  flex-shrink: 0;
 }
 
 .item-image.selected {
-    outline: 3px solid var(--accent);
-    opacity: 0.8;
-    transition: outline 0.2s ease;
-    border-radius: 6px;
+  outline: 3px solid var(--accent);
+  opacity: 0.8;
+  transition: outline 0.2s ease;
+  border-radius: 6px;
 }
 
 .ritual-btn-row {
-    display: flex;
-    gap: 10px;
-    margin: 10px 0 16px 0;
+  display: flex;
+  gap: 10px;
+  margin: 0 0 22px 0;
 }
 
 .delete-row {
-    margin-top: 0;
-    margin-bottom: 10px;
-    justify-content: flex-start;
+  margin-top: 0;
+  margin-bottom: 10px;
+  justify-content: flex-start;
 }
 
 .ritual-btn {
-    background-color: #F2F4F7;
-    color: #585858;
-    border: none;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 510;
-    font-size: 15px;
-    padding: 6px 14px;
-    border-radius: 14px;
-    cursor: pointer;
-    height: 30px;
-    transition: background 0.2s ease;
+  background-color: #f2f4f7;
+  color: #585858;
+  border: none;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 510;
+  font-size: 15px;
+  padding: 6px 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  height: 30px;
+  transition: background 0.2s ease;
 }
 
 .add-category-btn {
-    background-color: #FFFFFF;
-    color: #585858;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 16px;
-    font-weight: 510;
-    padding: 0 24px;
-    border: none;
-    border-radius: 18px;
-    cursor: pointer;
-    display: block;
-    margin: 32px auto 48px auto;
-    text-align: center;
-    height: 34px;
-    line-height: 34px;
+  background-color: #ffffff;
+  color: #585858;
+  font-family: "Montserrat", sans-serif;
+  font-size: 16px;
+  font-weight: 510;
+  padding: 0 24px;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  display: block;
+  margin: 32px auto 48px auto;
+  text-align: center;
+  height: 34px;
+  line-height: 34px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+.dots-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  padding-top: 20px;
+  padding-right: 14px;
+  padding-bottom: 16px;
+}
+
+.popup-menu {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 999;
+  min-width: 160px;
+  font-family: "Montserrat", sans-serif;
+}
+
+.popup-menu.hidden {
+  display: none;
+}
+
+.popup-option {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.popup-option:hover {
+  background-color: #f2f2f2;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.rename-modal {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rename-modal input {
+  padding: 10px;
+  font-size: 15px;
+}
+
+.rename-modal .modal-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rename-modal button {
+  background: var(--accent);
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 15px;
+  color: white;
+  cursor: pointer;
+  flex: 1;
+}
+
+.rename-modal .cancel-btn {
+  background: #aaa;
 }

@@ -1,224 +1,273 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;460;480;500;510;550;570;600;700;750&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;460;480;500;510;550;570;600;700;750&display=swap");
 
 body {
-    margin: 0;
-    font-family: 'Montserrat', sans-serif;
-    background: #f7f7f7;
-    color: #222;
+  margin: 0;
+  font-family: "Montserrat", sans-serif;
+  background: #f7f7f7;
+  color: #222;
 }
 
 .ritual-container {
-    max-width: 800px;
-    margin: 0 auto;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .ritual-hero {
-    position: relative;
-    height: 200px;
-    background: #ccc;
-    overflow: hidden;
+  position: relative;
+  height: 200px;
+  background: #ccc;
+  overflow: hidden;
 }
 
 .ritual-banner {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .ritual-info {
-    background: #FFFFFF;
-    padding: 23px 20px 20px;
-    border-bottom: 0.2px solid #BFBFBF;
-    border-bottom-left-radius: 9px;
-    border-bottom-right-radius: 9px;
+  background: #ffffff;
+  padding: 23px 20px 20px;
+  border-bottom: 0.2px solid #bfbfbf;
+  border-bottom-left-radius: 9px;
+  border-bottom-right-radius: 9px;
 }
 
 .ritual-name {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 19px;
-    font-weight: 570;
-    margin: 0 !important;
+  font-family: "Montserrat", sans-serif;
+  font-size: 19px;
+  font-weight: 570;
+  margin: 0 !important;
 }
 
 .ritual-address {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 15px;
-    font-weight: 480;
-    margin: 4px 0 2px 0;
+  font-family: "Montserrat", sans-serif;
+  font-size: 15px;
+  font-weight: 480;
+  margin: 4px 0 2px 0;
 }
 
 .ritual-phone {
-    margin: 0;
+  font-family: "Montserrat", sans-serif;
+  font-size: 15px;
+  font-weight: 480;
+  margin: 0;
 }
 
 .ritual-link-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    background-color: #1B8B59;
-    color: white;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 570;
-    font-size: 16px;
-    padding: 14px 24px;
-    border-radius: 14px;
-    text-decoration: none;
-    margin-top: 22px;
-    width: 100%;
-    height: 41px;
-    box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #1b8b59;
+  color: white;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 570;
+  font-size: 16px;
+  padding: 14px 24px;
+  border-radius: 14px;
+  text-decoration: none;
+  margin-top: 22px;
+  width: 100%;
+  height: 41px;
+  box-sizing: border-box;
 }
 
 .ritual-link-icon {
-    width: 20px;
-    height: 20px;
-    fill: white;
+  width: 15px;
+  height: 15px;
+  fill: white;
 }
 
 .ritual-description {
-    background: #FFFFFF;
-    margin-top: 6px;
-    padding: 20px;
-    border-top: 0.2px solid #BFBFBF;
-    border-bottom: 0.2px solid #BFBFBF;
-    border-radius: 9px;
+  background: #ffffff;
+  margin-top: 6px;
+  padding: 20px;
+  border-top: 0.2px solid #bfbfbf;
+  border-bottom: 0.2px solid #bfbfbf;
+  border-radius: 9px;
 }
 
 .ritual-description h2 {
-    margin-top: 0;
-    margin-bottom: 11px;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 19px;
-    font-weight: 570;
+  margin-top: 0;
+  margin-bottom: 11px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 19px;
+  font-weight: 570;
 }
 
 .ritual-text {
-    margin: 0;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 15px;
-    font-weight: 480;
+  margin: 0;
+  font-family: "Montserrat", sans-serif;
+  font-size: 15px;
+  font-weight: 480;
+  line-height: 23px;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ritual-text.expanded {
+  display: block;
+}
+
+.text-content {
+  display: inline;
+}
+
+.ritual-text.collapsed .text-content {
+  display: inline;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.dots {
+  display: inline;
+}
+
+.ritual-text.expanded .dots {
+  display: none;
+}
+
+.toggle-text-btn {
+  background: none;
+  border: none;
+  color: #000000;
+  font-family: "Montserrat", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline;
+  padding: 0;
+  margin-left: 4px;
+  all: unset;
 }
 
 .ritual-item-section {
-    background: #FFFFFF;
-    margin-top: 6px;
-    padding: 20px;
-    padding-right: 0;
-    border-top: 0.2px solid #BFBFBF;
-    border-bottom: 0.2px solid #BFBFBF;
-    border-radius: 9px;
+  background: #ffffff;
+  margin-top: 6px;
+  padding: 20px;
+  padding-right: 0;
+  border-top: 0.2px solid #bfbfbf;
+  border-bottom: 0.2px solid #bfbfbf;
+  border-radius: 9px;
 }
 
 .ritual-item-section h2 {
-    margin-top: 0;
-    margin-bottom: 17px;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 19px;
-    font-weight: 570;
+  margin-top: 0;
+  margin-bottom: 17px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 19px;
+  font-weight: 570;
 }
 
 .item-images {
-    display: grid;
-    grid-auto-flow: column;
-    grid-template-rows: repeat(2, 198px);
-    gap: 3px;
-    overflow-x: auto;
-    padding-bottom: 3px;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, 198px);
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
 
 .item-images img {
-    width: 160px;
-    height: 198px;
-    object-fit: cover;
-    border-radius: 4px;
-    scroll-snap-align: start;
-    flex-shrink: 0;
+  width: 160px;
+  height: 198px;
+  object-fit: cover;
+  border-radius: 4px;
+  scroll-snap-align: start;
+  flex-shrink: 0;
 }
 
 .ritual-header {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 48px;
-    padding: 0 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 10;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  padding: 0 12px;
+  padding-left: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
 }
 
 .ritual-back-btn {
-    background: none;
-    border: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 .back-icon {
-    width: 24px;
-    height: 24px;
-    fill: white;
+  width: 24px;
+  height: 24px;
+  fill: white;
 }
 
 .ritual-login-btn {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 15px;
-    font-weight: 510;
-    font-family: 'Montserrat', sans-serif;
-    cursor: pointer;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 15px;
+  font-weight: 510;
+  font-family: "Montserrat", sans-serif;
+  cursor: pointer;
 }
 
 .login-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 999;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
 }
 
 .login-box {
-    background: white;
-    padding: 24px;
-    border-radius: 12px;
-    width: 90%;
-    max-width: 320px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 320px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .login-box input {
-    padding: 10px;
-    font-size: 15px;
+  padding: 10px;
+  font-size: 15px;
 }
 
 .login-box button {
-    background: #1B8B59;
-    color: white;
-    border: none;
-    padding: 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 15px;
+  background: #1b8b59;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
 }
 
 .error-message {
-    color: red;
-    font-size: 14px;
-    margin: 0;
+  color: red;
+  font-size: 14px;
+  margin: 0;
 }
