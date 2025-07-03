@@ -1,5 +1,5 @@
-// ritual_service_edit.js
 const API = "https://memoria-test-app-ifisk.ondigitalocean.app/api";
+const IMGBB_API_KEY = "726ae764867cf6b3a259967071cbdd80";
 
 const urlParams = new URLSearchParams(window.location.search);
 const ritualId = urlParams.get("id");
@@ -42,62 +42,165 @@ function renderData(data) {
     p.style.display = "block";
     textarea.style.display = "none";
 
-    const container = document.querySelector(".ritual-items-container");
-    container.innerHTML = "";
+    const container = document.querySelector('.ritual-container');
+    container.querySelectorAll('.ritual-item-section').forEach(el => el.remove());
 
     data.items.forEach(([title, images], index) => {
-        const section = document.createElement("section");
-        section.className = "ritual-item-section";
+        const section = document.createElement('section');
+        section.className = 'ritual-item-section';
         section.setAttribute("draggable", true);
-        section.dataset.index = index;
 
-        section.innerHTML = `
-      <div class="ritual-item-header">
-        <h3 class="ritual-item-title">${title}</h3>
-        <div class="drag-icon">&#8942;</div>
-      </div>
-      <div class="ritual-btn-row">
-        <button class="ritual-btn">Добавити</button>
-        <button class="ritual-btn">Вибрати</button>
-      </div>
-      <div class="image-grid">
-        ${images.map((img) => `<img src="${img}" alt="item" />`).join("")}
-      </div>
-    `;
+        // Top row with title
+        const heading = document.createElement('h2');
+        heading.className = 'item-title';
+        heading.contentEditable = true;
+        heading.textContent = title;
 
-        container.appendChild(section);
+        const topRow = document.createElement('div');
+        topRow.className = 'ritual-item-top';
+        topRow.appendChild(heading);
+
+        // Buttons row
+        const btnRow = document.createElement('div');
+        btnRow.className = 'ritual-btn-row';
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.display = 'none';
+
+        const addBtn = document.createElement('button');
+        addBtn.className = 'ritual-btn';
+        addBtn.textContent = 'Добавити';
+        addBtn.addEventListener('click', () => fileInput.click());
+
+        let isSelecting = false;
+        const selectBtn = document.createElement('button');
+        selectBtn.className = 'ritual-btn';
+        selectBtn.textContent = 'Вибрати';
+
+        const imagesContainer = document.createElement('div');
+        imagesContainer.className = 'item-images';
+
+        images.forEach((url) => {
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = title;
+            img.className = 'item-image';
+            img.addEventListener("click", () => {
+                if (isSelecting) {
+                    img.classList.toggle("selected");
+                }
+            });
+            imagesContainer.appendChild(img);
+        });
+
+        selectBtn.addEventListener('click', async () => {
+            if (!isSelecting) {
+                isSelecting = true;
+                selectBtn.textContent = 'Видалити';
+            } else {
+                const selectedImages = imagesContainer.querySelectorAll('.selected');
+                selectedImages.forEach(img => {
+                    const src = img.src;
+                    const indexToRemove = data.items[index][1].indexOf(src);
+                    if (indexToRemove > -1) {
+                        data.items[index][1].splice(indexToRemove, 1);
+                    }
+                });
+                await updateItems(data.items);
+                isSelecting = false;
+            }
+        });
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append("image", file);
+
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await res.json();
+            const imageUrl = result.data.url;
+            data.items[index][1].push(imageUrl);
+            await updateItems(data.items);
+        });
+
+        const deleteCategoryBtn = document.createElement('button');
+        deleteCategoryBtn.textContent = 'Видалити категорію';
+        deleteCategoryBtn.className = 'ritual-btn';
+        deleteCategoryBtn.addEventListener('click', async () => {
+            data.items.splice(index, 1);
+            await updateItems(data.items);
+        });
+
+        btnRow.appendChild(addBtn);
+        btnRow.appendChild(selectBtn);
+        btnRow.appendChild(fileInput);
+
+        const deleteRow = document.createElement('div');
+        deleteRow.className = 'ritual-btn-row delete-row';
+        deleteRow.appendChild(deleteCategoryBtn);
+
+        section.appendChild(topRow);
+        section.appendChild(btnRow);
+        section.appendChild(deleteRow);
+        section.appendChild(imagesContainer);
+        container.insertBefore(section, document.querySelector('.add-category-btn'));
     });
 
-    enableDragAndDrop();
+    enableDragAndDrop(data);
+
+    const addCategoryBtn = document.querySelector('.add-category-btn');
+    addCategoryBtn.onclick = async () => {
+        data.items.push(["Нова категорія", []]);
+        await updateItems(data.items);
+    };
 }
 
-function enableDragAndDrop() {
+function enableDragAndDrop(data) {
     let dragged;
-    document.querySelectorAll(".ritual-item-section").forEach((section) => {
-        section.addEventListener("dragstart", (e) => {
+    const container = document.querySelector(".ritual-container");
+    container.querySelectorAll(".ritual-item-section").forEach((section, index) => {
+        section.addEventListener("dragstart", () => {
             dragged = section;
             section.style.opacity = 0.5;
         });
-        section.addEventListener("dragend", (e) => {
+        section.addEventListener("dragend", () => {
             section.style.opacity = "";
         });
         section.addEventListener("dragover", (e) => {
             e.preventDefault();
         });
-        section.addEventListener("drop", (e) => {
+        section.addEventListener("drop", async (e) => {
             e.preventDefault();
             if (dragged !== section) {
-                const container = section.parentNode;
-                const draggedIndex = [...container.children].indexOf(dragged);
-                const droppedIndex = [...container.children].indexOf(section);
-                if (draggedIndex < droppedIndex) {
-                    container.insertBefore(dragged, section.nextSibling);
-                } else {
-                    container.insertBefore(dragged, section);
-                }
+                const all = Array.from(container.querySelectorAll(".ritual-item-section"));
+                const draggedIndex = all.indexOf(dragged);
+                const droppedIndex = all.indexOf(section);
+
+                const movedItem = data.items.splice(draggedIndex, 1)[0];
+                data.items.splice(droppedIndex, 0, movedItem);
+
+                await updateItems(data.items);
             }
         });
     });
+}
+
+async function updateItems(items) {
+    await fetch(`${API}/ritual_services/${ritualId}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ items }),
+    });
+    location.reload();
 }
 
 document.querySelector(".edit-description-btn").addEventListener("click", () => {

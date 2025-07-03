@@ -171,28 +171,17 @@ p.ritual-text {
     line-height: 1.4;
 }
 
-.ritual-items-container {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-}
-
 .ritual-item-section {
-    border-top: 1px solid var(--gray);
-    padding-top: 12px;
-    position: relative;
     background: #FFFFFF;
+    margin-top: 6px;
+    padding: 20px;
+    padding-right: 0;
+    border-top: 0.2px solid #BFBFBF;
+    border-bottom: 0.2px solid #BFBFBF;
+    border-radius: 9px;
 }
 
-.ritual-item-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 0;
-}
-
-.ritual-item-title {
+.ritual-item-section h2 {
     margin-top: 0;
     margin-bottom: 17px;
     font-family: 'Montserrat', sans-serif;
@@ -206,24 +195,44 @@ p.ritual-text {
     user-select: none;
 }
 
-.image-grid {
+.item-images {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(2, 198px);
+    gap: 3px;
     overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 3px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
 }
 
-.image-grid img {
-    width: 100%;
-    height: 120px;
+.item-images img {
+    width: 160px;
+    height: 198px;
     object-fit: cover;
-    border-radius: 8px;
+    border-radius: 4px;
+    scroll-snap-align: start;
+    flex-shrink: 0;
+}
+
+.item-image.selected {
+    outline: 3px solid var(--accent);
+    opacity: 0.8;
+    transition: outline 0.2s ease;
+    border-radius: 6px;
 }
 
 .ritual-btn-row {
     display: flex;
     gap: 10px;
-    margin: 10px 0;
+    margin: 10px 0 16px 0;
+}
+
+.delete-row {
+    margin-top: 0;
+    margin-bottom: 10px;
+    justify-content: flex-start;
 }
 
 .ritual-btn {
@@ -237,6 +246,7 @@ p.ritual-text {
     border-radius: 14px;
     cursor: pointer;
     height: 30px;
+    transition: background 0.2s ease;
 }
 
 .add-category-btn {
