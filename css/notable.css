@@ -89,8 +89,8 @@ header {
 /* Typography */
 h2 {
     margin: var(--spacing-lg) 0 var(--spacing-md);
-    margin-bottom: 28px;
-    margin-top: 16px;
+    margin-bottom: 20px;
+    margin-top: 8px;
     margin-left: 2px;
     font-family: var(--font-base);
     font-size: 24px;

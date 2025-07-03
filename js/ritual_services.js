@@ -57,6 +57,10 @@ function renderCompanies(list) {
     const ul = document.createElement("ul");
     ul.className = "company-list";
     items.forEach((c) => {
+      const a = document.createElement("a");
+      a.href = `/ritual_service_profile.html?id=${c.id}`;
+      a.className = "company-link";
+
       const li = document.createElement("li");
       li.className = "company-item";
       li.innerHTML = `
@@ -65,7 +69,9 @@ function renderCompanies(list) {
           <div class="company-name">${c.name}</div>
           <div class="company-address">${c.address}</div>
         </div>`;
-      ul.append(li);
+
+      a.appendChild(li);
+      ul.appendChild(a);
     });
     container.append(ul);
   }

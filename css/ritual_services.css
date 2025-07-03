@@ -152,3 +152,9 @@
 .suggestions-list li:hover {
     background: var(--color-bg-light);
 }
+
+.company-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}

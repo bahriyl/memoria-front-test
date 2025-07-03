@@ -26,8 +26,10 @@
   socket.emit("joinRoom", chatId);
 
   function scrollToBottom() {
-    const msgsDiv = document.getElementById("messages");
-    msgsDiv.scrollTo({ top: msgsDiv.scrollHeight, behavior: "smooth" });
+    const spacer = document.getElementById("bottomSpacer");
+    if (spacer) {
+      spacer.scrollIntoView({ behavior: "auto", block: "end" });
+    }
   }
 
   // 3) Render helper
@@ -62,13 +64,24 @@
     const msgs = await (await fetch(`${API}/chats/${chatId}/messages`)).json();
     msgsDiv.innerHTML = "";
     msgs.forEach(render);
+
+    // Remove existing spacer if any
+    let oldSpacer = document.getElementById("bottomSpacer");
+    if (oldSpacer) oldSpacer.remove();
+
+    // Add new spacer at the very end
+    const spacer = document.createElement("div");
+    spacer.id = "bottomSpacer";
+    msgsDiv.append(spacer);
   }
 
   await loadHistory();
+  setTimeout(scrollToBottom, 100);
 
   // 5) Listen for live updates
-  socket.on("newMessage", () => {
-    loadHistory();
+  socket.on("newMessage", async () => {
+    await loadHistory();
+    setTimeout(scrollToBottom, 100);
   });
 
   // 6) Attach button → вибір файлу
@@ -124,5 +137,9 @@
       body: formData,
     });
     // далі socket сам оновить історію через loadHistory()
+  });
+
+  window.addEventListener("load", () => {
+    setTimeout(scrollToBottom, 100); // delay to ensure Safari renders layout
   });
 })();
