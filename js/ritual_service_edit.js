@@ -48,7 +48,6 @@ function renderData(data) {
     data.items.forEach(([title, images], index) => {
         const section = document.createElement('section');
         section.className = 'ritual-item-section';
-        section.setAttribute("draggable", true);
 
         // Top row with title
         const heading = document.createElement('h2');
@@ -152,43 +151,11 @@ function renderData(data) {
         container.insertBefore(section, document.querySelector('.add-category-btn'));
     });
 
-    enableDragAndDrop(data);
-
     const addCategoryBtn = document.querySelector('.add-category-btn');
     addCategoryBtn.onclick = async () => {
         data.items.push(["Нова категорія", []]);
         await updateItems(data.items);
     };
-}
-
-function enableDragAndDrop(data) {
-    let dragged;
-    const container = document.querySelector(".ritual-container");
-    container.querySelectorAll(".ritual-item-section").forEach((section, index) => {
-        section.addEventListener("dragstart", () => {
-            dragged = section;
-            section.style.opacity = 0.5;
-        });
-        section.addEventListener("dragend", () => {
-            section.style.opacity = "";
-        });
-        section.addEventListener("dragover", (e) => {
-            e.preventDefault();
-        });
-        section.addEventListener("drop", async (e) => {
-            e.preventDefault();
-            if (dragged !== section) {
-                const all = Array.from(container.querySelectorAll(".ritual-item-section"));
-                const draggedIndex = all.indexOf(dragged);
-                const droppedIndex = all.indexOf(section);
-
-                const movedItem = data.items.splice(draggedIndex, 1)[0];
-                data.items.splice(droppedIndex, 0, movedItem);
-
-                await updateItems(data.items);
-            }
-        });
-    });
 }
 
 async function updateItems(items) {
