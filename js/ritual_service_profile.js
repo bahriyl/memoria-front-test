@@ -12,9 +12,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function setupTextToggle() {
         const textWrapper = document.querySelector(".ritual-text");
-        const toggleBtn = textWrapper.querySelector(".toggle-text-btn");
-        const dots = textWrapper.querySelector(".dots");
-
+        const toggleBtn = textWrapper?.querySelector(".toggle-text-btn");
+        const dots = textWrapper?.querySelector(".dots");
         if (!textWrapper || !toggleBtn || !dots) return;
 
         toggleBtn.addEventListener("click", () => {
@@ -25,35 +24,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     try {
+        // 1) Отримуємо дані
         const response = await fetch(`${API_BASE}/${ritualId}`);
         if (!response.ok) throw new Error("Не вдалося отримати дані.");
-
         const data = await response.json();
 
-        // Заповнення даних
+        // 2) Заповнюємо шапку
         document.querySelector(".ritual-banner").src = data.banner;
         document.querySelector(".ritual-name").textContent = data.name;
         document.querySelector(".ritual-address").textContent = data.address;
         document.querySelector(".ritual-phone").textContent = `тел. ${data.phone}`;
 
+        // 3) Опис із "більше/менше"
         const fullText = data.description || "";
         const textContent = document.querySelector(".text-content");
-        const toggleBtn = document.querySelector(".toggle-text-btn");
-        const dots = document.querySelector(".dots");
-
         textContent.textContent = fullText;
 
-        // Тимчасово додаємо текст, щоб виміряти довжину рядків
+        // — обрізаємо до 4 рядків
         const temp = document.createElement("span");
-        temp.style.visibility = "hidden";
-        temp.style.position = "absolute";
-        temp.style.width = getComputedStyle(textContent).width;
-        temp.style.font = getComputedStyle(textContent).font;
-        temp.style.lineHeight = getComputedStyle(textContent).lineHeight;
+        Object.assign(temp.style, {
+            visibility: "hidden",
+            position: "absolute",
+            width: getComputedStyle(textContent).width,
+            font: getComputedStyle(textContent).font,
+            lineHeight: getComputedStyle(textContent).lineHeight,
+        });
         temp.textContent = fullText;
         document.body.appendChild(temp);
 
-        // Підраховуємо кількість символів у 4 рядках (приблизно)
         const lineHeight = parseFloat(getComputedStyle(temp).lineHeight);
         const maxHeight = 4 * lineHeight;
         let approxCharCount = fullText.length;
@@ -63,24 +61,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         document.body.removeChild(temp);
 
-        // Залишаємо трохи місця для "... більше"
         const cropped = fullText.slice(0, approxCharCount - 20).trim();
         textContent.textContent = cropped;
-
         setupTextToggle();
 
+        // 4) Посилання
         const linkEl = document.querySelector(".ritual-link-btn");
         linkEl.href = data.link.startsWith("http")
             ? data.link
-            : "https://" + data.link;
-        linkEl.querySelector(".ritual-link-text").textContent = data.link.replace(
-            /^https?:\/\//,
-            ""
-        );
+            : `https://${data.link}`;
+        linkEl.querySelector(".ritual-link-text").textContent =
+            data.link.replace(/^https?:\/\//, "");
 
-        // Додавання блоків з фотографіями
+        // 5) Блоки з фотографіями
         const container = document.querySelector(".ritual-container");
-
         data.items.forEach(([title, images]) => {
             const section = document.createElement("section");
             section.className = "ritual-item-section";
@@ -92,10 +86,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             const imagesContainer = document.createElement("div");
             imagesContainer.className = "item-images";
 
-            images.forEach((url) => {
+            images.forEach((url, _, allUrls) => {
                 const img = document.createElement("img");
                 img.src = url;
                 img.alt = title;
+                img.classList.add("preview-img");
+                img.addEventListener("click", () => openSlideshow(allUrls));
                 imagesContainer.appendChild(img);
             });
 
@@ -109,10 +105,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             '<p style="text-align:center;margin-top:50px;">Сталася помилка при завантаженні даних.</p>';
     }
 
+    // Відкриваємо модалку логіну
     document.querySelector(".ritual-login-btn").addEventListener("click", () => {
         document.getElementById("loginModal").style.display = "flex";
     });
 
+    // Обробник кнопки "Увійти" — тільки логіка авторизації
     document.getElementById("loginSubmit").addEventListener("click", async () => {
         const login = document.getElementById("loginInput").value.trim();
         const password = document.getElementById("passwordInput").value.trim();
@@ -120,119 +118,45 @@ document.addEventListener("DOMContentLoaded", async () => {
         errorEl.textContent = "";
 
         try {
-            const res = await fetch(`${API_BASE}/${ritualId}`);
-            if (!res.ok) throw new Error('Не вдалося отримати дані.');
-            const data = await res.json();
-
-            document.querySelector('.ritual-banner').src = data.banner;
-            document.querySelector('.ritual-name').textContent = data.name;
-            document.querySelector('.ritual-address').textContent = data.address;
-            document.querySelector('.ritual-phone').textContent = `тел. ${data.phone}`;
-            document.querySelector('.ritual-text').textContent = data.description;
-
-            const linkEl = document.querySelector('.ritual-link-btn');
-            linkEl.href = data.link.startsWith('http') ? data.link : 'https://' + data.link;
-            linkEl.querySelector('.ritual-link-text').textContent = data.link.replace(/^https?:\/\//, '');
-
-            const container = document.querySelector('.ritual-container');
-
-            data.items.forEach(([title, images]) => {
-                const section = document.createElement('section');
-                section.className = 'ritual-item-section';
-
-                const heading = document.createElement('h2');
-                heading.className = 'item-title';
-                heading.textContent = title;
-
-                const imagesContainer = document.createElement('div');
-                imagesContainer.className = 'item-images';
-
-                images.forEach(([mainUrl, additional]) => {
-                    // 1) Обгортка
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'image-wrapper';
-
-                    // 2) Саме прев’ю
-                    const img = document.createElement('img');
-                    img.src = mainUrl;
-                    img.alt = title;
-                    img.classList.add('preview-img');
-                    img.addEventListener('click', () => {
-                        openSlideshow([mainUrl, ...additional]);
-                    });
-
-                    // 3) Лічильник
-                    const counter = document.createElement('span');
-                    counter.className = 'image-counter';
-                    // +1 тому що count = основна + додаткові
-                    counter.textContent = additional.length + 1;
-
-                    // 4) Збираємо докупи
-                    wrapper.appendChild(img);
-                    wrapper.appendChild(counter);
-                    imagesContainer.appendChild(wrapper);
-                });
-
-                section.appendChild(heading);
-                section.appendChild(imagesContainer);
-                container.appendChild(section);
+            const res = await fetch(`${API_BASE}/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    ritual_service_id: ritualId,
+                    login,
+                    password,
+                }),
             });
-        } catch (err) {
+            if (!res.ok) throw new Error("Невірні дані");
+            const result = await res.json();
+            // Перенаправляємо на сторінку редагування з токеном
+            window.location.href = `/ritual_service_edit.html?id=${ritualId}&token=${result.token}`;
+        } catch {
             errorEl.textContent = "Невірний логін або пароль";
         }
-
-        document.querySelector('.ritual-login-btn').addEventListener('click', () => {
-            document.getElementById('loginModal').style.display = 'flex';
-        });
-
-        document.getElementById('loginSubmit').addEventListener('click', async () => {
-            const login = document.getElementById('loginInput').value.trim();
-            const password = document.getElementById('passwordInput').value.trim();
-            const errorEl = document.getElementById('loginError');
-            errorEl.textContent = '';
-
-            try {
-                const res = await fetch(`${API_BASE}/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ritual_service_id: ritualId, login, password })
-                });
-
-                if (!res.ok) throw new Error('Невірні дані');
-                const result = await res.json();
-                window.location.href = `/ritual_service_edit.html?id=${ritualId}&token=${result.token}`;
-            } catch {
-                errorEl.textContent = 'Невірний логін або пароль';
-            }
-        });
     });
 
+    // Функція відкриття слайдшоу
     function openSlideshow(images) {
-        const modal = document.createElement('div');
-        modal.className = 'slideshow-modal';
+        const modal = document.createElement("div");
+        modal.className = "slideshow-modal";
 
         let currentIndex = 0;
-
-        // — Тег для самої картинки
-        const img = document.createElement('img');
+        const img = document.createElement("img");
         img.src = images[currentIndex];
-        img.className = 'slideshow-img';
+        img.className = "slideshow-img";
 
-        // — Кнопка закриття
-        const closeBtn = document.createElement('span');
-        closeBtn.textContent = '✕';
-        closeBtn.className = 'close-slideshow';
+        const closeBtn = document.createElement("span");
+        closeBtn.textContent = "✕";
+        closeBtn.className = "close-slideshow";
         closeBtn.onclick = () => document.body.removeChild(modal);
 
-        // — Контейнер для індикаторів
-        const indicator = document.createElement('div');
-        indicator.className = 'slideshow-indicators';
-
-        // — Створюємо крапки
+        const indicator = document.createElement("div");
+        indicator.className = "slideshow-indicators";
         images.forEach((_, idx) => {
-            const dot = document.createElement('span');
-            dot.className = 'slideshow-indicator';
-            dot.addEventListener('click', () => {
+            const dot = document.createElement("span");
+            dot.className = "slideshow-indicator";
+            dot.addEventListener("click", () => {
                 currentIndex = idx;
                 img.src = images[currentIndex];
                 updateIndicators();
@@ -240,48 +164,36 @@ document.addEventListener("DOMContentLoaded", async () => {
             indicator.appendChild(dot);
         });
 
-        // — Функція, що підсвічує активну крапку
         function updateIndicators() {
-            const dots = indicator.querySelectorAll('.slideshow-indicator');
-            dots.forEach((dot, i) => {
-                dot.classList.toggle('active', i === currentIndex);
-            });
+            indicator
+                .querySelectorAll(".slideshow-indicator")
+                .forEach((dot, i) => {
+                    dot.classList.toggle("active", i === currentIndex);
+                });
         }
 
-        // — SWIPE logic
+        // SWIPE logic
         let touchStartX = 0;
-        let touchEndX = 0;
-
-        img.addEventListener('touchstart', (e) => {
+        img.addEventListener("touchstart", (e) => {
             touchStartX = e.changedTouches[0].screenX;
         });
-        img.addEventListener('touchend', (e) => {
-            touchEndX = e.changedTouches[0].screenX;
-            handleSwipe();
-        });
-
-        function handleSwipe() {
-            const swipeDistance = touchEndX - touchStartX;
-            if (Math.abs(swipeDistance) > 50) {
-                if (swipeDistance > 0) {
-                    // Swipe right
-                    currentIndex = (currentIndex - 1 + images.length) % images.length;
-                } else {
-                    // Swipe left
-                    currentIndex = (currentIndex + 1) % images.length;
-                }
+        img.addEventListener("touchend", (e) => {
+            const touchEndX = e.changedTouches[0].screenX;
+            const dist = touchEndX - touchStartX;
+            if (Math.abs(dist) > 50) {
+                currentIndex =
+                    dist > 0
+                        ? (currentIndex - 1 + images.length) % images.length
+                        : (currentIndex + 1) % images.length;
                 img.src = images[currentIndex];
                 updateIndicators();
             }
-        }
+        });
 
-        // — Збираємо модалку
         modal.appendChild(closeBtn);
         modal.appendChild(img);
         modal.appendChild(indicator);
         document.body.appendChild(modal);
-
-        // — Вмикаємо підсвічування одразу після вставки
         updateIndicators();
     }
 });
