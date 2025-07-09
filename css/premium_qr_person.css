@@ -366,27 +366,43 @@ input[type="text"]::placeholder {
     margin-top: 2px;
 }
 
-#foundList li button {
+#foundList li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#foundList li button.select-btn {
     background: #1B8B59;
     border: none;
     border-radius: 50%;
     width: 25px;
+    /* кнопка */
     height: 25px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    margin-right: 12px;
+    padding: 0;
+    flex-shrink: 0;
 }
 
-#foundList li button svg {
-    stroke: #fff;
+#foundList .plus-icon {
+    width: 13px;
+    height: 13px;
+    margin: 0 !important;
+}
+
+#selectedList .minus-icon {
+    width: 12px;
+    height: 12px;
+    margin: 0 !important;
 }
 
 /* ---- no‐results block ---- */
 .no-results {
     text-align: center;
     margin: var(--spacing-md) 0 var(--spacing-md);
+    margin-top: 45px;
     color: var(--color-text);
     font-size: 1rem;
 }
@@ -395,7 +411,7 @@ input[type="text"]::placeholder {
     background: #EFF2F5;
     border: none;
     border-radius: var(--radius-md);
-    padding: 8px 16px;
+    padding: 8px 20px;
     font-size: 1rem;
     font-family: 'Montserrat', sans-serif;
     color: var(--color-text);
@@ -555,10 +571,18 @@ input[type="text"]::placeholder {
     cursor: pointer;
 }
 
+.input-error {
+    border: 1px solid red;
+}
+
 .error-message {
-    color: #c00;
-    font-size: 0.9rem;
-    margin-top: 0.5rem;
+    color: red;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.error-message[hidden] {
+    display: none;
 }
 
 /* wrap around the pill so panel can position absolutely */
@@ -700,4 +724,11 @@ input[type="text"]::placeholder {
 .year-display.has-value {
     background-image: none !important;
     padding-right: 50px;
+}
+
+/* стилізуємо “заблоковані” роки смерті */
+#deathYearsList li.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+    cursor: default;
 }

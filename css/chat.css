@@ -230,15 +230,15 @@ main.container {
 
 .bubble.user {
     margin-left: auto;
-    background: var(--color-bg-light);
-    color: var(--color-text);
+    background: #1B8B59;
+    color: #ffffff;
     border-top-right-radius: 0 !important;
 }
 
 .bubble.admin {
     margin-right: auto;
-    background: #1B8B59;
-    color: #ffffff;
+    background: var(--color-bg-light);
+    color: var(--color-text);
     border-top-left-radius: 0 !important;
 }
 
@@ -258,6 +258,7 @@ main.container {
     display: flex;
     align-items: center;
     padding: 8px 12px;
+    padding-bottom: 6px;
     background: var(--color-bg-light);
     border-radius: 14px;
     gap: 8px;

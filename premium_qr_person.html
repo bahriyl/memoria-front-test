@@ -22,6 +22,7 @@
         <!-- 1) Name filter -->
         <div class="form-group">
             <input type="text" id="searchName" placeholder="Введіть ПІБ…" autocomplete="off" />
+            <div id="searchNameError" class="error-message" hidden></div>
         </div>
 
         <!-- 2) Year filters -->
@@ -86,7 +87,7 @@
 
         <!-- 5) Selected list (moved up) -->
         <div id="selectedContainer" hidden>
-            <p>Вибрано:</p>
+            <p id="selectedCountLabel">Вибрано (0):</p>
             <ul class="people-list" id="selectedList"></ul>
         </div>
 

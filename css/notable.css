@@ -212,8 +212,8 @@ h2 {
 .plus-btn svg {
     stroke: #90959C !important;
     stroke-width: 1.65px;
-    width: 24px;
-    height: 24px;
+    width: 23px;
+    height: 23px;
     transition: stroke 0.2s;
 }
 
@@ -662,12 +662,21 @@ main.container {
 
 /* ─── Horizontal photo slider under H2 ─── */
 .photo-slider {
+    /* breakout on both sides */
+    margin-left: calc(-1 * var(--spacing-md));
+    padding-left: var(--spacing-md);
+    width: calc(100% + 2 * var(--spacing-md));
+
+    /* preserve full height and show images */
     flex: 0 0 auto;
-    display: flex;
+    height: auto;
     overflow-x: auto;
     overflow-y: hidden;
+
+    display: flex;
     gap: 3px;
     margin-bottom: 25px;
+    scroll-behavior: smooth;
 }
 
 /* Слайд */

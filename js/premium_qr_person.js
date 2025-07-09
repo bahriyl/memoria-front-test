@@ -10,6 +10,24 @@ function debounce(fn, ms) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const searchNameInput = document.getElementById('searchName');
+    const searchNameError = document.getElementById('searchNameError');
+
+    searchNameInput.addEventListener('blur', () => {
+        const name = searchNameInput.value.trim();
+        const parts = name.split(/\s+/).filter(Boolean);
+
+        if (!name) {
+            searchNameError.textContent = "Введіть ПІБ";
+            searchNameError.hidden = false;
+        } else if (name.includes('.') || parts.some(p => p.length <= 1)) {
+            searchNameError.textContent = "Введіть повне ім'я та по-батькові";
+            searchNameError.hidden = false;
+        } else {
+            searchNameError.hidden = true;
+        }
+    });
+
     // ───── Custom Years Picker Setup ─────
     const picker = document.getElementById('lifeYearsPicker');
     const panel = document.getElementById('yearsPanel');
@@ -118,17 +136,43 @@ document.addEventListener('DOMContentLoaded', () => {
     // selection handlers
     birthList.addEventListener('click', e => {
         if (e.target.tagName !== 'LI') return;
+        // очистити попередній вибір
         birthList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
         e.target.classList.add('selected');
-        selectedBirth = e.target.dataset.value;
+
+        // оновити змінну
+        selectedBirth = Number(e.target.dataset.value);
+
+        // підсвітити тільки допустимі роки смерті
+        deathList.querySelectorAll('li').forEach(li => {
+            const year = Number(li.dataset.value);
+            if (year < selectedBirth) {
+                li.classList.add('disabled');
+            } else {
+                li.classList.remove('disabled');
+            }
+        });
+
+        // за потреби прокрутити
         e.target.scrollIntoView({ block: 'center' });
     });
+
     deathList.addEventListener('click', e => {
-        if (e.target.tagName !== 'LI') return;
-        deathList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-        e.target.classList.add('selected');
-        selectedDeath = e.target.dataset.value;
-        e.target.scrollIntoView({ block: 'center' });
+        // look for the nearest <li> up the tree
+        const li = e.target.closest('li');
+        // if there isn't one, or it isn't in our deathList, do nothing
+        if (!li || !deathList.contains(li) || li.classList.contains('disabled')) return;
+
+        // clear the old selection
+        deathList.querySelectorAll('li.selected')
+            .forEach(el => el.classList.remove('selected'));
+
+        // select the one we clicked
+        li.classList.add('selected');
+        selectedDeath = Number(li.dataset.value);
+
+        // scroll it into view if you like
+        li.scrollIntoView({ block: 'center' });
     });
 
     //
@@ -231,22 +275,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (toShow.length) {
             noResults.hidden = true;
+            foundLabel.hidden = false;
             foundList.innerHTML = toShow.map(p => `
-        <li data-id="${p.id}">
-          <img src="${p.avatarUrl || '/img/default-avatar.png'}" alt="">
-          <div class="info">
-            <div class="name">${p.name}</div>
-            <div class="years">${p.birthYear} - ${p.deathYear}</div>
-          </div>
-          <button aria-label="Select">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5"  y1="12" x2="19" y2="12"/>
-            </svg>
-          </button>
-        </li>`).join('');
+  <li data-id="${p.id}">
+    <img src="${p.avatarUrl || '/img/default-avatar.png'}" alt="" />
+    <div class="info">
+      <div class="name">${p.name}</div>
+      <div class="years">${p.birthYear} – ${p.deathYear}</div>
+    </div>
+    <button class="select-btn" aria-label="Select">
+      <img
+        src="/img/plus-icon.png"
+        alt="Додати"
+        class="plus-icon"
+        width="24"
+        height="24"
+      />
+    </button>
+  </li>
+`).join('');
         } else {
             foundList.innerHTML = '';
+            foundLabel.hidden = true;
             noResults.hidden = false;
         }
 
@@ -268,24 +318,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Done button: validate and write to hidden inputs
     doneBtn.addEventListener('click', () => {
-        // write back into the hidden inputs
+        // якщо смерть раніше народження — показуємо помилку
+        if (selectedBirth && selectedDeath && Number(selectedDeath) < Number(selectedBirth)) {
+            alert("Рік смерті не може бути раніше року народження.");
+            return;
+        }
+
+        // записуємо у приховані input-и
         birthInput.value = selectedBirth || "";
         deathInput.value = selectedDeath || "";
 
-        // always render “birth – death”, letting one side be blank
-        const b = selectedBirth || "";
-        const d = selectedDeath || "";
-        display.textContent = `${b} – ${d}`;
+        // формуємо відображення
+        display.textContent = `${selectedBirth || ""} – ${selectedDeath || ""}`;
 
-        // only hide the panel
         panel.classList.add('hidden');
-
-        if (b || d) {
-            display.classList.add('has-value');
-        }
-
-        // show the clear‐X only if at least one year is set
-        clearYearsBtn.hidden = !(b || d);
+        if (selectedBirth || selectedDeath) display.classList.add('has-value');
+        clearYearsBtn.hidden = !(selectedBirth || selectedDeath);
 
         triggerFetch();
     });
@@ -322,22 +370,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // re-render the list
         selectedList.innerHTML = selectedPersons.map(p => `
-          <li data-id="${p.id}">
-            <img src="${p.avatarUrl || '/img/default-avatar.png'}" alt="">
-            <div class="info">
-              <div class="name">${p.name}</div>
-              <div class="years">${p.birthYear} - ${p.deathYear}</div>
-            </div>
-            <button aria-label="Deselect">
-              <svg width="24" height="24" viewBox="0 0 24 24"
-                   fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <line x1="6" y1="12" x2="18" y2="12"/>
-              </svg>
-            </button>
-          </li>
-        `).join('');
-
+  <li data-id="${p.id}">
+    <img src="${p.avatarUrl || '/img/default-avatar.png'}" alt="">
+    <div class="info">
+      <div class="name">${p.name}</div>
+      <div class="years">${p.birthYear} – ${p.deathYear}</div>
+    </div>
+    <button class="deselect-btn" aria-label="Deselect">
+      <img
+        src="/img/minus-icon.png"
+        alt="Видалити"
+        class="minus-icon"
+        width="24"
+        height="24"
+      />
+    </button>
+  </li>
+`).join('');
         // wire up all deselect buttons
         selectedList.querySelectorAll('li button').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -348,6 +397,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 triggerFetch();  // put them back into Found
             });
         });
+
+        updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+        const label = document.getElementById('selectedCountLabel');
+        label.textContent = `Вибрано (${selectedPersons.length}):`;
     }
 
     function selectPerson(p) {

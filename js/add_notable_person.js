@@ -10,6 +10,24 @@ function debounce(fn, ms) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const searchNameInput = document.getElementById('searchName');
+    const searchNameError = document.getElementById('searchNameError');
+
+    searchNameInput.addEventListener('blur', () => {
+        const name = searchNameInput.value.trim();
+        const parts = name.split(/\s+/).filter(Boolean);
+
+        if (!name) {
+            searchNameError.textContent = "Введіть ПІБ";
+            searchNameError.hidden = false;
+        } else if (name.includes('.') || parts.some(p => p.length <= 1)) {
+            searchNameError.textContent = "Введіть повне ім'я та по-батькові";
+            searchNameError.hidden = false;
+        } else {
+            searchNameError.hidden = true;
+        }
+    });
+
     // Filters & results
     const nameInput = document.getElementById('searchName');
     const birthSelect = document.getElementById('birthYearFilter');
@@ -114,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
             foundLabel.textContent = '';
             foundList.innerHTML = '';
             noResults.hidden = true;
+            foundLabel.hidden = false;
             return;
         }
         const params = new URLSearchParams();
@@ -129,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (data.people.length) {
             noResults.hidden = true;
+            foundLabel.hidden = false;
             foundList.innerHTML = data.people.map(p => `
         <li data-id="${p.id}">
           <img src="${p.avatarUrl || '/img/default-avatar.png'}" alt="">
@@ -136,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="name">${p.name}</div>
             <div class="years">${p.birthYear} - ${p.deathYear}</div>
           </div>
-          <button aria-label="Select">+</button>
+          <button type="button" aria-label="Select">+</button>
         </li>
       `).join('');
             foundList.querySelectorAll('li button').forEach(btn => {
@@ -149,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } else {
             foundList.innerHTML = '';
+            foundLabel.hidden = true;
             noResults.hidden = false;
         }
     }
@@ -168,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="name">${p.name}</div>
           <div class="years">${p.birthYear} - ${p.deathYear}</div>
         </div>
-        <button aria-label="Deselect">–</button>
+        <button type="button" aria-label="Deselect">–</button>
       </li>`;
         selectedList.querySelector('button').addEventListener('click', () => {
             selectedPerson = null;
@@ -208,12 +229,17 @@ document.addEventListener('DOMContentLoaded', () => {
     submitBtn.addEventListener('click', async e => {
         e.preventDefault();
 
-        // gather values
-        const name = document.getElementById('searchName').value.trim();
-        const birthYear = document.getElementById('birthYearFilter').value;
-        const deathYear = document.getElementById('deathYearFilter').value;
-        const area = document.getElementById('areaFilter').value.trim();
-        const cemetery = document.getElementById('cemeteryFilter').value.trim();
+        // ❗ Перевірка: чи вибрано особу
+        if (!selectedPerson) {
+            submitError.textContent = 'Будь ласка, виберіть особу';
+            submitError.hidden = false;
+            return;
+        }
+
+        // Очистити попередні помилки
+        document.querySelectorAll('.error-message').forEach(el => el.hidden = true);
+
+        let hasError = false;
 
         let occupation = '';
         let link = '';
@@ -222,6 +248,38 @@ document.addEventListener('DOMContentLoaded', () => {
         occupation = document.getElementById('activityArea').value;
         link = document.getElementById('internetLinks').value.trim();
         bio = document.getElementById('achievements').value.trim();
+
+        const occupationError = document.getElementById('occupationError');
+        const linkError = document.getElementById('linkError');
+        const bioError = document.getElementById('bioError');
+
+        if (!occupation) {
+            occupationError.textContent = 'Оберіть сферу діяльності';
+            occupationError.hidden = false;
+            hasError = true;
+        }
+
+        if (!link) {
+            linkError.textContent = 'Введіть посилання';
+            linkError.hidden = false;
+            hasError = true;
+        }
+
+        if (!bio) {
+            bioError.textContent = 'Введіть опис';
+            bioError.hidden = false;
+            hasError = true;
+        }
+
+        if (hasError) return; // ❌ не надсилати форму
+
+
+        // gather values
+        const name = document.getElementById('searchName').value.trim();
+        const birthYear = document.getElementById('birthYearFilter').value;
+        const deathYear = document.getElementById('deathYearFilter').value;
+        const area = document.getElementById('areaFilter').value.trim();
+        const cemetery = document.getElementById('cemeteryFilter').value.trim();
 
         try {
             const res = await fetch(`${API_URL}/api/people/add_moderation`, {

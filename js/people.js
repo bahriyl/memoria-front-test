@@ -505,6 +505,10 @@ async function fetchAndRender() {
   }
 }
 
+window.addEventListener('orientationchange', () => {
+  window.location.reload();
+});
+
 // Стартова ініціалізація
 renderFilterControls();
 fetchAndRender();

@@ -22,12 +22,13 @@
             <!-- 1) Пошук за ПІБ -->
             <div class="form-group">
                 <input type="text" id="searchName" placeholder="Введіть ПІБ…" autocomplete="off" />
+                <div id="searchNameError" class="error-message" hidden></div>
             </div>
 
             <!-- 2) Рік народження / смерті -->
             <div class="form-group year-group">
                 <div class="year-pill">
-                    <select id="birthYearFilter" required>
+                    <select id="birthYearFilter">
                         <option value="" disabled selected>Рік народження</option>
                     </select>
                     <button class="icon-btn clear-btn" id="clearBirth" aria-label="Очистити поле">
@@ -39,7 +40,7 @@
                     </button>
                 </div>
                 <div class="year-pill">
-                    <select id="deathYearFilter" required>
+                    <select id="deathYearFilter">
                         <option value="" disabled selected>Рік смерті</option>
                     </select>
                     <button class="clear-btn" id="clearDeath" aria-label="Очистити поле">
@@ -80,7 +81,7 @@
 
             <!-- 5) Знайдено -->
             <div id="foundContainer">
-                <p id="foundLabel">Знайдено (0):</p>
+                <p id="foundLabel" hidden>Знайдено (0):</p>
                 <div id="noResults" class="no-results" hidden>
                     <p>Особи не знайдено</p>
                     <button id="addPersonBtn" class="add-person-btn">Додати особу</button>
@@ -110,15 +111,18 @@
                                     <line x1="6" y1="6" x2="18" y2="18" />
                                 </svg>
                             </button>
+                            <div id="occupationError" class="error-message" hidden></div>
                         </div>
                     </div>
                     <div class="form-group">
                         <input type="text" id="internetLinks" name="internetLinks"
                             placeholder="Посилання на інтернет джерела" />
+                        <div id="linkError" class="error-message" hidden></div>
                     </div>
                     <div class="form-group">
                         <textarea id="achievements" name="achievements" rows="4"
                             placeholder="Опишіть досягнення завдяки яким людину вважають видатною..."></textarea>
+                        <div id="bioError" class="error-message" hidden></div>
                     </div>
                 </div>
             </div>
