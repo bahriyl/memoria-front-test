@@ -69,16 +69,63 @@ document.addEventListener('DOMContentLoaded', () => {
         changeBtn.className = 'btn btn-secondary change-btn';
         changeBtn.addEventListener('click', requestGeolocation);
 
-        // map
+        // Map container
         mapWrap = document.createElement('div');
         mapWrap.className = 'map-container';
-        const iframe = document.createElement('iframe');
-        iframe.src = `https://www.google.com/maps?q=${lat},${lng}&hl=uk&z=17&output=embed`;
-        iframe.loading = 'lazy';
-        mapWrap.appendChild(iframe);
+
+        const mapDiv = document.createElement('div');
+        mapDiv.id = 'map';
+        mapDiv.style = 'height: 400px; width: 100%; border-radius: 8px;';
+        mapWrap.appendChild(mapDiv);
 
         geoCard.parentNode.insertBefore(changeBtn, geoCard.nextSibling);
         geoCard.parentNode.insertBefore(mapWrap, changeBtn.nextSibling);
+
+        // Mapbox rendering
+        mapboxgl.accessToken = 'pk.eyJ1IjoiYmFncml1bDEwIiwiYSI6ImNtY3pkM3lhMzB3M2MyanNidWRqZXlpN20ifQ.dgeloPQYgbOmrwVv8pYPww';
+
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v12',
+            center: [parseFloat(lng), parseFloat(lat)],
+            zoom: 14
+        });
+
+        const directions = new MapboxDirections({
+            accessToken: mapboxgl.accessToken,
+            unit: 'metric',
+            profile: 'mapbox/driving',
+            interactive: false,
+            controls: {
+                inputs: true,      // hide input fields A/B
+                instructions: false, // hide black instructions box
+                profileSwitcher: true // optional: hide Driving/Walking/Cycling switch
+            }
+        });
+
+        map.addControl(directions, 'top-left');
+
+        /// Delay route setup until plugin is fully ready
+        map.on('load', () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    const origin = [pos.coords.longitude, pos.coords.latitude];
+                    const destination = [parseFloat(lng), parseFloat(lat)];
+
+                    // 💡 Fix: Ensure route is set *after* control is rendered
+                    setTimeout(() => {
+                        directions.setOrigin(origin);
+                        directions.setDestination(destination);
+                    }, 100); // you can also try 200–300ms if needed
+                }, () => {
+                    const destination = [parseFloat(lng), parseFloat(lat)];
+                    setTimeout(() => directions.setDestination(destination), 100);
+                });
+            } else {
+                const destination = [parseFloat(lng), parseFloat(lat)];
+                setTimeout(() => directions.setDestination(destination), 100);
+            }
+        });
     }
 
     // 3) Geolocation + PUT
