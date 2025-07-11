@@ -1,0 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;460;480;500;510;550;570;600;700;750&display=swap');
+
+/* reset & typography */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    overflow-y: hidden;
+}
+
+body {
+    font-family: sans-serif;
+    background: #FFFFFF;
+    color: #333;
+    line-height: 1.4;
+}
+
+.container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+/* Header */
+.header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 56px;
+}
+
+.back-btn {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.75rem;
+    z-index: 2;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    margin-left: 12px;
+}
+
+.back-btn svg {
+    width: 30px;
+    height: 30px;
+}
+
+.back-btn svg polyline {
+    fill: none;
+    stroke: #312816;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+h1,
+h2 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 19px;
+    font-weight: 570;
+    margin-bottom: 17px;
+    color: #202124;
+}
+
+/* Cards & sections */
+.section,
+.card {
+    background: #F2F4F7;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    height: 154px;
+}
+
+.geo-card p {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 480;
+    margin-bottom: 14px;
+    line-height: 24px;
+}
+
+.coords {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #555;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    font-size: 16px;
+    padding: 10px 20px;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+}
+
+#btn-geo {
+    margin: 0 auto;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 510;
+}
+
+.btn-primary {
+    background: #FCFCFC;
+    color: #1C170D;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    padding: 0 16px;
+    border-radius: 14px;
+    background: #F2F4F7;
+    color: #1C170D;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 510;
+    cursor: pointer;
+    border: none;
+}
+
+.full-width {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 90%;
+    margin: 53px auto 0;
+    height: 49px;
+    background: #1B8B59;
+    color: #FFFDF8;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+/* Photo grid */
+.photo-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.image-grid {
+    display: flex;
+    gap: 8px;
+    padding-bottom: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    scroll-behavior: smooth;
+
+    margin-right: -16px;
+    width: calc(100% + 16px);
+}
+
+.image-grid::before {
+    content: '';
+    flex: 0 0 16px;
+    pointer-events: none;
+}
+
+.image-grid::-webkit-scrollbar {
+    display: none;
+}
+
+.image-placeholder {
+    flex: 0 0 157px;
+    aspect-ratio: 1;
+    background: #f5f5f8;
+    border: 0 dashed #ddd;
+    border-radius: 8px;
+    position: relative;
+    margin-bottom: 28px;
+    width: 157px;
+    height: 212px;
+    scroll-snap-align: start;
+}
+
+.image-placeholder::before {
+    content: url('/img/image-placeholder.png');
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 88px;
+    height: 88px;
+}
+
+/* Textarea */
+textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 12px;
+    border: 0 solid #ddd;
+    border-radius: 7px;
+    resize: vertical;
+    height: 159px;
+    background: #F2F4F7;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 480;
+    line-height: 24px;
+}
+
+textarea::placeholder {
+    color: #72767D;
+}
+
+.map-container {
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 28px;
+}
+
+.map-container iframe {
+    width: 100%;
+    height: 339px;
+    border: 0;
+}

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Локація місця поховання</title>
+    <link rel="stylesheet" href="css/location.css" />
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <button class="back-btn" type="button" aria-label="Назад" onclick="history.back()">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+        </header>
+
+        <h1>Локація місця поховання</h1>
+
+        <!-- Geolocation card -->
+        <section class="card geo-card">
+            <p>
+                Стоячи перед місцем поховання, надайте дозвіл до геолокації,
+                щоб закріпити координати
+            </p>
+            <button id="btn-geo" class="btn btn-primary">Дозволити</button>
+        </section>
+
+        <h2>Фото місця поховання</h2>
+
+        <!-- Photo upload -->
+        <section class="section-photos">
+            <div class="photo-actions">
+                <button id="btn-add-photo" class="btn btn-secondary">Добавити</button>
+                <button id="btn-select-photo" class="btn btn-secondary">Вибрати</button>
+            </div>
+            <input type="file" id="file-input" accept="image/*" capture="environment" multiple hidden />
+            <div class="image-grid">
+                <div class="image-placeholder"></div>
+                <div class="image-placeholder"></div>
+                <div class="image-placeholder"></div>
+            </div>
+        </section>
+
+        <h2>Орієнтири</h2>
+
+        <!-- Landmarks -->
+        <textarea id="landmarks" placeholder="Важливі орієнтири для полегшення пошуку…"></textarea>
+
+        <!-- Submit -->
+        <button id="btn-submit" class="btn btn-primary full-width">
+            Надіслати на модерацію
+        </button>
+    </div>
+
+    <script src="js/location.js"></script>
+</body>
+
+</html>
