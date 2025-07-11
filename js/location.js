@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             controls: {
                 inputs: true,      // hide input fields A/B
                 instructions: false, // hide black instructions box
-                profileSwitcher: true // optional: hide Driving/Walking/Cycling switch
+                profileSwitcher: false // optional: hide Driving/Walking/Cycling switch
             }
         });
 
