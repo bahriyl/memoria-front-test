@@ -257,3 +257,34 @@ textarea::placeholder {
     justify-content: center;
     margin: 0 auto 22px;
 }
+
+.floating-route-btn {
+    position: absolute;
+    top: 50%;
+    /* Center vertically */
+    left: 50%;
+    /* Center horizontally */
+    transform: translate(-50%, -50%);
+    /* Center both directions */
+    z-index: 2;
+
+    padding: 0;
+    /* Let height + line-height handle spacing */
+    height: 41px;
+    width: 80%;
+
+    display: flex;
+    align-items: center;
+    /* Vertical centering */
+    justify-content: center;
+    /* Horizontal centering */
+
+    border-radius: 14px;
+    background-color: #1B8B59;
+    color: white;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    border: 0;
+    cursor: pointer;
+}

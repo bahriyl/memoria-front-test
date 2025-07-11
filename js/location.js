@@ -62,26 +62,35 @@ document.addEventListener('DOMContentLoaded', () => {
         if (changeBtn) changeBtn.remove();
         if (mapWrap) mapWrap.remove();
 
-        // “Змінити”
+        // “Змінити” button
         changeBtn = document.createElement('button');
         changeBtn.type = 'button';
         changeBtn.textContent = 'Змінити';
         changeBtn.className = 'btn btn-secondary change-btn';
         changeBtn.addEventListener('click', requestGeolocation);
 
-        // Map container
+        // Map wrapper
         mapWrap = document.createElement('div');
         mapWrap.className = 'map-container';
+        mapWrap.style.position = 'relative'; // for absolute overlay
 
+        // Map element
         const mapDiv = document.createElement('div');
         mapDiv.id = 'map';
         mapDiv.style = 'height: 400px; width: 100%; border-radius: 8px;';
-        mapWrap.appendChild(mapDiv);
 
+        // Floating Route button
+        const routeBtn = document.createElement('button');
+        routeBtn.textContent = 'Прокласти маршрут';
+        routeBtn.className = 'floating-route-btn';
+
+        // Append elements
+        mapWrap.appendChild(mapDiv);
+        mapWrap.appendChild(routeBtn);
         geoCard.parentNode.insertBefore(changeBtn, geoCard.nextSibling);
         geoCard.parentNode.insertBefore(mapWrap, changeBtn.nextSibling);
 
-        // Mapbox rendering
+        // Mapbox init
         mapboxgl.accessToken = 'pk.eyJ1IjoiYmFncml1bDEwIiwiYSI6ImNtY3pkM3lhMzB3M2MyanNidWRqZXlpN20ifQ.dgeloPQYgbOmrwVv8pYPww';
 
         const map = new mapboxgl.Map({
@@ -91,40 +100,61 @@ document.addEventListener('DOMContentLoaded', () => {
             zoom: 14
         });
 
-        const directions = new MapboxDirections({
-            accessToken: mapboxgl.accessToken,
-            unit: 'metric',
-            profile: 'mapbox/driving',
-            interactive: false,
-            controls: {
-                inputs: true,      // hide input fields A/B
-                instructions: false, // hide black instructions box
-                profileSwitcher: false // optional: hide Driving/Walking/Cycling switch
+        // Marker at burial site
+        new mapboxgl.Marker({ color: '#d00' })
+            .setLngLat([parseFloat(lng), parseFloat(lat)])
+            .addTo(map);
+
+        // Route logic
+        routeBtn.addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                alert('Ваш браузер не підтримує геолокацію.');
+                return;
             }
-        });
 
-        map.addControl(directions, 'top-left');
-
-        /// Delay route setup until plugin is fully ready
-        map.on('load', () => {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    const origin = [pos.coords.longitude, pos.coords.latitude];
-                    const destination = [parseFloat(lng), parseFloat(lat)];
-
-                    // 💡 Fix: Ensure route is set *after* control is rendered
-                    setTimeout(() => {
-                        directions.setOrigin(origin);
-                        directions.setDestination(destination);
-                    }, 100); // you can also try 200–300ms if needed
-                }, () => {
-                    const destination = [parseFloat(lng), parseFloat(lat)];
-                    setTimeout(() => directions.setDestination(destination), 100);
-                });
-            } else {
+            navigator.geolocation.getCurrentPosition(pos => {
+                const origin = [pos.coords.longitude, pos.coords.latitude];
                 const destination = [parseFloat(lng), parseFloat(lat)];
-                setTimeout(() => directions.setDestination(destination), 100);
-            }
+
+                fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?geometries=geojson&access_token=${mapboxgl.accessToken}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        const route = data.routes[0].geometry;
+
+                        // Add route source and layer
+                        map.addSource('route', {
+                            type: 'geojson',
+                            data: {
+                                type: 'Feature',
+                                geometry: route
+                            }
+                        });
+
+                        map.addLayer({
+                            id: 'route',
+                            type: 'line',
+                            source: 'route',
+                            layout: {
+                                'line-join': 'round',
+                                'line-cap': 'round'
+                            },
+                            paint: {
+                                'line-color': '#12794f',
+                                'line-width': 6
+                            }
+                        });
+
+                        // Fit route in view
+                        const bounds = new mapboxgl.LngLatBounds();
+                        route.coordinates.forEach(c => bounds.extend(c));
+                        map.fitBounds(bounds, { padding: 40 });
+
+                        // Hide the button
+                        routeBtn.style.display = 'none';
+                    });
+            }, err => {
+                alert("Не вдалося визначити ваше місцезнаходження: " + err.message);
+            });
         });
     }
 
