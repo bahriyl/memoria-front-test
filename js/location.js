@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mapWrap.append(mapDiv);
     geoCard.after(changeBtn, mapWrap);
 
-    mapboxgl.accessToken = 'pk.eyJ1IjoiYmFncml1bDEw...';
+    mapboxgl.accessToken = 'pk.eyJ1IjoiYmFncml1bDEwIiwiYSI6ImNtY3pkM3lhMzB3M2MyanNidWRqZXlpN20ifQ.dgeloPQYgbOmrwVv8pYPww';
     const map = new mapboxgl.Map({
       container: 'map',
       style: 'mapbox://styles/mapbox/streets-v12',

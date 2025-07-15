@@ -12,7 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const nameEl = document.querySelector('.profile-name');
     const yearsEl = document.querySelector('.profile-years');
     const cemeteryEl = document.querySelector('.profile-cemetery');
-    const actionBtn = document.getElementById('action-btn');
+    const actionText = document.getElementById('action-btn');
+    const locationBtn = document.getElementById('location-btn');
     const bioContentEl = document.getElementById('bio-content');
     const bioToggleEl = document.getElementById('bio-toggle');
     const bioEditBtn = document.getElementById('bio-edit');
@@ -35,12 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
             cemeteryEl.textContent = data.cemetery.split(", ")[0] || '';
 
             // Action button (view vs add location)
-            if (data.location?.lat && data.location?.lng) {
-                actionBtn.textContent = 'Локація місця поховання';
-                actionBtn.href = `location.html?personId=${personId}`;
+            if (data.location[0] != '') {
+                actionText.textContent = 'Локація місця поховання';
+                locationBtn.href = `/location.html?personId=${personId}`;
             } else {
-                actionBtn.textContent = 'Додати локацію місця поховання';
-                actionBtn.href = `add-location.html?personId=${personId}`;
+                actionText.textContent = 'Додати локацію місця поховання';
+                locationBtn.href = `/add-location.html?personId=${personId}`;
             }
 
             // Biography text + toggle logic
