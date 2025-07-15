@@ -5,7 +5,7 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    overflow-y: hidden;
+    overflow-x: hidden;
 }
 
 body {
@@ -16,7 +16,7 @@ body {
 }
 
 .container {
-    max-width: 400px;
+    max-width: 800px;
     margin: 0 auto;
     padding: 16px;
 }
@@ -25,7 +25,7 @@ body {
 .header {
     display: flex;
     align-items: center;
-    margin-bottom: 56px;
+    margin-bottom: 48px;
 }
 
 .back-btn {
@@ -37,7 +37,6 @@ body {
     border: none;
     padding: 0;
     cursor: pointer;
-    margin-left: 12px;
 }
 
 .back-btn svg {
@@ -58,7 +57,7 @@ h2 {
     font-family: 'Montserrat', sans-serif;
     font-size: 19px;
     font-weight: 570;
-    margin-bottom: 17px;
+    margin-bottom: 12px;
     color: #202124;
 }
 
@@ -148,18 +147,22 @@ h2 {
 
 /* Photo grid */
 .section-photos {
-    overflow-x: hidden;
+    position: relative;
+    left: 50%;
+    width: 100vw;
+    margin-left: -50%;
+    overflow-x: visible;
 }
 
 .photo-actions {
     display: flex;
     gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 22px;
 }
 
 .image-grid {
     display: flex;
-    gap: 8px;
+    gap: 3px;
     padding-bottom: 8px;
     overflow-x: auto;
     overflow-y: hidden;
@@ -168,13 +171,18 @@ h2 {
     scrollbar-width: none;
     scroll-behavior: smooth;
 
+    padding-right: 16px;
+
     margin-right: -16px;
     width: calc(100% + 16px);
+
+    width: auto;
+    margin: 0;
 }
 
 .image-grid::before {
     content: '';
-    flex: 0 0 16px;
+    flex: 0 0 0;
     pointer-events: none;
 }
 
@@ -187,7 +195,7 @@ h2 {
     aspect-ratio: 1;
     background: #f5f5f8;
     border: 0 dashed #ddd;
-    border-radius: 8px;
+    border-radius: 4px;
     position: relative;
     margin-bottom: 28px;
     width: 157px;
@@ -238,6 +246,12 @@ textarea::placeholder {
     color: #72767D;
 }
 
+.landmarks-text {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 480;
+}
+
 .map-container {
     border-radius: 4px;
     overflow: hidden;
@@ -246,7 +260,7 @@ textarea::placeholder {
 
 .map-container iframe {
     width: 100%;
-    height: 339px;
+    height: 250px;
     border: 0;
 }
 
@@ -271,7 +285,7 @@ textarea::placeholder {
     padding: 0;
     /* Let height + line-height handle spacing */
     height: 41px;
-    width: 80%;
+    width: 75%;
 
     display: flex;
     align-items: center;
@@ -286,5 +300,62 @@ textarea::placeholder {
     font-weight: 600;
     font-size: 16px;
     border: 0;
+    cursor: pointer;
+}
+
+#btn-edit-landmarks {
+    margin-bottom: 10px;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 300;
+}
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 24px 16px;
+    width: 90%;
+    max-width: 360px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    z-index: 301;
+}
+
+.modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    color: #90959C;
+    cursor: pointer;
+}
+
+.modal-text {
+    margin: 32px 0 24px;
+    font-size: 16px;
+    color: #222222;
+    line-height: 1.4;
+}
+
+.modal-ok {
+    padding: 12px 32px;
+    background: #397355;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
     cursor: pointer;
 }

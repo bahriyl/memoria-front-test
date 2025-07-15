@@ -49,22 +49,34 @@
                 <button id="btn-select-photo" class="btn btn-secondary">Вибрати</button>
             </div>
             <input type="file" id="file-input" accept="image/*" multiple hidden />
-            <div class="image-grid">
-                <div class="image-placeholder"></div>
-                <div class="image-placeholder"></div>
-                <div class="image-placeholder"></div>
-            </div>
+            <!-- Photo grid: JS will populate this -->
+            <div id="image-grid" class="image-grid"></div>
         </section>
 
         <h2>Орієнтири</h2>
 
         <!-- Landmarks -->
-        <textarea id="landmarks" placeholder="Важливі орієнтири для полегшення пошуку…"></textarea>
+        <!-- edit button for landmarks -->
+        <button type="button" id="btn-edit-landmarks" style="display:none;" class="btn btn-secondary">Змінити</button>
+        <!-- display current landmarks as text -->
+        <p id="landmarks-display" style="display:none;" class="landmarks-text"></p>
+        <!-- textarea for editing landmarks -->
+        <textarea id="landmarks" style="display:none;"></textarea>
 
         <!-- Submit -->
         <button id="btn-submit" class="btn btn-primary full-width">
             Надіслати на модерацію
         </button>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="modal-overlay" class="modal-overlay" hidden></div>
+    <div id="success-modal" class="modal" hidden>
+        <button id="modal-close" class="modal-close">&times;</button>
+        <p class="modal-text">
+            Успішно відправлено на модерацію, ми сповістимо вас коли буде готово!
+        </p>
+        <button id="modal-ok" class="modal-ok">Готово</button>
     </div>
 
     <script src="js/location.js"></script>

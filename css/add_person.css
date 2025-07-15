@@ -104,7 +104,7 @@ header {
     position: fixed;
     top: 47px;
     left: -80vw;
-    width: 80vw;
+    width: 60vw;
     max-width: 300px;
     height: calc(100vh - 47px);
     background: var(--color-bg);
@@ -129,14 +129,14 @@ header {
 }
 
 .side-menu__item+.side-menu__item {
-    margin-top: var(--spacing-sm);
+    margin-top: 29px;
 }
 
 .side-menu__item a {
     display: block;
     padding: var(--spacing-xs) var(--spacing-lg);
     font-family: var(--font-base);
-    font-size: 1rem;
+    font-size: 15px;
     color: var(--color-text);
     text-decoration: none;
 }

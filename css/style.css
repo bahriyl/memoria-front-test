@@ -417,7 +417,7 @@ h2 {
     position: fixed;
     left: -80vw;
     /* hidden off-screen */
-    width: 80vw;
+    width: 60vw;
     max-width: 300px;
     background: var(--color-bg);
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
@@ -427,7 +427,7 @@ h2 {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: var(--spacing-md) 0;
+    padding: 29px 0;
 }
 
 /* When open, slide into view */
@@ -443,14 +443,15 @@ h2 {
 }
 
 .side-menu__item+.side-menu__item {
-    margin-top: var(--spacing-sm);
+    margin-top: 10px;
 }
 
 .side-menu__item a {
     display: block;
     padding: var(--spacing-xs) var(--spacing-lg);
     font-family: var(--font-base);
-    font-size: 1rem;
+    font-size: 15px;
+    font-weight: 550;
     color: var(--color-text);
     text-decoration: none;
 }
