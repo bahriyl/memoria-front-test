@@ -37,8 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeBtn.addEventListener('click', hideModal);
     okBtn.addEventListener('click', () => {
         hideModal();
-        // Optionally, reload or navigate after OK
-        window.location.reload();
+        window.location.href = `/profile.html?personId=${personId}`;
     });
 
     // track initial vs. modified state
@@ -72,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch(`${API_URL}/api/people/${personId}`)
         .then(r => r.json())
         .then(data => {
-            const loc = data.location || [];
+            const loc = Array.isArray(data.location) ? data.location : [];
 
             // coords
             if (loc[0]) {
@@ -96,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // photos
             if (Array.isArray(loc[2])) {
+                const photos = Array.isArray(loc[2]) ? loc[2].slice() : [];
                 currentLocation.photos = loc[2].slice();
                 refreshPlaceholders();
             }
@@ -112,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // treat as “no data” (initialHasData stays false)
         })
         .finally(() => {
+            refreshPlaceholders();
             updateSubmitButtonVisibility();
         });
 
@@ -243,7 +244,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // PHOTO UPLOAD & PREVIEW
-    btnAdd.addEventListener('click', () => fileInput.click());
+    btnAdd.addEventListener('click', () => {
+        if (deleteMode) {
+            // Cancel delete-mode
+            deleteMode = false;
+            selected.clear();
+            btnSelect.textContent = 'Вибрати';
+            btnAdd.textContent = 'Добавити';
+            refreshPlaceholders();
+            // Note: changesMade stays whatever it was
+            updateSubmitButtonVisibility();
+        } else {
+            // Normal “add photo” behavior
+            fileInput.click();
+        }
+    });
+
     fileInput.addEventListener('change', e => {
         const files = Array.from(e.target.files);
         const previewUrls = files.map(f => URL.createObjectURL(f));
@@ -285,13 +301,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // Enter delete mode
             deleteMode = true;
             selected.clear();
-            btnSelect.textContent = 'Видалити обрані';
+            btnSelect.textContent = 'Видалити';
+            btnAdd.textContent = 'Скасувати';
+            refreshPlaceholders();
         } else {
             // Exiting delete mode → actually remove the selected photos
             currentLocation.photos = currentLocation.photos.filter((_, idx) => !selected.has(idx));
             deleteMode = false;
             selected.clear();
             btnSelect.textContent = 'Вибрати';
+            btnAdd.textContent = 'Добавити';
             refreshPlaceholders();
             changesMade = true;
             updateSubmitButtonVisibility();
@@ -301,19 +320,43 @@ document.addEventListener('DOMContentLoaded', () => {
     // RENDER PHOTO GRID
     function refreshPlaceholders() {
         imageGrid.innerHTML = '';
-        currentLocation.photos.forEach((url, idx) => {
+
+        // If no photos yet, we'll render one empty placeholder
+        const count = currentLocation.photos.length > 0
+            ? currentLocation.photos.length
+            : 3;
+
+        for (let i = 0; i < count; i++) {
             const ph = document.createElement('div');
-            ph.className = 'image-placeholder filled';
-            ph.style.background = `url(${url}) center/cover no-repeat`;
-            if (deleteMode && selected.has(idx)) ph.classList.add('selected');
-            ph.addEventListener('click', () => {
-                if (!deleteMode) return;
-                if (selected.has(idx)) selected.delete(idx);
-                else selected.add(idx);
-                ph.classList.toggle('selected');
-            });
-            imageGrid.append(ph);
-        });
+            ph.classList.add('image-placeholder');
+
+            // If there's a real photo URL at this index, fill it
+            if (currentLocation.photos[i]) {
+                ph.classList.add('filled');
+                ph.style.background = `url(${currentLocation.photos[i]}) center/cover no-repeat`;
+            }
+
+            // If in delete mode, allow selection toggling
+            if (deleteMode) {
+                ph.addEventListener('click', () => {
+                    if (selected.has(i)) {
+                        selected.delete(i);
+                        ph.classList.remove('selected');
+                    } else {
+                        selected.add(i);
+                        ph.classList.add('selected');
+                    }
+                });
+                if (selected.has(i)) {
+                    ph.classList.add('selected');
+                }
+            } else if (!currentLocation.photos[i]) {
+                ph.style.cursor = 'pointer';
+                ph.addEventListener('click', () => fileInput.click());
+            }
+
+            imageGrid.appendChild(ph);
+        }
     }
 
     // FINAL SUBMIT → moderation

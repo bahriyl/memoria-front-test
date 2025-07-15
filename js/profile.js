@@ -36,12 +36,14 @@ document.addEventListener('DOMContentLoaded', () => {
             cemeteryEl.textContent = data.cemetery.split(", ")[0] || '';
 
             // Action button (view vs add location)
-            if (data.location[0] != '') {
+            if (data?.location?.[0]) {
+                // there’s a truthy value in data.location[0]
                 actionText.textContent = 'Локація місця поховання';
                 locationBtn.href = `/location.html?personId=${personId}`;
             } else {
+                // no first element (or it’s empty/falsy)
                 actionText.textContent = 'Додати локацію місця поховання';
-                locationBtn.href = `/add-location.html?personId=${personId}`;
+                locationBtn.href = `/location.html?personId=${personId}`;
             }
 
             // Biography text + toggle logic
