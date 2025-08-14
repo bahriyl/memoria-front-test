@@ -124,6 +124,7 @@ body {
   background: #ffffff;
   margin-top: 6px;
   padding: 20px;
+  padding-right: 10px;
   border-top: 0.2px solid #bfbfbf;
   border-bottom: 0.2px solid #bfbfbf;
   border-radius: 9px;
@@ -202,13 +203,31 @@ textarea {
 .item-images {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(2, 198px);
   gap: 3px;
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 3px;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
+}
+
+/* For single image - display in one row */
+.item-images:has(.image-wrap:nth-child(1):last-child) {
+  grid-template-rows: 198px;
+}
+
+/* For 2+ images - use 2 rows */
+.item-images:has(.image-wrap:nth-child(2)) {
+  grid-template-rows: repeat(2, 198px);
+}
+
+/* Alternative approach if :has() selector is not supported in older browsers */
+.item-images.single-image {
+  grid-template-rows: 198px;
+}
+
+.item-images.multiple-images {
+  grid-template-rows: repeat(2, 198px);
 }
 
 .item-images img {
@@ -241,7 +260,7 @@ textarea {
 
 .ritual-btn {
   background-color: #f2f4f7;
-  color: #585858;
+  color: #222;
   border: none;
   font-family: "Montserrat", sans-serif;
   font-weight: 510;
@@ -287,12 +306,20 @@ textarea {
   padding-bottom: 16px;
 }
 
+.ritual-description .dots-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  padding-bottom: 16px;
+}
+
 .popup-menu {
   position: absolute;
   top: 36px;
   right: 0;
-  background: white;
-  border: 1px solid #ccc;
+  background: #F7F7F7;
+  border: 0.5px solid #DCDCDC;
   border-radius: 10px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 999;
@@ -308,6 +335,26 @@ textarea {
   padding: 10px 16px;
   cursor: pointer;
   font-size: 15px;
+  font-weight: 510;
+  color: #1C170D;
+  position: relative;
+  /* required for pseudo-element positioning */
+}
+
+.popup-option::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 5%;
+  /* centers the line */
+  width: 90%;
+  /* border width */
+  border-bottom: 0.5px solid #DCDCDC;
+}
+
+.popup-option:last-child::after {
+  display: none;
+  /* remove line for last item */
 }
 
 .popup-option:hover {
@@ -362,4 +409,98 @@ textarea {
 
 .rename-modal .cancel-btn {
   background: #aaa;
+}
+
+/* Wrap each image so we can draw selection badges */
+.item-images .image-wrap {
+  position: relative;
+  width: 160px;
+  height: 198px;
+  border-radius: 4px;
+  overflow: hidden;
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+.item-images .image-wrap>img.item-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+/* badge shown in selection mode */
+.select-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: none;
+  /* hidden normally */
+  align-items: center;
+  justify-content: center;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 550;
+  font-size: 14px;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+
+/* show hollow ring on all photos when selecting */
+.selection-mode .select-badge {
+  display: flex;
+  background: rgba(255, 255, 255, 0);
+  /* hollow */
+  border: 1px solid #fff;
+  color: transparent;
+}
+
+/* filled green with number when selected */
+.selection-mode .image-wrap.is-selected .select-badge {
+  background: #1B8B59;
+  border: 0;
+  color: #fff;
+}
+
+/* Напівпрозора заливка при виборі фото */
+.image-wrap.is-selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+  /* чорна напівпрозора заливка */
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* button row is hidden by default; appears only in selection mode */
+.ritual-btn-row {
+  gap: 10px;
+  margin: 0 0 22px 0;
+}
+
+.selection-mode .ritual-btn-row {
+  display: flex !important;
+}
+
+.ritual-btn--danger {
+  background: #E63B3B;
+  color: #fff;
+}
+
+.no-photos-text {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 510;
+  font-family: 'Montserrat', sans-serif;
+  color: #1C170D;
+  margin: 40px 0 40px -20px;
+}
+
+.single-photo {
+  width: 100%;
+  border-radius: 8px;
+  object-fit: cover;
 }

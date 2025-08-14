@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchNameInput = document.getElementById('searchName');
     const searchNameError = document.getElementById('searchNameError');
 
-    searchNameInput.addEventListener('blur', () => {
+    /*searchNameInput.addEventListener('blur', () => {
         const name = searchNameInput.value.trim();
         const parts = name.split(/\s+/).filter(Boolean);
 
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             searchNameError.hidden = true;
         }
-    });
+    });*/
 
     // ───── Custom Years Picker Setup ─────
     const picker = document.getElementById('lifeYearsPicker');
@@ -178,7 +178,8 @@ document.addEventListener('DOMContentLoaded', () => {
     //
     // 4) TYPEAHEAD SETUP
     //
-    function setupSuggestions(input, clearBtn, listEl, endpoint) {
+    function setupSuggestions(input, clearBtn, listEl, endpoint, opts = {}) {
+        const { onSelect } = opts;
         clearBtn.style.display = 'none';
 
         input.addEventListener('input', () => {
@@ -205,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch(`${API_URL}/api/${endpoint}?search=${encodeURIComponent(q)}`);
                 const arr = await res.json();
 
-                if (arr.length === 0) {
+                if (!arr.length) {
                     listEl.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
                 } else {
                     listEl.innerHTML = arr.map(item => `<li>${item}</li>`).join('');
@@ -218,18 +219,109 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
 
         input.addEventListener('input', debouncedFetch);
-        listEl.addEventListener('click', e => {
+
+        listEl.addEventListener('click', async e => {
             if (e.target.tagName === 'LI') {
                 input.value = e.target.textContent;
                 listEl.style.display = 'none';
                 clearBtn.style.display = 'flex';
+                if (onSelect) await onSelect(input.value);
                 triggerFetch();
             }
         });
     }
 
-    setupSuggestions(cemInput, clearCemBtn, cemSuggest, 'cemeteries');
+    // Resolve Area by Cemetery name using /api/people
+    async function fetchAreaForCemetery(cemeteryName) {
+        if (!cemeteryName) return null;
+        try {
+            const res = await fetch(`${API_URL}/api/people?cemetery=${encodeURIComponent(cemeteryName)}`);
+            if (!res.ok) return null;
+
+            const data = await res.json();
+            const people = Array.isArray(data?.people) ? data.people : [];
+            const areas = people.map(p => p.area).filter(Boolean);
+
+            if (areas.length === 0) return null;
+
+            // pick the most frequent area (handles cases where same-named cemetery appears in multiple areas)
+            const counts = areas.reduce((acc, a) => ((acc[a] = (acc[a] || 0) + 1), acc), {});
+            let best = null, max = 0;
+            for (const [a, n] of Object.entries(counts)) {
+                if (n > max) { best = a; max = n; }
+            }
+            return best;
+        } catch {
+            return null;
+        }
+    }
+
+    async function tryAutoFillAreaFromCemetery(cemeteryName) {
+        // Do not overwrite if user already set Area
+        if (!cemeteryName || areaInput.value.trim()) return;
+        const area = await fetchAreaForCemetery(cemeteryName);
+        if (area) {
+            areaInput.value = area;
+            clearAreaBtn.style.display = 'flex';
+            // propagate to your search
+            areaInput.dispatchEvent(new Event('input', { bubbles: true }));
+            areaInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
+    setupSuggestions(cemInput, clearCemBtn, cemSuggest, 'cemeteries', {
+        onSelect: (val) => tryAutoFillAreaFromCemetery(val)
+    });
     setupSuggestions(areaInput, clearAreaBtn, areaSuggest, 'locations');
+
+    cemInput.addEventListener('change', () => {
+        tryAutoFillAreaFromCemetery(cemInput.value.trim());
+    });
+    cemInput.addEventListener('blur', () => {
+        tryAutoFillAreaFromCemetery(cemInput.value.trim());
+    });
+
+    // 1) Отримати унікальні кладовища для обраної Area через /api/people
+    async function fetchCemeteriesForArea(area) {
+        if (!area) return [];
+        try {
+            const res = await fetch(`${API_URL}/api/people?area=${encodeURIComponent(area)}`);
+            if (!res.ok) return [];
+            const data = await res.json();
+            const cemSet = new Set(
+                (Array.isArray(data?.people) ? data.people : [])
+                    .map(p => p.cemetery)
+                    .filter(Boolean)
+            );
+            // відсортуємо для приємнішого UX
+            return Array.from(cemSet).sort((a, b) => a.localeCompare(b, 'uk', { sensitivity: 'base' }));
+        } catch {
+            return [];
+        }
+    }
+
+    // 2) Показати підказки кладовищ для вибраної Area, якщо інпут кладовища порожній
+    async function showCemeteriesForSelectedAreaIfEmpty() {
+        const area = areaInput.value.trim();
+        const cemVal = cemInput.value.trim();
+        if (!area || cemVal) return;       // показуємо лише коли area є, а cemetery — порожній
+
+        // lightweight loader (необов’язково)
+        cemSuggest.innerHTML = '<li class="loading">Завантаження…</li>';
+        cemSuggest.style.display = 'block';
+
+        const items = await fetchCemeteriesForArea(area);
+        if (!items.length) {
+            cemSuggest.innerHTML = '<li class="no-results">Нічого не знайдено</li>';
+        } else {
+            cemSuggest.innerHTML = items.map(name => `<li>${name}</li>`).join('');
+        }
+        // кнопку «очистити» не показуємо — інпут ще порожній
+    }
+
+    // 3) Тригеримо показ підказок при фокусі/кліку на інпут кладовищ
+    cemInput.addEventListener('focus', showCemeteriesForSelectedAreaIfEmpty);
+    cemInput.addEventListener('click', showCemeteriesForSelectedAreaIfEmpty);
 
     //
     // 5) FETCH & RENDER PEOPLE
@@ -312,6 +404,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const triggerFetch = debounce(fetchPeople, 300);
+
+    if (!foundList._profileDelegation) {
+        foundList.addEventListener('click', (e) => {
+            if (e.target.closest('.select-btn')) return; // не чіпаємо кнопку +
+            const li = e.target.closest('li[data-id]');
+            if (!li) return;
+            const id = li.dataset.id;
+            if (id) window.location.href = `/profile.html?personId=${encodeURIComponent(id)}`;
+        });
+
+        // Доступність з клавіатури (Enter/Space)
+        foundList.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            if (e.target.closest('.select-btn')) return;
+            const li = e.target.closest('li[data-id]');
+            if (!li) return;
+            e.preventDefault();
+            const id = li.dataset.id;
+            if (id) window.location.href = `/profile.html?personId=${encodeURIComponent(id)}`;
+        });
+
+        foundList._profileDelegation = true;
+    }
 
     // typing a name fires a search
     nameInput.addEventListener('input', triggerFetch);
@@ -420,6 +535,29 @@ document.addEventListener('DOMContentLoaded', () => {
     //
     addPersonBtn.addEventListener('click', () => {
         window.location.href = '/add_person.html';
+    });
+
+    function resetCemetery() {
+        if (cemInput) {
+            cemInput.value = '';
+            // якщо зберігаєш вибране через data-*:
+            cemInput.removeAttribute('data-selected-id');
+            // триггеримо твою логіку фільтра/підказок
+            cemInput.dispatchEvent(new Event('input', { bubbles: true }));
+            cemInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (cemSuggest) cemSuggest.style.display = 'none';
+        if (clearCemBtn) clearCemBtn.style.display = 'none';
+    }
+
+    // 1) Клік по «очистити» в area -> чистимо cemetery
+    clearAreaBtn?.addEventListener('click', () => {
+        resetCemetery();
+    });
+
+    // 2) Додатково: якщо area стало порожнім вручну — теж чистимо cemetery
+    areaInput?.addEventListener('input', (e) => {
+        if (e.target.value.trim() === '') resetCemetery();
     });
 
     //

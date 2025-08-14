@@ -110,6 +110,36 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("loginModal").style.display = "flex";
     });
 
+    // ----- Login modal close logic -----
+    const loginModal = document.getElementById("loginModal");
+    const loginBox = loginModal.querySelector(".login-box");
+    const loginClose = document.getElementById("loginClose");
+
+    function closeLoginModal() {
+        loginModal.style.display = "none";
+        // optional: clear fields & error on close
+        document.getElementById("loginInput").value = "";
+        document.getElementById("passwordInput").value = "";
+        document.getElementById("loginError").textContent = "";
+    }
+
+    loginClose.addEventListener("click", closeLoginModal);
+
+    // Click outside the box -> close
+    loginModal.addEventListener("click", (e) => {
+        if (!loginBox.contains(e.target)) closeLoginModal();
+    });
+
+    // Prevent clicks inside the box from closing
+    loginBox.addEventListener("click", (e) => e.stopPropagation());
+
+    // Close on Escape
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && loginModal.style.display === "flex") {
+            closeLoginModal();
+        }
+    });
+
     // Обробник кнопки "Увійти" — тільки логіка авторизації
     document.getElementById("loginSubmit").addEventListener("click", async () => {
         const login = document.getElementById("loginInput").value.trim();
@@ -129,12 +159,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
             if (!res.ok) throw new Error("Невірні дані");
             const result = await res.json();
-            // Перенаправляємо на сторінку редагування з токеном
-            window.location.href = `/ritual_service_edit.html?id=${ritualId}&token=${result.token}`;
+            // 1) Persist token
+            localStorage.setItem('token', result.token);
+            // 2) Redirect (URL param optional now)
+            window.location.href = `/ritual_service_edit.html?id=${ritualId}`;
         } catch {
             errorEl.textContent = "Невірний логін або пароль";
         }
     });
+
+
 
     // Функція відкриття слайдшоу
     function openSlideshow(images) {
@@ -196,4 +230,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.body.appendChild(modal);
         updateIndicators();
     }
+
+    const backBtn = document.querySelector(".ritual-back-btn");
+    if (backBtn) {
+        backBtn.addEventListener("click", () => {
+            window.location.href = "/ritual_services.html";
+        });
+    }
+
 });

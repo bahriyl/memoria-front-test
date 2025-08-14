@@ -29,44 +29,74 @@
             </button>
         </header>
 
-        <h1>Локація місця поховання</h1>
-
-        <!-- Geolocation card -->
-        <section class="card geo-card">
-            <p>
-                Стоячи перед місцем поховання, надайте дозвіл до геолокації,
-                щоб закріпити координати
-            </p>
-            <button id="btn-geo" class="btn btn-primary">Дозволити</button>
+        <section class="section-location">
+            <div class="section-titlebar">
+                <h1>Локація місця поховання</h1>
+                <button id="loc-menu-btn" class="dots-btn" aria-label="Дії">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#585858" viewBox="0 0 24 24">
+                        <circle cx="12" cy="5" r="2"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <circle cx="12" cy="19" r="2"></circle>
+                    </svg>
+                </button>
+                <div id="loc-menu" class="popup-menu hidden">
+                    <div id="loc-change" class="popup-option">Змінити</div>
+                </div>
+            </div>
+            <!-- карта/картка далі без змін -->
+            <section class="card geo-card"> … </section>
         </section>
 
-        <h2>Фото місця поховання</h2>
-
-        <!-- Photo upload -->
+        <!-- Photo upload section - restructured like ritual service -->
         <section class="section-photos">
-            <div class="photo-actions">
-                <button id="btn-add-photo" class="btn btn-secondary">Добавити</button>
-                <button id="btn-select-photo" class="btn btn-secondary">Вибрати</button>
+            <div class="section-titlebar">
+                <h2>Фото місця поховання</h2>
+                <button id="photo-menu-btn" class="dots-btn" aria-label="Дії">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#585858" viewBox="0 0 24 24">
+                        <circle cx="12" cy="5" r="2"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <circle cx="12" cy="19" r="2"></circle>
+                    </svg>
+                </button>
+                <div id="photo-menu" class="popup-menu hidden">
+                    <div id="btn-add-photo" class="popup-option">Добавити</div>
+                    <div id="btn-select-photo" class="popup-option">Вибрати</div>
+                </div>
             </div>
+
+            <div class="ritual-btn-row" id="photo-btn-row"></div>
             <input type="file" id="file-input" accept="image/*" multiple hidden />
-            <!-- Photo grid: JS will populate this -->
             <div id="image-grid" class="image-grid"></div>
         </section>
 
-        <h2>Орієнтири</h2>
-
-        <!-- Landmarks -->
-        <!-- edit button for landmarks -->
-        <button type="button" id="btn-edit-landmarks" style="display:none;" class="btn btn-secondary">Змінити</button>
-        <!-- display current landmarks as text -->
+        <!-- Landmarks section -->
+        <section class="section-landmarks">
+            <div class="section-titlebar">
+                <h2>Орієнтири</h2>
+                <button id="landmarks-menu-btn" class="dots-btn" aria-label="Дії">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#585858" viewBox="0 0 24 24">
+                        <circle cx="12" cy="5" r="2"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <circle cx="12" cy="19" r="2"></circle>
+                    </svg>
+                </button>
+                <div id="landmarks-menu" class="popup-menu hidden">
+                    <div id="landmarks-change" class="popup-option">Змінити</div>
+                </div>
+            </div>
+        </section>
         <p id="landmarks-display" style="display:none;" class="landmarks-text"></p>
-        <!-- textarea for editing landmarks -->
-        <textarea id="landmarks" style="display:none;" placeholder="Важливі орієнтири для полегшення пошуку..."></textarea>
+        <textarea id="landmarks" style="display:none;" placeholder="Важливі орієнтири…"></textarea>
+
+        <div id="form-error" class="form-error" style="display:none;" aria-live="polite"></div>
 
         <!-- Submit -->
-        <button id="btn-submit" class="btn btn-primary full-width">
-            Надіслати на модерацію
-        </button>
+        <div class="form-group">
+            <div id="form-error" class="form-error" style="display:none;" aria-live="polite"></div>
+            <button id="btn-submit" class="submit-btn">
+                Додати локацію
+            </button>
+        </div>
     </div>
 
     <!-- Success Modal -->
@@ -74,9 +104,29 @@
     <div id="success-modal" class="modal" hidden>
         <button id="modal-close" class="modal-close">&times;</button>
         <p class="modal-text">
-            Успішно відправлено на модерацію, ми сповістимо вас коли буде готово!
+            Локацію додано успішно
         </p>
         <button id="modal-ok" class="modal-ok">Готово</button>
+    </div>
+
+    <!-- Confirm Change Location Modal -->
+    <div id="confirm-modal" class="modal" hidden>
+        <button id="confirm-close" class="modal-close">&times;</button>
+        <p class="modal-text">Змінити геолокацію? Поточні координати буде замінено.</p>
+        <div class="modal-actions">
+            <button id="confirm-cancel" class="btn btn-secondary">Скасувати</button>
+            <button id="confirm-ok" class="modal-ok">Змінити</button>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Photos Modal -->
+    <div id="confirm-delete-modal" class="modal" hidden>
+        <button id="confirm-delete-close" class="modal-close">&times;</button>
+        <p class="modal-text">Видалити вибрані фотографії?</p>
+        <div class="modal-actions">
+            <button id="confirm-delete-cancel" class="btn btn-secondary">Скасувати</button>
+            <button id="confirm-delete-ok" class="modal-ok">Видалити</button>
+        </div>
     </div>
 
     <script src="js/location.js"></script>

@@ -33,8 +33,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const playPause = document.getElementById('playPause');
     const progress = document.getElementById('progress');
     const timeLabel = document.getElementById('timeLabel');
+    const controls = document.getElementById('controls');
 
     video.controls = false
+
+    // when video plays
+    video.addEventListener('play', () => {
+        overlayPlay.style.display = 'none';
+        controls.classList.add('is-playing');   // show controls bar
+        setSmallIcon(true);
+    });
+
+    // when video pauses or ends
+    function hideUiForPause() {
+        overlayPlay.style.display = 'flex';
+        controls.classList.remove('is-playing'); // hide controls bar
+        setSmallIcon(false);
+    }
+    video.addEventListener('pause', hideUiForPause);
+    video.addEventListener('ended', hideUiForPause);
 
     // allow click-anywhere on the video to toggle
     video.addEventListener('click', () => {

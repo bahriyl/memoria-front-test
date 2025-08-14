@@ -120,6 +120,59 @@ document.addEventListener('DOMContentLoaded', () => {
     setupSuggestions(areaInput, clearAreaBtn, areaSuggest, 'locations');
     setupSuggestions(cemInput, clearCemBtn, cemSuggest, 'cemeteries');
 
+    // === Show all cemeteries for selected Area when cemetery input is empty ===
+
+    // Try direct cemeteries endpoint with ?area=; if unavailable, fall back via /api/people
+    async function fetchCemeteriesForArea(area) {
+        if (!area) return [];
+        // Attempt A: /api/cemeteries?area=
+        try {
+            const res = await fetch(`${API_URL}/api/cemeteries?area=${encodeURIComponent(area)}`);
+            if (res.ok) {
+                const arr = await res.json();
+                if (Array.isArray(arr) && arr.length) return arr;
+            }
+        } catch { }
+
+        // Attempt B (fallback): /api/people?area= → unique cemeteries
+        try {
+            const res2 = await fetch(`${API_URL}/api/people?area=${encodeURIComponent(area)}`);
+            if (!res2.ok) return [];
+            const data = await res2.json();
+            const set = new Set(
+                (Array.isArray(data?.people) ? data.people : [])
+                    .map(p => p.cemetery)
+                    .filter(Boolean)
+            );
+            return Array.from(set).sort((a, b) => a.localeCompare(b, 'uk', { sensitivity: 'base' }));
+        } catch {
+            return [];
+        }
+    }
+
+    async function showCemeteriesForSelectedAreaIfEmpty() {
+        const area = areaInput.value.trim();
+        const val = cemInput.value.trim();
+
+        // If no area or user already typed something — just show current list (if any)
+        if (!area || val) {
+            if (cemSuggest.children.length) cemSuggest.style.display = 'block';
+            return;
+        }
+
+        cemSuggest.innerHTML = '<li class="loading">Завантаження…</li>';
+        cemSuggest.style.display = 'block';
+
+        const items = await fetchCemeteriesForArea(area);
+        cemSuggest.innerHTML = items.length
+            ? items.map(name => `<li>${name}</li>`).join('')
+            : '<li class="no-results">Нічого не знайдено</li>';
+    }
+
+    // Trigger on focus/click when cemetery input is empty
+    cemInput.addEventListener('focus', showCemeteriesForSelectedAreaIfEmpty);
+    cemInput.addEventListener('click', showCemeteriesForSelectedAreaIfEmpty);
+
     // Fetch people
     async function fetchPeople() {
         const hasAny =
@@ -167,6 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectPerson(person);
                 });
             });
+            foundList.querySelectorAll('li[data-id]').forEach(li => li.tabIndex = 0);
         } else {
             foundList.innerHTML = '';
             foundLabel.hidden = true;
@@ -178,6 +232,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const ev = el.tagName === 'SELECT' ? 'change' : 'input';
         el.addEventListener(ev, triggerFetch);
     });
+
+    // Navigate to person profile when clicking on a person (except the + button)
+    if (!foundList._profileNavBound) {
+        foundList.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return; // ignore "+" button
+            const li = e.target.closest('li[data-id]');
+            if (!li) return;
+            const id = li.dataset.id;
+            if (id) {
+                window.location.href = `/profile.html?personId=${encodeURIComponent(id)}`;
+            }
+        });
+
+        // Keyboard accessibility: Enter/Space to open profile
+        foundList.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            if (e.target.closest('button')) return;
+            const li = e.target.closest('li[data-id]');
+            if (!li) return;
+            e.preventDefault();
+            const id = li.dataset.id;
+            if (id) {
+                window.location.href = `/profile.html?personId=${encodeURIComponent(id)}`;
+            }
+        });
+
+        foundList._profileNavBound = true;
+    }
 
     // Select / Deselect
     function selectPerson(p) {
@@ -221,6 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function hideModal() {
         overlayEl.hidden = true;
         modalEl.style.display = 'none';
+        window.location.href="notable.html";
     }
 
     closeBtn.addEventListener('click', hideModal);

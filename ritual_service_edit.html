@@ -10,7 +10,7 @@
 
 <body>
     <div class="ritual-header">
-        <button class="ritual-back-btn" onclick="history.back()">
+        <button class="ritual-back-btn">
             <svg class="back-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="white"
                 viewBox="0 0 24 24">
                 <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z" />
@@ -39,10 +39,24 @@
         </section>
 
         <section class="ritual-description">
-            <div class="description-header">
+            <div class="description-header section-header">
                 <h2>Про нас</h2>
-                <button class="edit-description-btn">Змінити</button>
+
+                <!-- dots -->
+                <button class="dots-btn" aria-label="Меню">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#585858" viewBox="0 0 24 24">
+                        <circle cx="12" cy="5" r="2"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <circle cx="12" cy="19" r="2"></circle>
+                    </svg>
+                </button>
+
+                <!-- popup -->
+                <div class="popup-menu hidden">
+                    <div class="popup-option edit-description">Змінити</div>
+                </div>
             </div>
+
             <p class="ritual-text" style="display: none;"></p>
             <textarea class="ritual-text" style="display: none;"></textarea>
         </section>

@@ -9,9 +9,9 @@
 }
 
 body {
-    font-family: sans-serif;
+    font-family: 'Montserrat', sans-serif;
     background: #FFFFFF;
-    color: #333;
+    color: #222;
     line-height: 1.4;
 }
 
@@ -57,18 +57,23 @@ h2 {
     font-family: 'Montserrat', sans-serif;
     font-size: 19px;
     font-weight: 570;
-    margin-bottom: 12px;
-    color: #202124;
+    margin-bottom: 16px !important;
+    color: #222;
 }
 
-/* Cards & sections */
+/* Cards & sections - matching ritual service style */
 .section,
 .card {
+    background: #ffffff;
+    border-radius: 9px;
+    padding: 20px;
+    margin-bottom: 6px;
+}
+
+.geo-card {
+    height: auto;
+    min-height: 154px;
     background: #F2F4F7;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
-    height: 154px;
 }
 
 .geo-card p {
@@ -118,8 +123,8 @@ h2 {
     height: 30px;
     padding: 0 16px;
     border-radius: 14px;
-    background: #F2F4F7;
-    color: #1C170D;
+    background: #f2f4f7;
+    color: #585858;
     font-family: 'Montserrat', sans-serif;
     font-size: 15px;
     font-weight: 510;
@@ -132,7 +137,7 @@ h2 {
     align-items: center;
     justify-content: center;
     width: 90%;
-    margin: 53px auto 0;
+    margin: 32px auto 48px;
     height: 49px;
     background: #1B8B59;
     color: #FFFDF8;
@@ -145,19 +150,29 @@ h2 {
     text-decoration: none;
 }
 
-/* Photo grid */
+/* Photo section - matching ritual service style */
 .section-photos {
     position: relative;
     left: 50%;
     width: 100vw;
     margin-left: -50%;
     overflow-x: visible;
+    margin-bottom: 28px;
+}
+
+.section-photos h2 {
+    padding-top: 20px;
+    padding-right: 56px;
+    margin-bottom: 0;
 }
 
 .photo-actions {
+    position: relative;
     display: flex;
-    gap: 8px;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 22px;
+    padding-right: 20px;
 }
 
 .image-grid {
@@ -170,20 +185,22 @@ h2 {
     -ms-overflow-style: none;
     scrollbar-width: none;
     scroll-behavior: smooth;
-
     padding-right: 16px;
-
     margin-right: -16px;
     width: calc(100% + 16px);
-
-    width: auto;
-    margin: 0;
 }
 
 .image-grid::before {
     content: '';
     flex: 0 0 0;
     pointer-events: none;
+}
+
+/* додати простір після останнього фото */
+.image-grid::after {
+    content: '';
+    flex: 0 0 16px;
+    /* або трохи більше, щоб не врізалось */
 }
 
 .image-grid::-webkit-scrollbar {
@@ -226,20 +243,20 @@ h2 {
     pointer-events: none;
 }
 
-/* Textarea */
+/* Textarea - matching ritual service style */
 textarea {
     width: 100%;
-    min-height: 80px;
+    min-height: 105px;
     padding: 12px;
-    border: 0 solid #ddd;
-    border-radius: 7px;
-    resize: vertical;
-    height: 159px;
-    background: #F2F4F7;
+    border: none;
+    border-radius: 8px;
+    resize: none;
+    background: #f8f8f8;
     font-family: 'Montserrat', sans-serif;
     font-size: 15px;
     font-weight: 480;
-    line-height: 24px;
+    line-height: 23px;
+    box-sizing: border-box;
 }
 
 textarea::placeholder {
@@ -250,6 +267,10 @@ textarea::placeholder {
     font-family: 'Montserrat', sans-serif;
     font-size: 15px;
     font-weight: 480;
+    line-height: 23px;
+    background: none;
+    margin: 8px 0 0 0;
+    padding: 0;
 }
 
 .map-container {
@@ -275,24 +296,15 @@ textarea::placeholder {
 .floating-route-btn {
     position: absolute;
     top: 50%;
-    /* Center vertically */
     left: 50%;
-    /* Center horizontally */
     transform: translate(-50%, -50%);
-    /* Center both directions */
     z-index: 2;
-
     padding: 0;
-    /* Let height + line-height handle spacing */
     height: 41px;
     width: 75%;
-
     display: flex;
     align-items: center;
-    /* Vertical centering */
     justify-content: center;
-    /* Horizontal centering */
-
     border-radius: 14px;
     background-color: #1B8B59;
     color: white;
@@ -358,4 +370,452 @@ textarea::placeholder {
     border-radius: 8px;
     font-size: 16px;
     cursor: pointer;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+/* === Slideshow (1:1 з ritual_service_profile) === */
+.slideshow-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10000;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, .95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.slideshow-img {
+    width: 100vw;
+    height: auto;
+    max-height: 100vh;
+    object-fit: contain;
+}
+
+.close-slideshow {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    font-size: 28px;
+    color: #fff;
+    cursor: pointer;
+    z-index: 10000;
+}
+
+.slideshow-indicators {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+.slideshow-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    transition: background-color .3s;
+}
+
+.slideshow-indicator.active {
+    background: #1B8B59;
+}
+
+/* 3 dots button + popup - exactly like ritual_service_edit */
+.dots-btn {
+    position: absolute;
+    top: 8px;
+    /* вирівнюй під свій заголовок */
+    right: 12px;
+    width: 40px;
+    /* зручна зона тач-таргету */
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    /* прибираємо зайві відступи */
+    z-index: 2;
+    /* поверх контенту секції */
+}
+
+.popup-menu {
+    position: absolute;
+    top: 56px;
+    right: 12px;
+    background: #F7F7F7;
+    border: 0.5px solid #DCDCDC;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 999;
+    min-width: 160px;
+    font-family: "Montserrat", sans-serif;
+}
+
+.popup-menu.hidden {
+    display: none;
+}
+
+.popup-option {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 510;
+    color: #1C170D;
+    position: relative;
+}
+
+.popup-option::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 5%;
+    width: 90%;
+    border-bottom: 0.5px solid #DCDCDC;
+}
+
+.popup-option:last-child::after {
+    display: none;
+}
+
+.popup-option:hover {
+    background-color: #f2f2f2;
+}
+
+/* --- Buttons row (hidden unless needed) --- */
+.ritual-btn-row {
+    display: none;
+    gap: 10px;
+    margin: 0 0 22px 0;
+    padding-right: 20px;
+}
+
+.ritual-btn {
+    background: #f2f4f7;
+    color: #222;
+    border: 0;
+    border-radius: 14px;
+    padding: 6px 14px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 510;
+    cursor: pointer;
+    height: 30px;
+}
+
+.ritual-btn--danger {
+    background: #E63B3B;
+    color: #fff;
+}
+
+/* --- Image tiles like on ritual page --- */
+.image-wrap {
+    position: relative;
+    width: 157px;
+    height: 212px;
+    border-radius: 4px;
+    overflow: hidden;
+    scroll-snap-align: start;
+    flex-shrink: 0;
+}
+
+.item-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+/* Selection badges (same look) */
+.select-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-family: "Montserrat", sans-serif;
+    font-weight: 550;
+    font-size: 14px;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+
+/* When in selection mode: show hollow ring on all */
+.selection-mode .select-badge {
+    display: flex;
+    background: rgba(255, 255, 255, 0);
+    border: 1px solid #fff;
+    color: transparent;
+}
+
+/* Selected → green filled with number */
+.selection-mode .image-wrap.is-selected .select-badge {
+    background: #1B8B59;
+    border: 0;
+    color: #fff;
+}
+
+/* Напівпрозора заливка при виборі фото */
+.image-wrap.is-selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.1);
+    /* чорна напівпрозора заливка */
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+.no-photos-text {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 510;
+    font-family: 'Montserrat', sans-serif;
+    color: #1C170D;
+    margin: 40px 0 40px 0;
+    padding-right: 20px;
+}
+
+.form-error {
+    margin: 12px auto 8px;
+    width: 90%;
+    color: #D92D20;
+    /* червоний */
+    background: #FEF3F2;
+    /* м’який фон */
+    border: 1px solid #FEE4E2;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.section-location,
+.section-landmarks {
+    position: relative;
+}
+
+.section-location h1,
+.section-landmarks h2,
+.section-photos h2 {
+    padding-right: 0 !important;
+}
+
+/* Шапка секції: заголовок + три крапки */
+.section-titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    position: relative;
+    /* щоб меню випливало під шапкою */
+}
+
+.section-titlebar h1,
+.section-titlebar h2 {
+    margin: 0;
+    padding: 0;
+}
+
+/* Кнопка крапок всередині шапки більше НЕ absolute */
+.section-titlebar .dots-btn {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+    margin-bottom: 15px;
+}
+
+.section-location .dots-btn {
+    position: relative;
+    right: -10px;
+    margin-bottom: 30px;
+}
+
+.section-photos .dots-btn {
+    position: relative;
+    right: 20px;
+    padding-bottom: 15px;
+}
+
+.section-landmarks .dots-btn {
+    position: relative;
+    right: -10px;
+    padding-bottom: 15px;
+}
+
+/* Попап тепер прив’язаний до шапки секції */
+.section-titlebar .popup-menu {
+    top: calc(100% + 8px);
+    right: 0;
+}
+
+/* Popover як оверлей на рівні вʼюпорту */
+.popup-menu {
+    position: fixed !important;
+    /* не всередині скрол-контейнерів */
+    top: 0;
+    /* координати виставимо з JS */
+    left: 0;
+    right: auto;
+    /* скинення правого вирівнювання */
+    z-index: 1000;
+    /* над контентом */
+}
+
+/* Плашка "йде завантаження" на прев'ю */
+.image-wrap.uploading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .35);
+    pointer-events: none;
+}
+
+/* Спінер по центру */
+.image-wrap.uploading::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 34px;
+    height: 34px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, .35);
+    border-top-color: #fff;
+    animation: memoria-spin 0.9s linear infinite;
+}
+
+/* Невелика підказка внизу плитки */
+.image-wrap.uploading .uploading-hint {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 16px;
+    color: #fff;
+    background: rgba(0, 0, 0, .45);
+}
+
+.submit-btn {
+    position: fixed;
+    bottom: env(safe-area-inset-bottom, 16px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 32px);
+    max-width: 400px;
+    margin: 0 auto;
+    z-index: 200;
+    height: 49px;
+    padding: 14px;
+    margin-bottom: 21px;
+    background: #1B8B59;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-family: var(--font-base);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.slideshow-modal {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    z-index: 10000;
+}
+
+.slideshow-track {
+    display: flex;
+    flex: 1;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+.slideshow-slide {
+    flex: 0 0 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    scroll-snap-align: center;
+}
+
+.slideshow-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.slideshow-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 0;
+}
+
+.slideshow-indicator {
+    width: 8px;
+    height: 8px;
+    background: #777;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.slideshow-indicator.active {
+    background: #fff;
+}
+
+.close-slideshow {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 10001;
+}
+
+/* анімація */
+@keyframes memoria-spin {
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+/* щоб iOS не зумило при фокусі */
+@media (max-width: 820px) {
+
+    input,
+    textarea,
+    select {
+        font-size: 16px;
+    }
 }

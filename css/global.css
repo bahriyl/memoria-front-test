@@ -1,0 +1,6 @@
+/* global.css — safe default; JS will set the start position */
+.page-content {
+    transform: none;
+    /* was: translateX(100%) */
+    transition: none;
+}

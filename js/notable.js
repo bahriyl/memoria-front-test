@@ -389,6 +389,44 @@ function renderFilterControls() {
             const cemTab = document.querySelector('.filter[data-filter="cemetery"]');
             const areaTab = document.querySelector('.filter[data-filter="area"]');
 
+            // Fetch all cemeteries for a given area (uses existing CEM_API)
+            async function fetchCemeteriesForArea(area) {
+                if (!area) return [];
+                try {
+                    const params = new URLSearchParams({ area });
+                    const res = await fetch(`${CEM_API}?${params.toString()}`);
+                    if (!res.ok) return [];
+                    const arr = await res.json();
+                    return Array.isArray(arr) ? arr : [];
+                } catch {
+                    return [];
+                }
+            }
+
+            // If Area is selected and Cemetery input is empty → show full list for that Area
+            async function showCemeteriesForSelectedAreaIfEmpty() {
+                const area = (filterState.area || '').trim();
+                const val = cemInput.value.trim();
+
+                // If no area or user already typed something, just show the existing list (if any)
+                if (!area || val) {
+                    if (suggestions.children.length) suggestions.style.display = 'block';
+                    return;
+                }
+
+                suggestions.innerHTML = '<li class="loading">Завантаження…</li>';
+                suggestions.style.display = 'block';
+
+                const items = await fetchCemeteriesForArea(area);
+                suggestions.innerHTML = items.length
+                    ? items.map(c => `<li>${c}</li>`).join('')
+                    : '<li class="no-results">Нічого не знайдено</li>';
+            }
+
+            // Trigger on focus/click when the input is empty
+            cemInput.addEventListener('focus', showCemeteriesForSelectedAreaIfEmpty);
+            cemInput.addEventListener('click', showCemeteriesForSelectedAreaIfEmpty);
+
             // 4. Initial clear‐button visibility
             clearCem.style.display = filterState.cemetery ? 'flex' : 'none';
 

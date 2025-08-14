@@ -249,6 +249,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
 }
 
 .login-box input {
@@ -266,80 +267,100 @@ body {
   font-size: 15px;
 }
 
+.login-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: none !important;
+  color: #222 !important;
+  font-size: 18px;
+  line-height: 28px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.login-close:hover {
+  background: #e6e6e6;
+}
+
 .error-message {
-    color: red;
-    font-size: 14px;
-    margin: 0;
+  color: red;
+  font-size: 14px;
+  margin: 0;
 }
 
 .slideshow-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 10000;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.95);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10000;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .slideshow-img {
-    width: 90vw;
-    height: auto;
-    max-height: 100vh;
-    object-fit: contain;
+  width: 100vw;
+  height: auto;
+  max-height: 100vh;
+  object-fit: contain;
 }
 
 .close-slideshow {
-    position: absolute;
-    top: 20px;
-    right: 30px;
-    font-size: 28px;
-    color: white;
-    cursor: pointer;
-    z-index: 10000;
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  font-size: 22px;
+  color: white;
+  cursor: pointer;
+  z-index: 10000;
 }
 
 .slideshow-indicators {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 8px;
-    z-index: 10;
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
 }
 
 .slideshow-indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background-color: white;
-    cursor: pointer;
-    transition: background-color 0.3s;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: white;
+  cursor: pointer;
+  transition: background-color 0.3s;
 }
 
 .slideshow-indicator.active {
-    background-color: #1B8B59;
+  background-color: #1B8B59;
 }
 
 .image-wrapper {
-    position: relative;
-    width: 160px;
-    height: 198px;
-    flex-shrink: 0;
+  position: relative;
+  width: 160px;
+  height: 198px;
+  flex-shrink: 0;
 }
 
 .image-counter {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 16px;
-    font-weight: 600;
-    color: #FFFFFF;
-    pointer-events: none;
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #FFFFFF;
+  pointer-events: none;
 }

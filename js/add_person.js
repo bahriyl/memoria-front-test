@@ -169,6 +169,101 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Confirm modal + toast
+    const confirmModal = document.getElementById('confirm-modal');
+    const confirmClose = document.getElementById('confirm-close');
+    const confirmEdit = document.getElementById('confirm-edit');
+    const confirmSend = document.getElementById('confirm-send');
+    const confirmSummary = document.getElementById('confirm-summary');
+
+    const toast = document.getElementById('toast');
+    const toastText = document.getElementById('toast-text');
+    const toastClose = document.getElementById('toast-close');
+
+    let pendingPayload = null;
+
+    function openConfirm(payload) {
+        pendingPayload = payload;
+
+        // Build a readable summary
+        const rows = [
+            ['ПІБ', payload.name],
+            ['Рік народження', payload.birthYear],
+            ['Рік смерті', payload.deathYear],
+            ['Населений пункт', payload.area],
+            ['Кладовище', payload.cemetery]
+        ];
+        if (payload.occupation) rows.push(['Сфера діяльності', payload.occupation]);
+        if (payload.link) rows.push(['Посилання', payload.link]);
+        if (payload.bio) rows.push(['Опис', payload.bio]);
+
+        confirmSummary.innerHTML = rows
+            .map(([k, v]) => `<div class="row"><span class="k">${k}:</span> <span class="v">${(v || '').toString()}</span></div>`)
+            .join('');
+
+        // show modal + overlay
+        document.getElementById('modal-overlay').hidden = false;
+        confirmModal.hidden = false;
+    }
+
+    function closeConfirm() {
+        confirmModal.hidden = true;
+        document.getElementById('modal-overlay').hidden = true;
+    }
+
+    function showToast(msg) {
+        toastText.textContent = msg;
+        toast.hidden = false;                // show
+        // optional: scroll to top so user sees it immediately
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    toastClose.addEventListener('click', (e) => { e.preventDefault(); toast.hidden = true; });
+
+    function clearForm() {
+        // Reset the entire form and all suggestion states
+        form.reset();
+        document.querySelectorAll('.error-message').forEach(el => { el.textContent = ''; el.style.display = 'none'; });
+
+        // hide clear buttons and notable extra fields
+        document.getElementById('clear-city').style.display = 'none';
+        document.getElementById('clear-cem').style.display = 'none';
+        document.getElementById('clear-birth').style.display = 'none';
+        document.getElementById('clear-death').style.display = 'none';
+        const nf = document.getElementById('notable-fields');
+        if (nf) nf.style.display = 'none';
+        document.getElementById('location-suggestions').style.display = 'none';
+        document.getElementById('cemetery-suggestions').style.display = 'none';
+    }
+
+    confirmClose.addEventListener('click', closeConfirm);
+    confirmEdit.addEventListener('click', closeConfirm);
+
+    confirmSend.addEventListener('click', async () => {
+        if (!pendingPayload) return;
+        // send to moderation
+        try {
+            const res = await fetch(`${API_URL}/api/people/add_moderation`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingPayload)
+            });
+            const json = await res.json();
+            closeConfirm();
+            if (json.success) {
+                showToast("Успішно відправлено на модерацію! Ми сповістимо вас коли буде готово");
+                clearForm();
+            } else {
+                alert('Щось пішло не так. Спробуйте ще раз.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Помилка мережі. Перевірте підключення.');
+        } finally {
+            pendingPayload = null;
+        }
+    });
+
     // ——— Submission + Success Modal Logic ———
     const form = document.getElementById('personForm');
     const overlayEl = document.getElementById('modal-overlay');
@@ -191,15 +286,11 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', async e => {
         e.preventDefault();
 
-        // Очистити попередні помилки
-        document.querySelectorAll('.error-message').forEach(el => {
-            el.textContent = '';
-            el.style.display = 'none';
-        });
-
+        // clear old errors
+        document.querySelectorAll('.error-message').forEach(el => { el.textContent = ''; el.style.display = 'none'; });
         let hasError = false;
 
-        // ПІБ
+        // --- validation (same as before) ---
         const fullNameInput = document.getElementById('fullName');
         const fullNameError = document.getElementById('fullNameError');
         const name = fullNameInput.value.trim();
@@ -217,39 +308,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Роки народження / смерті
         const birthYear = document.getElementById('birthYear');
         const deathYear = document.getElementById('deathYear');
+        birthYear.style.border = birthYear.value ? '' : '1px solid red';
+        deathYear.style.border = deathYear.value ? '' : '1px solid red';
+        if (!birthYear.value || !deathYear.value) hasError = true;
 
-        if (!birthYear.value) {
-            birthYear.style.border = '1px solid red';
-            hasError = true;
-        } else {
-            birthYear.style.border = '';
-        }
-
-        if (!deathYear.value) {
-            deathYear.style.border = '1px solid red';
-            hasError = true;
-        } else {
-            deathYear.style.border = '';
-        }
-
-        // Населений пункт
         const city = document.getElementById('city');
-        if (!city.value.trim()) {
-            showError(city, "Введіть населений пункт");
-            hasError = true;
-        }
+        if (!city.value.trim()) { showError(city, "Введіть населений пункт"); hasError = true; }
 
-        // Кладовище
         const cemetery = document.getElementById('cemetery');
-        if (!cemetery.value.trim()) {
-            showError(cemetery, "Введіть назву кладовища");
-            hasError = true;
-        }
+        if (!cemetery.value.trim()) { showError(cemetery, "Введіть назву кладовища"); hasError = true; }
 
-        // Додаткові поля для видатної особи
         let occupation = '', link = '', bio = '';
         if (document.getElementById('notablePerson').checked) {
             const occupationSelect = document.getElementById('activityArea');
@@ -260,53 +330,24 @@ document.addEventListener('DOMContentLoaded', () => {
             link = linkInput.value.trim();
             bio = bioInput.value.trim();
 
-            if (!occupation) {
-                showError(occupationSelect, "Оберіть сферу діяльності");
-                hasError = true;
-            }
-            if (!link) {
-                showError(linkInput, "Введіть посилання на інтернет джерела");
-                hasError = true;
-            }
-            if (!bio) {
-                showError(bioInput, "Введіть опис");
-                hasError = true;
-            }
+            if (!occupation) { showError(occupationSelect, "Оберіть сферу діяльності"); hasError = true; }
+            if (!link) { showError(linkInput, "Введіть посилання на інтернет джерела"); hasError = true; }
+            if (!bio) { showError(bioInput, "Введіть опис"); hasError = true; }
         }
 
         if (hasError) return;
 
-        try {
-            const res = await fetch(`${API_URL}/api/people/add_moderation`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name,
-                    birthYear: birthYear.value,
-                    deathYear: deathYear.value,
-                    area: city.value.trim(),
-                    cemetery: cemetery.value.trim(),
-                    occupation,
-                    link,
-                    bio
-                })
-            });
-
-            const json = await res.json();
-            if (json.success) {
-                showModal();
-                document.getElementById('modal-close').addEventListener('click', hideModal);
-                document.getElementById('modal-ok').addEventListener('click', () => {
-                    hideModal();
-                    window.location.reload();
-                });
-            } else {
-                alert('Щось пішло не так. Спробуйте ще раз.');
-            }
-        } catch (err) {
-            console.error(err);
-            alert('Помилка мережі. Перевірте підключення.');
-        }
+        // ✅ Instead of immediate POST, open confirmation
+        openConfirm({
+            name,
+            birthYear: birthYear.value,
+            deathYear: deathYear.value,
+            area: city.value.trim(),
+            cemetery: cemetery.value.trim(),
+            occupation,
+            link,
+            bio
+        });
     });
 
     // Функція для відображення помилки під полем

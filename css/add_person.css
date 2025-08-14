@@ -104,6 +104,7 @@ header {
     position: fixed;
     top: 47px;
     left: -80vw;
+    /* hidden off-screen */
     width: 60vw;
     max-width: 300px;
     height: calc(100vh - 47px);
@@ -114,7 +115,8 @@ header {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: var(--spacing-md) 0;
+    padding: 29px 0;
+    /* ⟵ як на головній */
 }
 
 .side-menu.open {
@@ -129,7 +131,7 @@ header {
 }
 
 .side-menu__item+.side-menu__item {
-    margin-top: 29px;
+    margin-top: 10px;
 }
 
 .side-menu__item a {
@@ -137,6 +139,8 @@ header {
     padding: var(--spacing-xs) var(--spacing-lg);
     font-family: var(--font-base);
     font-size: 15px;
+    font-weight: 550;
+    /* ⟵ як на головній */
     color: var(--color-text);
     text-decoration: none;
 }
@@ -167,6 +171,7 @@ header {
     max-width: 400px;
     margin: 24px auto;
     padding: 0 16px;
+    position: relative;
 }
 
 .container h2 {
@@ -298,9 +303,50 @@ input[type="text"]::placeholder {
 }
 
 .checkbox-group input[type="checkbox"] {
-    margin-right: 8px;
-    width: 23px !important;
-    height: 23px !important;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 23px;
+    height: 23px;
+    margin: 0;
+    border: 0.3px solid #B1B1B1;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    cursor: pointer;
+    position: relative;
+    display: inline-block;
+    margin-right: 0.4em;
+}
+
+.checkbox-group input[type="checkbox"]::after {
+    content: "";
+    position: absolute;
+    width: 13px;
+    /* розмір внутрішнього квадратика */
+    height: 13px;
+    border-radius: 4px;
+    /* заокруглення як на макеті */
+    background: #1B8B59;
+    /* зелений */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    transition: transform .16s ease;
+}
+
+/* прибираємо будь-які іконки фоном */
+.checkbox-group input[type="checkbox"]:checked {
+    background-image: none !important;
+}
+
+/* показуємо зелений квадратик при checked */
+.checkbox-group input[type="checkbox"]:checked::after {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* видимий фокус з клавіатури */
+.checkbox-group input[type="checkbox"]:focus-visible {
+    outline: 2px solid #1B8B59;
+    outline-offset: 2px;
 }
 
 .checkbox-desc {
@@ -512,4 +558,73 @@ input[type="checkbox"] {
     color: red;
     font-size: 0.875rem;
     margin-top: 4px;
+}
+
+/* confirm modal buttons */
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 6px;
+}
+
+.btn.btn-secondary {
+    background: #EFF2F5;
+    color: #222;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+}
+
+/* summary list inside confirm modal */
+.summary-list {
+    font-size: 15px;
+    line-height: 1.45;
+}
+
+.summary-list .row {
+    margin: 6px 0;
+}
+
+.summary-list .k {
+    color: #72767D;
+    display: inline-block;
+    min-width: 138px;
+}
+
+.toast {
+    position: absolute;
+    top: 0;
+    /* sits at the top of the container, over the H2 */
+    left: 16px;
+    /* match container side padding */
+    right: 16px;
+    margin: 0;
+    /* no flow spacing when absolute */
+    z-index: 150;
+    /* above page content, below the fixed header (z:200) */
+    display: flex;
+    /* keep existing visual styles below */
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #1B8B59;
+    color: #fff;
+    border-radius: 16px;
+    padding: 12px 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* Ensure the hidden attribute wins over .toast { display:flex } */
+.toast[hidden] {
+    display: none !important;
 }

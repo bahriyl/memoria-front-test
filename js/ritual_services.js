@@ -56,9 +56,13 @@ function renderCompanies(list) {
 
     const ul = document.createElement("ul");
     ul.className = "company-list";
+
     items.forEach((c) => {
       const a = document.createElement("a");
-      a.href = `/ritual_service_profile.html?id=${c.id}`;
+      const savedToken = localStorage.getItem("token");
+      a.href = savedToken
+        ? `/ritual_service_edit.html?id=${c.id}`
+        : `/ritual_service_profile.html?id=${c.id}`;
       a.className = "company-link";
 
       const li = document.createElement("li");
@@ -73,7 +77,25 @@ function renderCompanies(list) {
       a.appendChild(li);
       ul.appendChild(a);
     });
+
     container.append(ul);
+
+    // If more than 4 — collapse and add the toggle under the list
+    if (items.length > 4) {
+      ul.classList.add("collapsed");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "show-more-btn";
+      btn.setAttribute("aria-expanded", "false");
+      btn.innerHTML = `
+        <span class="label">показати більше</span>
+        <svg class="chev-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      `;
+      container.append(btn);
+    }
   }
 }
 
@@ -133,7 +155,7 @@ async function fetchGeoSuggestions(q) {
 searchInput.addEventListener("input", async (e) => {
   const q = e.target.value.trim();
   clearBtn.style.display = q ? "block" : "none";
-  if (q.length < 3) {
+  if (q.length < 1) {
     suggestionsList.style.display = "none";
     return;
   }
@@ -207,6 +229,22 @@ clearBtn.addEventListener("click", () => {
   suggestionsList.style.display = "none";
   hideNoResults();
   renderCompanies(allCompanies);
+});
+
+// Toggle per-category "show more/less"
+container.addEventListener("click", (e) => {
+  const btn = e.target.closest(".show-more-btn");
+  if (!btn) return;
+
+  const ul = btn.previousElementSibling;
+  if (!ul || !ul.classList.contains("company-list")) return;
+
+  const collapsed = ul.classList.toggle("collapsed");
+  const expanded = !collapsed;
+
+  btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+  btn.querySelector(".label").textContent =
+    expanded ? "показати менше" : "показати більше";
 });
 
 // Init

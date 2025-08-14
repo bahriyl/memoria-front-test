@@ -46,7 +46,7 @@
         <form id="personForm" novalidate>
             <!-- ПІБ -->
             <div class="form-group">
-                <input type="text" id="fullName" name="fullName" placeholder="Введіть ПІБ…" required/>
+                <input type="text" id="fullName" name="fullName" placeholder="Введіть ПІБ…" required />
                 <div id="fullNameError" class="error-message" style="display:none;"></div>
             </div>
 
@@ -83,8 +83,8 @@
 
             <!-- Назва населеного пункту -->
             <div class="form-group suggestions-container">
-                <input type="text" id="city" name="city" placeholder="Введіть населений пункт…"
-                    autocomplete="off" required />
+                <input type="text" id="city" name="city" placeholder="Введіть населений пункт…" autocomplete="off"
+                    required />
                 <button class="icon-btn clear-btn" id="clear-city" aria-label="Очистити">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
@@ -97,7 +97,8 @@
 
             <!-- Вибір кладовища -->
             <div class="form-group suggestions-container">
-                <input type="text" id="cemetery" name="cemetery" placeholder="Введіть назву кладовища…" autocomplete="off" required />
+                <input type="text" id="cemetery" name="cemetery" placeholder="Введіть назву кладовища…"
+                    autocomplete="off" required />
                 <button class="icon-btn clear-btn" id="clear-cem" aria-label="Очистити">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
@@ -146,7 +147,7 @@
                 </div>
                 <div class="form-group">
                     <textarea id="achievements" name="achievements" rows="4"
-                        placeholder="Опишіть досягнення завдяки яким людину вважають видатною..."></textarea>
+                        placeholder="Опишіть досягнення завдяки яким людина вважається видатною..."></textarea>
                 </div>
             </div>
 
@@ -167,6 +168,23 @@
                 Успішно відправлено на модерацію, ми сповістимо вас коли буде готово!
             </p>
             <button id="modal-ok" class="modal-ok">Готово</button>
+        </div>
+
+        <!-- Confirm modal -->
+        <div id="confirm-modal" class="modal" hidden>
+            <button id="confirm-close" class="modal-close" aria-label="Закрити">&times;</button>
+            <h3 style="margin:8px 0 6px;font-size:18px;">Підтвердження даних</h3>
+            <div id="confirm-summary" class="summary-list" style="text-align:left;margin:10px 0 14px;"></div>
+            <div class="modal-actions">
+                <button id="confirm-edit" class="btn btn-secondary" type="button">Змінити</button>
+                <button id="confirm-send" class="modal-ok" type="button">Готово</button>
+            </div>
+        </div>
+
+        <!-- Success toast -->
+        <div id="toast" class="toast toast--success" hidden>
+            <span id="toast-text">Успішно відправлено на модерацію! Ми сповістимо вас коли буде готово</span>
+            <button id="toast-close" class="toast-close" type="button" aria-label="Закрити">&times;</button>
         </div>
     </main>
 

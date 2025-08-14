@@ -411,8 +411,9 @@ input[type="text"]::placeholder {
     background: #EFF2F5;
     border: none;
     border-radius: var(--radius-md);
-    padding: 8px 20px;
+    padding: 8px 25px;
     font-size: 1rem;
+    font-weight: 460;
     font-family: 'Montserrat', sans-serif;
     color: var(--color-text);
     cursor: pointer;
