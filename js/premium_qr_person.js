@@ -444,7 +444,11 @@ document.addEventListener('DOMContentLoaded', () => {
         deathInput.value = selectedDeath || "";
 
         // формуємо відображення
-        display.textContent = `${selectedBirth || ""} – ${selectedDeath || ""}`;
+        if (selectedBirth || selectedDeath) {
+            display.textContent = `${selectedBirth || ""}${(selectedBirth && selectedDeath) ? " – " : ""}${selectedDeath || ""}`;
+        } else {
+            display.textContent = "Роки життя"; // плейсхолдер
+        }
 
         panel.classList.add('hidden');
         if (selectedBirth || selectedDeath) display.classList.add('has-value');

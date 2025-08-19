@@ -445,3 +445,178 @@ textarea {
     font-size: 16px;
     cursor: pointer;
 }
+
+/* ---- lifeYearsPicker (unified look) ---- */
+.year-pill {
+    position: relative;
+}
+
+/* clickable badge */
+.year-display {
+    width: 100%;
+    box-sizing: border-box;
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 49px;
+    padding: 0 22px;
+    padding-right: 44px;
+    /* space for the clear × */
+    border-radius: var(--radius-md);
+    background: #EFF2F5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 16px center;
+    background-size: 20px 20px;
+    font-size: 16px;
+    font-weight: 460;
+    color: #72767D;
+    cursor: pointer;
+}
+
+.year-display.has-value {
+    color: var(--color-text);
+    background-image: none !important;
+    /* hide arrow when has value (we show a clear × instead) */
+    padding-right: 50px;
+}
+
+/* clear button only when there is any year selected */
+.clear-btn {
+    display: none;
+}
+
+.year-pill.has-value .clear-btn {
+    display: inline-flex;
+}
+
+/* clear button placement */
+.year-pill .clear-btn {
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--color-muted);
+    z-index: 2;
+}
+
+.year-pill .clear-btn svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+/* dropdown panel */
+.years-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    /* appear under the field */
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .15);
+    padding: var(--spacing-lg);
+    z-index: 20;
+}
+
+.hidden {
+    display: none;
+}
+
+.years-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+}
+
+.years-header .col {
+    flex: 1;
+    text-align: center;
+    font-size: 17px;
+    color: #222222;
+    font-weight: 570;
+}
+
+/* twin scrollers */
+.years-body {
+    display: flex;
+    gap: var(--spacing-md);
+    height: 170px;
+    position: relative;
+}
+
+.years-body::before {
+    content: "–";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--color-text);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.year-list {
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-y: auto;
+    text-align: center;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.year-list::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+.year-list li {
+    padding: 6px 0;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: 460;
+    color: var(--color-muted);
+}
+
+.year-list li.selected {
+    font-weight: 530;
+    color: var(--color-text);
+}
+
+/* invalid death years */
+#deathYearsList li.disabled {
+    opacity: .3;
+    pointer-events: none;
+    cursor: default;
+}
+
+/* Done button */
+.done-btn {
+    display: block;
+    width: 120px;
+    height: 38px;
+    margin: 22px auto 0;
+    background: #F2F4F7;
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: var(--font-base);
+    font-size: 16px;
+    font-weight: 510;
+    color: #1C170D;
+    cursor: pointer;
+}
+
+.done-btn:hover {
+    background: #E0E2E5;
+}

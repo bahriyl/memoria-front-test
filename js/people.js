@@ -95,79 +95,151 @@ function renderFilterControls() {
     }
 
     case 'years': {
-      // 1️⃣ Render two year-pills each with a clear button
+      // Рендеримо такий самий HTML, як на преміум-сторінці
       controlsEl.innerHTML = `
-        <div class="years-controls">
-          <div class="year-pill">
-            <select id="birthYear" required>
-              <option value="" disabled selected>Рік народження</option>
-            </select>
-            <button class="icon-btn clear-btn" id="clear-birth" aria-label="Скинути рік народження">
-              <!-- simple “×” icon -->
-              <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-          <div class="year-pill">
-            <select id="deathYear" required>
-              <option value="" disabled selected>Рік смерті</option>
-            </select>
-            <button class="icon-btn clear-btn" id="clear-death" aria-label="Скинути рік смерті">
-              <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
+        <div class="year-pill" id="lifeYearsPicker">
+          <div class="year-display" id="lifeYearsDisplay">Роки життя</div>
+    
+          <button type="button" id="clearYears" class="icon-btn clear-btn" aria-label="Очистити роки життя" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+    
+          <div class="years-panel hidden" id="yearsPanel">
+            <div class="years-header">
+              <div class="col">Рік народження</div>
+              <div class="col">Рік смерті</div>
+            </div>
+            <div class="years-body">
+              <ul class="year-list" id="birthYearsList"></ul>
+              <ul class="year-list" id="deathYearsList"></ul>
+            </div>
+            <button type="button" class="done-btn" id="yearsDoneBtn">Готово</button>
           </div>
         </div>
       `;
 
-      // 2️⃣ Grab elements
-      const by = controlsEl.querySelector('#birthYear');
-      const clearBy = controlsEl.querySelector('#clear-birth');
-      const dy = controlsEl.querySelector('#deathYear');
-      const clearDy = controlsEl.querySelector('#clear-death');
+      // Елементи
+      const panel = controlsEl.querySelector('#yearsPanel');
+      const birthList = controlsEl.querySelector('#birthYearsList');
+      const deathList = controlsEl.querySelector('#deathYearsList');
+      const display = controlsEl.querySelector('#lifeYearsDisplay');
+      const doneBtn = controlsEl.querySelector('#yearsDoneBtn');
+      const clearBtn = controlsEl.querySelector('#clearYears');
 
-      // 3️⃣ Populate the selects
-      for (let y = 1900; y <= 2025; y++) {
-        by.append(new Option(y, y));
-        dy.append(new Option(y, y));
+      // Локальні вибори (початково — зі стану фільтра, якщо є)
+      let selectedBirth = filterState.birthYear ? Number(filterState.birthYear) : undefined;
+      let selectedDeath = filterState.deathYear ? Number(filterState.deathYear) : undefined;
+
+      // Відкрити/закрити панель
+      display.addEventListener('click', () => panel.classList.toggle('hidden'));
+      panel.addEventListener('click', e => e.stopPropagation());
+
+      // Заповнюємо роки (як у преміум)
+      (function populateYears() {
+        if (birthList.children.length) return;
+        const now = new Date().getFullYear();
+        for (let y = now; y >= 1900; y--) {
+          const liB = document.createElement('li');
+          liB.textContent = y; liB.dataset.value = y;
+          birthList.append(liB);
+
+          const liD = document.createElement('li');
+          liD.textContent = y; liD.dataset.value = y;
+          deathList.append(liD);
+        }
+      })();
+
+      // Відновлюємо попередній вибір у списках (якщо був)
+      function restoreSelections() {
+        if (selectedBirth) {
+          [...birthList.children].forEach(li => {
+            li.classList.toggle('selected', Number(li.dataset.value) === selectedBirth);
+          });
+          // Заблокуємо недопустимі роки смерті
+          [...deathList.children].forEach(li => {
+            const y = Number(li.dataset.value);
+            li.classList.toggle('disabled', y < selectedBirth);
+          });
+        }
+        if (selectedDeath) {
+          [...deathList.children].forEach(li => {
+            li.classList.toggle('selected', Number(li.dataset.value) === selectedDeath);
+          });
+        }
       }
-      // restore previous state
-      by.value = filterState.birthYear;
-      dy.value = filterState.deathYear;
 
-      // 4️⃣ Initialize clear-button visibility
-      clearBy.style.display = by.value ? 'flex' : 'none';
-      clearDy.style.display = dy.value ? 'flex' : 'none';
+      const picker = controlsEl.querySelector('#lifeYearsPicker');
 
-      // 5️⃣ Handlers for selecting a year
-      by.addEventListener('change', () => {
-        filterState.birthYear = by.value;
-        clearBy.style.display = by.value ? 'flex' : 'none';
+      // Оновлення бейджа
+      function updateDisplay() {
+        const hasAny = !!(selectedBirth || selectedDeath);
+        if (hasAny) {
+          display.textContent = `${selectedBirth || ""}${(selectedBirth && selectedDeath) ? " – " : ""}${selectedDeath || ""}`;
+          display.classList.add('has-value');
+        } else {
+          display.textContent = 'Роки життя';
+          display.classList.remove('has-value');
+        }
+        // керуємо видимістю через клас контейнера
+        picker.classList.toggle('has-value', hasAny);
+      }
+
+      // Початковий рендер бейджа зі стану
+      updateDisplay();
+      restoreSelections();
+
+      // Клік по роках народження
+      birthList.addEventListener('click', e => {
+        const li = e.target.closest('li');
+        if (!li) return;
+        birthList.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
+        li.classList.add('selected');
+        selectedBirth = Number(li.dataset.value);
+
+        // Заблокуємо недопустимі роки смерті
+        deathList.querySelectorAll('li').forEach(n => {
+          const y = Number(n.dataset.value);
+          n.classList.toggle('disabled', y < selectedBirth);
+        });
+        li.scrollIntoView({ block: 'center' });
+      });
+
+      // Клік по роках смерті
+      deathList.addEventListener('click', e => {
+        const li = e.target.closest('li');
+        if (!li || li.classList.contains('disabled')) return;
+        deathList.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
+        li.classList.add('selected');
+        selectedDeath = Number(li.dataset.value);
+        li.scrollIntoView({ block: 'center' });
+      });
+
+      // Підтвердити вибір
+      doneBtn.addEventListener('click', () => {
+        // Записуємо у глобальний стан фільтра
+        filterState.birthYear = selectedBirth || undefined;
+        filterState.deathYear = selectedDeath || undefined;
+
+        updateDisplay();
+        panel.classList.add('hidden');
         fetchAndRender();
       });
-      dy.addEventListener('change', () => {
-        filterState.deathYear = dy.value;
-        clearDy.style.display = dy.value ? 'flex' : 'none';
-        fetchAndRender();
-      });
 
-      // 6️⃣ Click handlers for clearing
-      clearBy.addEventListener('click', () => {
-        filterState.birthYear = '';
-        by.value = '';
-        clearBy.style.display = 'none';
-        fetchAndRender();
-      });
-      clearDy.addEventListener('click', () => {
-        filterState.deathYear = '';
-        dy.value = '';
-        clearDy.style.display = 'none';
+      // Очистити
+      clearBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        selectedBirth = selectedDeath = undefined;
+        filterState.birthYear = undefined;
+        filterState.deathYear = undefined;
+
+        birthList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        deathList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        deathList.querySelectorAll('.disabled').forEach(el => el.classList.remove('disabled'));
+
+        updateDisplay();
         fetchAndRender();
       });
 

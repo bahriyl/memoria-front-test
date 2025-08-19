@@ -30,8 +30,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Filters & results
     const nameInput = document.getElementById('searchName');
-    const birthSelect = document.getElementById('birthYearFilter');
-    const deathSelect = document.getElementById('deathYearFilter');
     const clearBirthBtn = document.getElementById('clearBirth');
     const clearDeathBtn = document.getElementById('clearDeath');
     const areaInput = document.getElementById('areaFilter');
@@ -54,26 +52,153 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let selectedPerson = null;
 
-    // Populate years
-    const thisYear = new Date().getFullYear();
-    for (let y = thisYear; y >= 1900; y--) {
-        birthSelect.add(new Option(y, y));
-        deathSelect.add(new Option(y, y));
+    // ==== Unified lifeYearsPicker (injects a single picker, keeps selects in sync) ====
+    // Existing references:
+    const birthSelect = document.getElementById('birthYearFilter');
+    const deathSelect = document.getElementById('deathYearFilter');
+
+    // 0) Hide the two select pills (we'll keep their values in sync for fetchPeople)
+    if (birthSelect) birthSelect.closest('.year-pill').style.display = 'none';
+    if (deathSelect) deathSelect.closest('.year-pill').style.display = 'none';
+
+    // 1) Insert the picker at the beginning of the .year-group
+    const yearsGroup = document.querySelector('.year-group');
+    const pickerWrap = document.createElement('div');
+    pickerWrap.className = 'year-pill';
+    pickerWrap.id = 'lifeYearsPicker';
+    pickerWrap.innerHTML = `
+  <div class="year-display" id="lifeYearsDisplay">Роки життя</div>
+  <button type="button" id="clearYears" class="icon-btn clear-btn" aria-label="Очистити роки життя">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  </button>
+  <div class="years-panel hidden" id="yearsPanel">
+    <div class="years-header">
+      <div class="col">Рік народження</div>
+      <div class="col">Рік смерті</div>
+    </div>
+    <div class="years-body">
+      <ul class="year-list" id="birthYearsList"></ul>
+      <ul class="year-list" id="deathYearsList"></ul>
+    </div>
+    <button type="button" class="done-btn" id="yearsDoneBtn">Готово</button>
+  </div>
+`;
+    yearsGroup.prepend(pickerWrap);
+
+    // 2) Elements
+    const picker = document.getElementById('lifeYearsPicker');
+    const display = document.getElementById('lifeYearsDisplay');
+    const clearBtn = document.getElementById('clearYears');
+    const panel = document.getElementById('yearsPanel');
+    const birthUl = document.getElementById('birthYearsList');
+    const deathUl = document.getElementById('deathYearsList');
+    const doneBtn = document.getElementById('yearsDoneBtn');
+
+    // 3) Selections (initialize from selects if they already have values)
+    let selectedBirth = birthSelect && birthSelect.value ? Number(birthSelect.value) : undefined;
+    let selectedDeath = deathSelect && deathSelect.value ? Number(deathSelect.value) : undefined;
+
+    // 4) Populate years (1900..now)
+    (function populateYears() {
+        if (birthUl.children.length) return;
+        const now = new Date().getFullYear();
+        for (let y = now; y >= 1900; y--) {
+            const liB = document.createElement('li');
+            liB.textContent = y; liB.dataset.value = y;
+            birthUl.appendChild(liB);
+
+            const liD = document.createElement('li');
+            liD.textContent = y; liD.dataset.value = y;
+            deathUl.appendChild(liD);
+        }
+    })();
+
+    // 5) Helpers
+    function restoreSelections() {
+        if (selectedBirth) {
+            [...birthUl.children].forEach(li => {
+                li.classList.toggle('selected', Number(li.dataset.value) === selectedBirth);
+            });
+            // disable death years < birth
+            [...deathUl.children].forEach(li => {
+                const y = Number(li.dataset.value);
+                li.classList.toggle('disabled', y < selectedBirth);
+            });
+        }
+        if (selectedDeath) {
+            [...deathUl.children].forEach(li => {
+                li.classList.toggle('selected', Number(li.dataset.value) === selectedDeath);
+            });
+        }
     }
-    [birthSelect, deathSelect].forEach(sel => {
-        sel.addEventListener('change', () => {
-            const btn = sel === birthSelect ? clearBirthBtn : clearDeathBtn;
-            btn.style.display = sel.value ? 'flex' : 'none';
-            triggerFetch();
+    function updateDisplay() {
+        const hasAny = !!(selectedBirth || selectedDeath);
+        if (hasAny) {
+            display.textContent = `${selectedBirth ?? ""}${(selectedBirth && selectedDeath) ? " – " : ""}${selectedDeath ?? ""}`;
+            display.classList.add('has-value');
+        } else {
+            display.textContent = 'Роки життя';
+            display.classList.remove('has-value');
+        }
+        picker.classList.toggle('has-value', hasAny);
+        clearBtn.style.display = hasAny ? 'inline-flex' : 'none';
+
+        // keep the hidden selects in sync for existing fetchPeople()
+        if (birthSelect) birthSelect.value = selectedBirth ?? '';
+        if (deathSelect) deathSelect.value = selectedDeath ?? '';
+    }
+
+    // Initial state
+    updateDisplay();
+    restoreSelections();
+
+    // 6) Interactions
+    display.addEventListener('click', () => panel.classList.toggle('hidden'));
+    panel.addEventListener('click', e => e.stopPropagation());
+    document.addEventListener('click', e => { if (!picker.contains(e.target)) panel.classList.add('hidden'); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.classList.add('hidden'); });
+
+    birthUl.addEventListener('click', e => {
+        const li = e.target.closest('li'); if (!li) return;
+        birthUl.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
+        li.classList.add('selected');
+        selectedBirth = Number(li.dataset.value);
+
+        // lock invalid death years
+        deathUl.querySelectorAll('li').forEach(n => {
+            const y = Number(n.dataset.value);
+            n.classList.toggle('disabled', y < selectedBirth);
         });
+        li.scrollIntoView({ block: 'center' });
     });
-    [clearBirthBtn, clearDeathBtn].forEach(btn => {
-        btn.addEventListener('click', () => {
-            const sel = btn.id === 'clearBirth' ? birthSelect : deathSelect;
-            sel.value = '';
-            btn.style.display = 'none';
-            triggerFetch();
-        });
+
+    deathUl.addEventListener('click', e => {
+        const li = e.target.closest('li'); if (!li || li.classList.contains('disabled')) return;
+        deathUl.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
+        li.classList.add('selected');
+        selectedDeath = Number(li.dataset.value);
+        li.scrollIntoView({ block: 'center' });
+    });
+
+    doneBtn.addEventListener('click', () => {
+        updateDisplay();
+        panel.classList.add('hidden');
+
+        // trigger the existing search with the synced select values
+        triggerFetch();
+    });
+
+    clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedBirth = selectedDeath = undefined;
+        birthUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        deathUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        deathUl.querySelectorAll('.disabled').forEach(el => el.classList.remove('disabled'));
+        updateDisplay();
+        triggerFetch();
     });
 
     // Simple typeahead
@@ -303,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function hideModal() {
         overlayEl.hidden = true;
         modalEl.style.display = 'none';
-        window.location.href="notable.html";
+        window.location.href = "notable.html";
     }
 
     closeBtn.addEventListener('click', hideModal);

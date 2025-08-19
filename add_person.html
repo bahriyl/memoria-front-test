@@ -51,34 +51,35 @@
             </div>
 
             <!-- Рік народження та рік смерті -->
-            <div class="form-group year-group">
-                <div class="year-pill">
-                    <select id="birthYear" name="birthYear" required>
-                        <option value="" disabled selected>Рік народження</option>
-                    </select>
-                    <button type="button" class="icon-btn clear-btn" id="clear-birth"
-                        aria-label="Скинути рік народження">
-                        <!-- your “×” SVG here exactly as in city/cem clear-btn -->
+            <div class="form-group">
+                <div class="year-pill" id="lifeYearsPicker">
+                    <div class="year-display" id="years-display">Роки життя</div>
+                    <button type="button" id="clearYears" class="icon-btn clear-btn" aria-label="Очистити" hidden>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18" />
                             <line x1="6" y1="6" x2="18" y2="18" />
                         </svg>
                     </button>
+
+                    <div id="years-panel" class="years-panel" hidden>
+                        <div class="years-header">
+                            <div class="col">Рік народження</div>
+                            <div class="col">Рік смерті</div>
+                        </div>
+                        <div class="years-body">
+                            <ul class="year-list" id="birthYearsList"></ul>
+                            <ul class="year-list" id="deathYearsList"></ul>
+                        </div>
+                        <button type="button" id="doneYears" class="done-btn">Готово</button>
+                        <!-- опційно: кнопка очистити в самій панелі
+              <button type="button" id="clearYearsPanel" class="done-btn" style="margin-top:10px;">Очистити</button> -->
+                    </div>
                 </div>
 
-                <div class="year-pill">
-                    <select id="deathYear" name="deathYear" required>
-                        <option value="" disabled selected>Рік смерті</option>
-                    </select>
-                    <button type="button" class="icon-btn clear-btn" id="clear-death" aria-label="Скинути рік смерті">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                    </button>
-                </div>
+                <!-- приховані поля, щоб мати значення в DOM/form -->
+                <input type="hidden" id="birthYear" name="birthYear" />
+                <input type="hidden" id="deathYear" name="deathYear" />
             </div>
 
             <!-- Назва населеного пункту -->
@@ -109,7 +110,6 @@
                 <ul class="suggestions-list" id="cemetery-suggestions"></ul>
             </div>
 
-
             <!-- Видатна особа -->
             <div class="form-group checkbox-group">
                 <label>
@@ -126,7 +126,7 @@
             <div id="notable-fields" class="notable-fields">
                 <div class="form-group">
                     <div class="year-pill">
-                        <select id="activityArea" name="activityArea">
+                        <select id="activityArea" name="activityArea" required>
                             <option value="" disabled selected>Сфера діяльності</option>
                             <option value="Актор">Актор</option>
                             <option value="Письменник">Письменник</option>
@@ -151,12 +151,9 @@
                 </div>
             </div>
 
-
             <!-- Кнопка відправити -->
             <div class="form-group">
-                <button type="submit" class="submit-btn">
-                    Надіслати на модерацію
-                </button>
+                <button type="submit" class="submit-btn">Надіслати на модерацію</button>
             </div>
         </form>
 
@@ -164,9 +161,7 @@
         <div id="modal-overlay" class="modal-overlay" hidden></div>
         <div id="success-modal" class="modal" hidden>
             <button id="modal-close" class="modal-close">&times;</button>
-            <p class="modal-text">
-                Успішно відправлено на модерацію, ми сповістимо вас коли буде готово!
-            </p>
+            <p class="modal-text">Успішно відправлено на модерацію, ми сповістимо вас коли буде готово!</p>
             <button id="modal-ok" class="modal-ok">Готово</button>
         </div>
 

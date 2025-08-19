@@ -1,45 +1,157 @@
 const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app/';
 
-// Після завантаження сторінки заповнимо селекти року
 document.addEventListener('DOMContentLoaded', () => {
-    // at the very top of the DOMContentLoaded callback
+    // ——— Drawer menu ———
     const menuBtn = document.getElementById('menu-btn');
     const sideMenu = document.getElementById('side-menu');
     const overlay = document.getElementById('overlay');
 
-    // toggle the drawer on button click
     menuBtn.addEventListener('click', () => {
         sideMenu.classList.toggle('open');
         overlay.classList.toggle('open');
     });
-
-    // close when clicking the backdrop
     overlay.addEventListener('click', () => {
         sideMenu.classList.remove('open');
         overlay.classList.remove('open');
     });
 
-    const birthSelect = document.getElementById('birthYear');
-    const deathSelect = document.getElementById('deathYear');
-    const currentYear = new Date().getFullYear();
+    // ——— YearsPanel: use existing markup from HTML ———
+    const picker = document.getElementById('lifeYearsPicker');
+    const display = document.getElementById('years-display');
+    const clearBtn = document.getElementById('clearYears');
+    const panel = document.getElementById('years-panel');
+    const birthUl = document.getElementById('birthYearsList');
+    const deathUl = document.getElementById('deathYearsList');
+    const doneBtn = document.getElementById('doneYears');
 
-    // Заповнимо роки від поточного назад до 1900
-    for (let y = currentYear; y >= 1900; y--) {
-        const opt1 = document.createElement('option');
-        opt1.value = y;
-        opt1.textContent = y;
-        birthSelect.appendChild(opt1);
+    // hidden inputs to keep values in the form
+    let birthInput = document.getElementById('birthYear');
+    let deathInput = document.getElementById('deathYear');
+    const form = document.getElementById('personForm');
 
-        const opt2 = document.createElement('option');
-        opt2.value = y;
-        opt2.textContent = y;
-        deathSelect.appendChild(opt2);
+    if (!birthInput) {
+        birthInput = document.createElement('input');
+        birthInput.type = 'hidden'; birthInput.id = 'birthYear'; birthInput.name = 'birthYear';
+        form.appendChild(birthInput);
+    }
+    if (!deathInput) {
+        deathInput = document.createElement('input');
+        deathInput.type = 'hidden'; deathInput.id = 'deathYear'; deathInput.name = 'deathYear';
+        form.appendChild(deathInput);
     }
 
+    // current selections
+    let selectedBirth = birthInput.value ? Number(birthInput.value) : undefined;
+    let selectedDeath = deathInput.value ? Number(deathInput.value) : undefined;
+
+    // populate years
+    (function populateYears() {
+        if (birthUl.children.length) return;
+        const now = new Date().getFullYear();
+        for (let y = now; y >= 1900; y--) {
+            const liB = document.createElement('li');
+            liB.textContent = y; liB.dataset.value = y;
+            birthUl.appendChild(liB);
+
+            const liD = document.createElement('li');
+            liD.textContent = y; liD.dataset.value = y;
+            deathUl.appendChild(liD);
+        }
+    })();
+
+    // restore selections in lists
+    function restoreSelections() {
+        if (selectedBirth) {
+            [...birthUl.children].forEach(li => {
+                li.classList.toggle('selected', Number(li.dataset.value) === selectedBirth);
+            });
+            // disable death years < birth
+            [...deathUl.children].forEach(li => {
+                const y = Number(li.dataset.value);
+                li.classList.toggle('disabled', y < selectedBirth);
+            });
+        }
+        if (selectedDeath) {
+            [...deathUl.children].forEach(li => {
+                li.classList.toggle('selected', Number(li.dataset.value) === selectedDeath);
+            });
+        }
+    }
+
+    function updateDisplay() {
+        const hasAny = !!(selectedBirth || selectedDeath);
+        if (hasAny) {
+            // show just one side if only one is selected; hyphen only if both
+            display.textContent = `${selectedBirth ?? ""}${(selectedBirth && selectedDeath) ? " – " : ""}${selectedDeath ?? ""}`;
+            display.classList.add('has-value');
+        } else {
+            display.textContent = 'Роки життя';
+            display.classList.remove('has-value');
+        }
+        picker.classList.toggle('has-value', hasAny);
+        clearBtn.hidden = !hasAny;
+
+        // sync hidden inputs for submission
+        birthInput.value = selectedBirth ?? '';
+        deathInput.value = selectedDeath ?? '';
+    }
+
+    // initial
+    updateDisplay();
+    restoreSelections();
+
+    // events
+    display.addEventListener('click', () => {
+        panel.hidden = !panel.hidden;
+    });
+    panel.addEventListener('click', e => e.stopPropagation());
+    document.addEventListener('click', e => {
+        if (!picker.contains(e.target)) panel.hidden = true;
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') panel.hidden = true;
+    });
+
+    birthUl.addEventListener('click', e => {
+        const li = e.target.closest('li'); if (!li) return;
+        birthUl.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
+        li.classList.add('selected');
+        selectedBirth = Number(li.dataset.value);
+
+        // lock invalid death years
+        deathUl.querySelectorAll('li').forEach(n => {
+            const y = Number(n.dataset.value);
+            n.classList.toggle('disabled', y < selectedBirth);
+        });
+        li.scrollIntoView({ block: 'center' });
+    });
+
+    deathUl.addEventListener('click', e => {
+        const li = e.target.closest('li'); if (!li || li.classList.contains('disabled')) return;
+        deathUl.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
+        li.classList.add('selected');
+        selectedDeath = Number(li.dataset.value);
+        li.scrollIntoView({ block: 'center' });
+    });
+
+    doneBtn.addEventListener('click', () => {
+        updateDisplay();
+        panel.hidden = true;
+    });
+
+    clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedBirth = selectedDeath = undefined;
+        birthUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        deathUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        deathUl.querySelectorAll('.disabled').forEach(el => el.classList.remove('disabled'));
+        updateDisplay();
+    });
+
+    // ——— City & Cemetery suggestions (unchanged) ———
     const cityInput = document.getElementById('city');
     const clearCityBtn = document.getElementById('clear-city');
     const citySuggest = document.getElementById('location-suggestions');
-
     const cemInput = document.getElementById('cemetery');
     const clearCemBtn = document.getElementById('clear-cem');
     const cemSuggest = document.getElementById('cemetery-suggestions');
@@ -47,10 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let cityTimer, cemTimer;
 
     async function fetchCemeteries(search = '') {
-        const params = new URLSearchParams({
-            search,
-            area: cityInput.value || ''
-        });
+        const params = new URLSearchParams({ search, area: cityInput.value || '' });
         try {
             const res = await fetch(`${API_URL}/api/cemeteries?${params}`);
             const list = await res.json();
@@ -58,24 +167,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? list.map(c => `<li>${c}</li>`).join('')
                 : `<li class="no-results">Збігів не знайдено</li>`;
             cemSuggest.style.display = 'block';
-        } catch (e) {
-            console.error(e);
-        }
+        } catch (e) { console.error(e); }
     }
 
-    // === CITY ===
-    // show/hide clear-button
+    // CITY
     clearCityBtn.style.display = 'none';
-
-    // debounce fetch
     cityInput.addEventListener('input', () => {
         clearCityBtn.style.display = cityInput.value ? 'flex' : 'none';
         clearTimeout(cityTimer);
         cityTimer = setTimeout(async () => {
             if (cityInput.value.length < 1) {
-                citySuggest.innerHTML = '';
-                citySuggest.style.display = 'none';
-                return;
+                citySuggest.innerHTML = ''; citySuggest.style.display = 'none'; return;
             }
             try {
                 const res = await fetch(`${API_URL}/api/locations?search=${encodeURIComponent(cityInput.value)}`);
@@ -84,13 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     ? list.map(a => `<li>${a}</li>`).join('')
                     : `<li class="no-results">Збігів не знайдено</li>`;
                 citySuggest.style.display = 'block';
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         }, 300);
     });
-
-    // клік по підказці
     citySuggest.addEventListener('click', e => {
         if (e.target.tagName === 'LI' && !e.target.classList.contains('no-results')) {
             cityInput.value = e.target.textContent;
@@ -98,46 +196,30 @@ document.addEventListener('DOMContentLoaded', () => {
             clearCityBtn.style.display = 'flex';
         }
     });
-
-    // blur ховає список
-    cityInput.addEventListener('blur', () => {
-        setTimeout(() => citySuggest.style.display = 'none', 200);
-    });
-
-    // очищення
+    cityInput.addEventListener('blur', () => { setTimeout(() => citySuggest.style.display = 'none', 200); });
     clearCityBtn.addEventListener('click', () => {
-        cityInput.value = '';
-        clearCityBtn.style.display = 'none';
-        citySuggest.innerHTML = '';
-        citySuggest.style.display = 'none';
+        cityInput.value = ''; clearCityBtn.style.display = 'none';
+        citySuggest.innerHTML = ''; citySuggest.style.display = 'none';
     });
 
-    // === CEMETERY ===
-    // відкладене завантаження
+    // CEMETERY
     clearCemBtn.style.display = 'none';
-
     cemInput.addEventListener('input', () => {
         clearCemBtn.style.display = cemInput.value ? 'flex' : 'none';
         clearTimeout(cemTimer);
         cemTimer = setTimeout(() => {
             if (cemInput.value.length < 1) {
-                cemSuggest.innerHTML = '';
-                cemSuggest.style.display = 'none';
+                cemSuggest.innerHTML = ''; cemSuggest.style.display = 'none';
             } else {
                 fetchCemeteries(cemInput.value);
             }
         }, 300);
     });
-
     cemInput.addEventListener('focus', () => {
-        // only show when a city is chosen
         if (!cityInput.value) return;
-        // hide the clear-x until they actually pick one
         clearCemBtn.style.display = 'none';
-        // fetch *all* cemeteries for that city (empty search)
         fetchCemeteries('');
     });
-
     cemSuggest.addEventListener('click', e => {
         if (e.target.tagName === 'LI' && !e.target.classList.contains('no-results')) {
             cemInput.value = e.target.textContent;
@@ -145,37 +227,40 @@ document.addEventListener('DOMContentLoaded', () => {
             clearCemBtn.style.display = 'flex';
         }
     });
-
-    cemInput.addEventListener('blur', () => {
-        setTimeout(() => cemSuggest.style.display = 'none', 200);
-    });
-
+    cemInput.addEventListener('blur', () => { setTimeout(() => cemSuggest.style.display = 'none', 200); });
     clearCemBtn.addEventListener('click', () => {
-        cemInput.value = '';
-        clearCemBtn.style.display = 'none';
-        cemSuggest.innerHTML = '';
-        cemSuggest.style.display = 'none';
+        cemInput.value = ''; clearCemBtn.style.display = 'none';
+        cemSuggest.innerHTML = ''; cemSuggest.style.display = 'none';
     });
 
+    // activityArea clear button behavior
+    const activitySelect = document.getElementById('activityArea');
+    const clearActivityBtn = document.getElementById('clear-activity');
+
+    if (activitySelect && clearActivityBtn) {
+        activitySelect.addEventListener('change', () => {
+            // CSS handles visibility via :required:valid; no JS needed here
+        });
+
+        clearActivityBtn.addEventListener('click', () => {
+            activitySelect.selectedIndex = 0;                      // back to placeholder
+            activitySelect.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    }
+
+    // ——— Notable toggle ———
     const notableCheckbox = document.getElementById('notablePerson');
     const notableFields = document.getElementById('notable-fields');
-
-    // при зміні стану чекбокса показуємо/ховаємо поля
     notableCheckbox.addEventListener('change', () => {
-        if (notableCheckbox.checked) {
-            notableFields.style.display = 'block';
-        } else {
-            notableFields.style.display = 'none';
-        }
+        notableFields.style.display = notableCheckbox.checked ? 'block' : 'none';
     });
 
-    // Confirm modal + toast
+    // ——— Confirm modal + toast ———
     const confirmModal = document.getElementById('confirm-modal');
     const confirmClose = document.getElementById('confirm-close');
     const confirmEdit = document.getElementById('confirm-edit');
     const confirmSend = document.getElementById('confirm-send');
     const confirmSummary = document.getElementById('confirm-summary');
-
     const toast = document.getElementById('toast');
     const toastText = document.getElementById('toast-text');
     const toastClose = document.getElementById('toast-close');
@@ -184,8 +269,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openConfirm(payload) {
         pendingPayload = payload;
-
-        // Build a readable summary
         const rows = [
             ['ПІБ', payload.name],
             ['Рік народження', payload.birthYear],
@@ -200,53 +283,24 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmSummary.innerHTML = rows
             .map(([k, v]) => `<div class="row"><span class="k">${k}:</span> <span class="v">${(v || '').toString()}</span></div>`)
             .join('');
-
-        // show modal + overlay
         document.getElementById('modal-overlay').hidden = false;
         confirmModal.hidden = false;
     }
-
     function closeConfirm() {
         confirmModal.hidden = true;
         document.getElementById('modal-overlay').hidden = true;
     }
-
     function showToast(msg) {
         toastText.textContent = msg;
-        toast.hidden = false;                // show
-        // optional: scroll to top so user sees it immediately
+        toast.hidden = false;
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-
     toastClose.addEventListener('click', (e) => { e.preventDefault(); toast.hidden = true; });
 
-    function clearForm() {
-        // Reset the entire form and all suggestion states
-        form.reset();
-        document.querySelectorAll('.error-message').forEach(el => { el.textContent = ''; el.style.display = 'none'; });
-
-        // hide clear buttons and notable extra fields
-        document.getElementById('clear-city').style.display = 'none';
-        document.getElementById('clear-cem').style.display = 'none';
-        document.getElementById('clear-birth').style.display = 'none';
-        document.getElementById('clear-death').style.display = 'none';
-        const nf = document.getElementById('notable-fields');
-        if (nf) nf.style.display = 'none';
-        document.getElementById('location-suggestions').style.display = 'none';
-        document.getElementById('cemetery-suggestions').style.display = 'none';
-    }
-
-    confirmClose.addEventListener('click', closeConfirm);
-    confirmEdit.addEventListener('click', closeConfirm);
-
-    confirmSend.addEventListener('click', async () => {
-        if (!pendingPayload) return;
-        // send to moderation
+    async function sendModeration(payload) {
         try {
             const res = await fetch(`${API_URL}/api/people/add_moderation`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(pendingPayload)
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
             });
             const json = await res.json();
             closeConfirm();
@@ -262,35 +316,31 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             pendingPayload = null;
         }
-    });
+    }
 
-    // ——— Submission + Success Modal Logic ———
-    const form = document.getElementById('personForm');
+    confirmClose.addEventListener('click', closeConfirm);
+    confirmEdit.addEventListener('click', closeConfirm);
+    confirmSend.addEventListener('click', () => { if (pendingPayload) sendModeration(pendingPayload); });
+
+    // ——— Submission ———
     const overlayEl = document.getElementById('modal-overlay');
     const modalEl = document.getElementById('success-modal');
     const closeBtn = document.getElementById('modal-close');
     const okBtn = document.getElementById('modal-ok');
 
-    function showModal() {
-        overlayEl.hidden = false;
-        modalEl.style.display = 'block';
-    }
-    function hideModal() {
-        overlayEl.hidden = true;
-        modalEl.style.display = 'none';
-    }
-
+    function showModal() { overlayEl.hidden = false; modalEl.style.display = 'block'; }
+    function hideModal() { overlayEl.hidden = true; modalEl.style.display = 'none'; }
     closeBtn.addEventListener('click', hideModal);
     okBtn.addEventListener('click', hideModal);
 
-    form.addEventListener('submit', async e => {
+    form.addEventListener('submit', (e) => {
         e.preventDefault();
 
-        // clear old errors
+        // clear previous errors
         document.querySelectorAll('.error-message').forEach(el => { el.textContent = ''; el.style.display = 'none'; });
         let hasError = false;
 
-        // --- validation (same as before) ---
+        // Name validation
         const fullNameInput = document.getElementById('fullName');
         const fullNameError = document.getElementById('fullNameError');
         const name = fullNameInput.value.trim();
@@ -308,11 +358,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const birthYear = document.getElementById('birthYear');
-        const deathYear = document.getElementById('deathYear');
-        birthYear.style.border = birthYear.value ? '' : '1px solid red';
-        deathYear.style.border = deathYear.value ? '' : '1px solid red';
-        if (!birthYear.value || !deathYear.value) hasError = true;
+        // Years validation (require both for submission)
+        if (!selectedBirth || !selectedDeath) {
+            showError(display, "Оберіть роки життя");
+            hasError = true;
+        }
 
         const city = document.getElementById('city');
         if (!city.value.trim()) { showError(city, "Введіть населений пункт"); hasError = true; }
@@ -325,7 +375,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const occupationSelect = document.getElementById('activityArea');
             const linkInput = document.getElementById('internetLinks');
             const bioInput = document.getElementById('achievements');
-
             occupation = occupationSelect.value;
             link = linkInput.value.trim();
             bio = bioInput.value.trim();
@@ -337,11 +386,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (hasError) return;
 
-        // ✅ Instead of immediate POST, open confirmation
+        // Open confirmation with the correct years
         openConfirm({
             name,
-            birthYear: birthYear.value,
-            deathYear: deathYear.value,
+            birthYear: selectedBirth,
+            deathYear: selectedDeath,
             area: city.value.trim(),
             cemetery: cemetery.value.trim(),
             occupation,
@@ -350,7 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Функція для відображення помилки під полем
+    // error helper
     function showError(inputElement, message) {
         let errorDiv = inputElement.parentElement.querySelector('.error-message');
         if (!errorDiv) {
@@ -362,47 +411,26 @@ document.addEventListener('DOMContentLoaded', () => {
         errorDiv.style.display = 'block';
     }
 
-    const birthSelector = document.getElementById('birthYear');
-    const deathSelector = document.getElementById('deathYear');
-    const clearBirth = document.getElementById('clear-birth');
-    const clearDeath = document.getElementById('clear-death');
+    function clearForm() {
+        form.reset();
+        document.querySelectorAll('.error-message').forEach(el => { el.textContent = ''; el.style.display = 'none'; });
 
-    // init visibility
-    clearBirth.style.display = birthSelector.value ? 'flex' : 'none';
-    clearDeath.style.display = deathSelector.value ? 'flex' : 'none';
+        // reset suggestions & clear buttons
+        document.getElementById('clear-city').style.display = 'none';
+        document.getElementById('clear-cem').style.display = 'none';
+        document.getElementById('location-suggestions').style.display = 'none';
+        document.getElementById('cemetery-suggestions').style.display = 'none';
 
-    // on change, toggle button
-    birthSelector.addEventListener('change', () => {
-        clearBirth.style.display = birthSelector.value ? 'flex' : 'none';
-    });
-    deathSelector.addEventListener('change', () => {
-        clearDeath.style.display = deathSelector.value ? 'flex' : 'none';
-    });
+        // reset notable
+        const nf = document.getElementById('notable-fields');
+        if (nf) nf.style.display = 'none';
 
-    // on click, clear
-    clearBirth.addEventListener('click', () => {
-        birthSelector.value = '';
-        clearBirth.style.display = 'none';
-    });
-    clearDeath.addEventListener('click', () => {
-        deathSelector.value = '';
-        clearDeath.style.display = 'none';
-    });
-
-    const clearActivity = document.getElementById('clear-activity');
-    const activitySelect = document.getElementById('activityArea');
-
-    // init visibility
-    clearActivity.style.display = activitySelect.value ? 'flex' : 'none';
-
-    // on change, toggle button
-    activitySelect.addEventListener('change', () => {
-        clearActivity.style.display = activitySelect.value ? 'flex' : 'none';
-    });
-
-    // on click, clear
-    clearActivity.addEventListener('click', () => {
-        activitySelect.value = '';
-        clearActivity.style.display = 'none';
-    });
+        // reset years panel
+        selectedBirth = selectedDeath = undefined;
+        birthUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        deathUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        deathUl.querySelectorAll('.disabled').forEach(el => el.classList.remove('disabled'));
+        updateDisplay();
+        panel.hidden = true;
+    }
 });

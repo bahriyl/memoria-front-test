@@ -1,6 +1,6 @@
 /* 1) Fonts + Theme Variables */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;750&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;460;500;510;550;600;700;750&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;460;500;510;530;550;570;600;700;750&display=swap');
 
 :root {
     --font-base: 'Montserrat', sans-serif;
@@ -599,7 +599,7 @@ input[type="text"]::placeholder {
     right: 0;
     background: #fff;
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     padding: var(--spacing-lg);
     z-index: 20;
@@ -621,9 +621,9 @@ input[type="text"]::placeholder {
 .years-header .col {
     flex: 1;
     text-align: center;
-    font-size: 16px;
+    font-size: 17px;
     color: #222222;
-    font-weight: 500;
+    font-weight: 570;
 }
 
 .years-header .separator {
@@ -636,7 +636,7 @@ input[type="text"]::placeholder {
 .years-body {
     display: flex;
     gap: var(--spacing-md);
-    height: 150px;
+    height: 170px;
     position: relative;
 }
 
@@ -646,7 +646,8 @@ input[type="text"]::placeholder {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 22px;
+    font-size: 26px;
+    font-weight: 600;
     color: var(--color-text);
     pointer-events: none;
     z-index: 1;
@@ -671,20 +672,21 @@ input[type="text"]::placeholder {
 .year-list li {
     padding: 6px 0;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 20px;
+    font-weight: 460;
     color: var(--color-muted);
 }
 
 .year-list li.selected {
-    font-weight: 700;
+    font-weight: 530;
     color: var(--color-text);
 }
 
 /* the “Готово” button at bottom */
 .done-btn {
     display: block;
-    width: 162px;
-    height: 34px;
+    width: 120px;
+    height: 38px;
     margin: 22px auto 0;
     padding: 0;
     background: #F2F4F7;
