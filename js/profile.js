@@ -4,8 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Config
     // ─────────────────────────────────────────────────────────────────────────────
-    // const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
-    const API_URL = 'http://0.0.0.0:5000';
+    const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
     const API_BASE = `${API_URL}/api/people`;
     const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
 
