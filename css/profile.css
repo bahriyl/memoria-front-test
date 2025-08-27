@@ -1,4 +1,7 @@
-/* css/profile.css */
+/* ──────────────────────────────────────────────────────────────
+   profile.css (cleaned & optimized)
+   ────────────────────────────────────────────────────────────── */
+
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;460;480;500;510;550;570;600;700;750&display=swap');
 
 html,
@@ -14,21 +17,17 @@ body {
     margin: 0 auto;
 }
 
+/* ─── Hero ─── */
 .profile-hero {
     position: relative;
     left: 50%;
     margin-left: -50vw;
     width: 100vw;
     box-sizing: border-box;
-
-    /* absorb the notch inset right into the header */
     padding-top: constant(safe-area-inset-top);
     padding-top: env(safe-area-inset-top);
-
-    /* keep your intended 200px of “true” hero height */
     height: calc(200px + constant(safe-area-inset-top));
     height: calc(200px + env(safe-area-inset-top));
-
     background: url('https://pbs.twimg.com/media/Fq4UD5RXoAAo9OB.jpg') center/cover no-repeat;
 }
 
@@ -45,6 +44,7 @@ body {
     background: #eee;
 }
 
+/* ─── Header Card ─── */
 .profile-info {
     padding: 50px 1rem 1rem;
     text-align: left;
@@ -60,7 +60,6 @@ body {
     margin: 0;
     font-size: 19px;
     font-weight: 570;
-    font-family: 'Montserrat', sans-serif;
     color: #1C170D;
 }
 
@@ -69,12 +68,11 @@ body {
     margin: 4px 0;
     font-size: 15px;
     color: #1C170D;
-    font-family: 'Montserrat', sans-serif;
     font-weight: 480;
 }
 
+/* ─── Location CTA ─── */
 .location-button {
-    /* Layout and Sizing */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -82,40 +80,23 @@ body {
     width: 100%;
     height: 41px;
     margin-top: 22px;
-    /* Makes the button take the full width of its container */
     box-sizing: border-box;
-    /* Ensures padding is included in the total width */
-
-    /* Colors and Appearance */
     background-color: #1B8B59;
-    /* The specific green from the image */
     color: #ffffff;
-    /* White text */
     border: none;
     border-radius: 14px;
-    /* This creates the "pill" shape */
-
-    /* Text and Font */
-    font-family: 'Montserrat', sans-serif;
     font-size: 16px;
     font-weight: 570;
-    /* A medium font weight */
     text-decoration: none;
-    /* Removes underline from the <a> tag */
-
-    /* Interaction */
     cursor: pointer;
     transition: background-color 0.2s ease;
-    /* Smooth hover effect */
 }
 
-/* Optional: Add a subtle hover effect */
 .location-button:hover {
     background-color: #166F47;
 }
 
 .location-icon {
-    /* Space between icon and text */
     margin-right: 8px;
 }
 
@@ -123,12 +104,12 @@ body {
 .profile-bio {
     background-color: #fff;
     border-radius: 9px;
-    padding: 1rem;
-    padding-bottom: 18px;
+    padding: 1rem 1rem 18px;
     margin-top: 6px;
     border: 0.5px solid #BFBFBF;
     border-left: none;
     border-right: none;
+    position: relative;
 }
 
 .profile-bio .bio-header {
@@ -146,114 +127,80 @@ body {
     margin: 0;
 }
 
-.bio-edit-btn {
-    display: inline-block;
-    align-items: center;
-    align-self: flex-start;
-    justify-content: center;
-    height: 30px;
-    /* same as search/year pills */
-    padding: 0 1rem;
-    /* left/right padding */
+.bio-edit-btn,
+.photo-btn,
+.relatives-btn,
+.template-btn {
+    padding: 0.5rem 1rem;
     background-color: #F2F4F7;
-    /* light pill background */
     color: #1C170D;
-    /* dark text */
     border: none;
     border-radius: 14px;
     font-size: 15px;
     font-weight: 510;
     font-family: 'Montserrat', sans-serif;
     cursor: pointer;
-    position: static;
-    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.photo-btn:hover,
+.relatives-btn:hover,
+.template-btn:hover {
+    background-color: #e0e3e8;
 }
 
 .bio-content {
     position: relative;
-    /* for absolutely positioned toggle */
     font-size: 15px;
     font-weight: 480;
     line-height: 1.5;
     color: #000;
     max-height: calc(1.5em * 4);
-    /* clamp to 4 lines */
     overflow: hidden;
     transition: max-height 0.3s ease;
-    padding-right: 0;
-    /* room for the toggle */
-    margin: 0 0 0rem;
 }
 
-/* when expanded, let it grow and reveal overflow */
 .bio-content.expanded {
     max-height: none;
     overflow: visible;
 }
 
-/* контейнер для всіх “кнопок” біля біо */
 .bio-controls {
     display: inline-flex;
-    /* інлайн-флекс щоб в лінію */
     align-items: center;
-    /* вирівняти по базовій лінії тексту */
     gap: 0.5rem;
-    /* відстань між кнопками */
     margin-top: 0.5rem;
-    /* якщо треба відсунути вниз від тексту */
 }
 
-/* toggle link */
 .bio-toggle {
     position: static;
-    bottom: 0.1em;
-    /* just above the bottom edge */
-    right: 0.5rem;
-    background: #fff;
-    /* hide text underneath */
-    padding: 0;
+    background: transparent;
+    padding-left: 0.25rem;
     color: #000;
     font-weight: 600;
     cursor: pointer;
     display: inline-block;
-    /* make sure it shows */
     z-index: 1;
-    /* on top of the fading text */
-    margin: 0;
-    float: none;
 }
 
-/* once expanded, it becomes inline text at the end */
-.bio-content.expanded .bio-toggle {
-    position: static;
-    background: transparent;
-    padding-left: 0.25rem;
+#bio-cancel-btn {
+    margin-right: 0.75rem;
 }
 
-/* textarea-блок у вигляді картки */
+/* textarea */
 #bio-editor {
     width: 100%;
     box-sizing: border-box;
-
-    /* фон і скруглення */
     background-color: #F1F3F5;
     border: none;
     border-radius: 7px;
-
-    /* відступи всередині */
     padding: 10px 15px;
-
-    /* шрифт та кольори */
-    font-family: 'Montserrat', sans-serif;
     font-size: 15px;
     line-height: 24px;
     color: #1C170D;
-    /* трохи темніший сірий для тексту */
-
-    /* щоб не зменшувати блок */
     min-height: 150px;
-
-    /* забороняємо бачити контур при фокусі, але додаємо легку тінь */
     outline: none;
     transition: box-shadow .2s;
 }
@@ -262,19 +209,18 @@ body {
     box-shadow: inset 0 0 0 2px #A5B4FC;
 }
 
-/* стиль для плейсхолдера */
 #bio-editor::placeholder {
     color: #9CA3AF;
     opacity: 1;
 }
 
-
-/* ─── Photographs ─── */
+/* ─── Photos ─── */
 .profile-photos {
     background: #fff;
     border-radius: 20px;
     padding: 1rem 1rem 0.5rem;
     margin-top: 1rem;
+    position: relative;
 }
 
 .photos-title {
@@ -287,82 +233,61 @@ body {
     display: flex;
     gap: 0.75rem;
     margin-bottom: 0.75rem;
+    align-items: center;
 }
 
-.photo-btn {
-    padding: 0.5rem 1rem;
-    background-color: #F2F4F7;
-    color: #1C170D;
-    border: none;
-    border-radius: 14px;
-    font-size: 15px;
-    font-weight: 510;
-    font-family: 'Montserrat', sans-serif;
-    cursor: pointer;
+/* Delete (hidden by default; shown via selection mode rule below) */
+#delete-photo-btn {
+    display: none;
+    background-color: #DC3545;
+    color: #fff;
+    transition: background-color 0.2s ease;
 }
 
-.photo-btn:hover {
-    background-color: #e0e3e8;
+#delete-photo-btn:hover {
+    background-color: #C82333;
 }
 
-/* Scroll wrapper */
+/* Horizontal scroll wrapper */
 .photos-scroll {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
 }
 
-/* The UL itself */
+/* Two-row, column-flow grid */
 .photos-list {
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: 198px;
+    grid-auto-columns: 160px !important;
     grid-template-rows: 198px 198px;
-    grid-template-columns: repeat(4, 1fr);
     gap: 0.75rem;
-    padding: 0;
+    width: max-content;
+    /* fit to thumbnails */
     margin: 0;
+    padding: 0;
     list-style: none;
 }
 
-/* force odd items into the first row */
-.photos-list li:nth-child(odd) {
-    grid-row: 1;
-}
-
-/* force even items into the second row */
-.photos-list li:nth-child(even) {
-    grid-row: 2;
-}
-
 .photos-list li {
-    width: 100%;
-    aspect-ratio: 1;
-    /* fill the grid cell */
-    height: 0;
-    padding-bottom: 100%;
-    /* maintain a 1:1 aspect ratio */
+    position: relative;
+    width: 160px;
+    height: 198px;
     border-radius: 4px;
     overflow: hidden;
-    position: relative;
 }
 
 .photos-list li img {
-    position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
 }
 
-/* Selection overlay (hidden by default) */
+/* Selection overlay */
 .photo-selection-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background: rgba(0, 0, 0, 0.3);
     display: none;
     align-items: flex-start;
@@ -371,12 +296,10 @@ body {
     cursor: pointer;
 }
 
-/* Show overlay when in selection mode */
 .profile-photos.selection-mode .photo-selection-overlay {
     display: flex;
 }
 
-/* Selection circle */
 .photo-selection-circle {
     position: absolute;
     top: 8px;
@@ -385,308 +308,132 @@ body {
     height: 24px;
     border-radius: 50%;
     background-color: #1B8B59;
-    color: white;
+    color: #fff;
     display: none;
     align-items: center;
     justify-content: center;
     font-size: 12px;
     font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
     z-index: 2;
 }
 
-/* Selected state */
 .photos-list li.selected .photo-selection-circle {
-    background: #1B8B59;
-    border-color: #1B8B59;
     display: flex;
 }
 
-/* Check mark */
 .selection-check {
     color: #fff;
     font-size: 14px;
     font-weight: bold;
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity .2s;
 }
 
 .photos-list li.selected .selection-check {
     opacity: 1;
 }
 
-/* Delete button styling */
-#delete-photo-btn {
-    display: none;
-    padding: 0.5rem 1rem;
-    background-color: #DC3545;
-    color: #fff;
-    border: none;
-    border-radius: 14px;
-    font-size: 15px;
-    font-weight: 510;
-    font-family: 'Montserrat', sans-serif;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    margin-left: auto;
-}
-
-#delete-photo-btn:hover {
-    background-color: #C82333;
-}
-
-/* Update photos controls to handle delete button */
-.photos-controls {
-    display: flex;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-    align-items: center;
-}
-
-/* Selection mode cursor for photos */
+/* Selection mode visuals + show red delete */
 .profile-photos.selection-mode .photos-list li {
     cursor: pointer;
-    opacity: 0.7;
-    transition: opacity 0.2s ease;
 }
 
 .profile-photos.selection-mode .photos-list li.selected {
-    opacity: 1;
+    opacity: 0.7;
+    transition: opacity .2s;
 }
 
 .profile-photos.selection-mode .photos-list img {
     pointer-events: none;
 }
 
-/* The images */
-.photos-list img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+.profile-photos.selection-mode #delete-photo-btn {
+    display: inline-block !important;
 }
 
-/* ─── Modal Overlay ─── */
-.modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.4);
+.photos-empty {
+    display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
-}
-
-.modal-overlay.open {
-    display: flex;
-}
-
-.modal {
-    background: #fff;
-    border-radius: 20px;
-    padding: 1.5rem;
-    width: 90%;
-    max-width: 400px;
-    position: relative;
-    margin: 1rem;
-}
-
-.modal-close {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    color: #999;
-    cursor: pointer;
-    z-index: 10;
-}
-
-.modal-title {
-    margin: 0 0 1.5rem;
-    font-size: 18px;
-    font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
-    color: #000;
+    min-height: 160px;
+    padding: 24px;
+    margin: 0 0 8px 0;
+    background: #F5F5F8;
+    color: #72767D;
+    border-radius: 12px;
     text-align: center;
+    font-size: 15px;
+    line-height: 1.4;
 }
 
-/* "Pick photos" button */
-.modal-pick-btn {
-    display: block;
-    width: 100%;
-    margin-bottom: 1.5rem;
-    padding: 0.75rem;
-    background-color: #F2F4F7;
-    border: none;
-    border-radius: 14px;
-    font-size: 16px;
-    font-weight: 500;
+.photos-list.rows-1 {
+    grid-template-rows: 198px;
+}
+
+.photos-list.rows-2 {
+    grid-template-rows: 198px 198px;
+}
+
+/* ─── 3-dots button + popup ─── */
+.dots-btn {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    z-index: 2;
+}
+
+.popup-menu {
+    position: fixed;
+    top: 56px;
+    right: 12px;
+    background: #F7F7F7;
+    border: 0.5px solid #DCDCDC;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .1);
+    min-width: 160px;
+    z-index: 999;
     font-family: 'Montserrat', sans-serif;
-    color: #1C170D;
-    cursor: pointer;
 }
 
-/* Photo strip */
-.modal-photo-scroll {
-    overflow-x: auto;
-    margin-bottom: 1.5rem;
-    -webkit-overflow-scrolling: touch;
+.popup-menu.hidden {
     display: none;
 }
 
-.modal-photo-scroll.has-photos {
-    display: block;
-    /* Show when has photos */
-}
-
-.modal-photo-list {
-    display: flex;
-    gap: 0.75rem;
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    min-height: 100px;
-    /* Reserve space even when empty */
-}
-
-.modal-photo-list li {
+.popup-option {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 510;
+    color: #1C170D;
     position: relative;
-    flex: 0 0 100px;
-    height: 100px;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #eee;
 }
 
-.modal-photo-list img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.modal-photo-list .remove-btn {
+.popup-option::after {
+    content: "";
     position: absolute;
-    top: 4px;
-    right: 4px;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    border: none;
-    font-size: 1rem;
-    line-height: 1;
-    cursor: pointer;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    bottom: 0;
+    left: 5%;
+    width: 90%;
+    border-bottom: 0.5px solid #DCDCDC;
 }
 
-/* Form */
-.modal-form {
-    width: 100%;
+.popup-option:last-child::after {
+    content: none;
 }
 
-.modal-form label {
-    display: block;
-    margin-bottom: 0;
-    font-size: 14px;
-    font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
-    color: #666;
-}
-
-.modal-form label span {
-    display: block;
-    margin-bottom: 0.5rem;
-}
-
-/* Input styling */
-.modal-form input {
-    width: 100%;
-    padding: 1rem;
-    border: none;
-    background-color: #F5F5F5;
-    border-radius: 12px;
-    font-size: 16px;
-    font-family: 'Montserrat', sans-serif;
-    box-sizing: border-box;
-    color: #999;
-}
-
-.modal-form input:focus {
-    outline: none;
-    background-color: #F0F0F0;
-    color: #000;
-}
-
-.modal-form input::placeholder {
-    color: #999;
-    font-size: 16px;
-}
-
-/* Phone input with "Send Code" button */
-.input-with-action {
-    position: relative;
-    width: 100%;
-}
-
-.input-with-action input {
-    width: 100%;
-    padding: 1rem;
-    padding-right: 120px;
-    /* Make room for the button */
-    border: none;
-    background-color: #F5F5F5;
-    border-radius: 12px;
-    font-size: 16px;
-    font-family: 'Montserrat', sans-serif;
-    box-sizing: border-box;
-    color: #999;
-    margin-bottom: 4px;
-}
-
-.input-with-action .action-link {
-    display: inline-block;
-    background: none;
-    border: none;
-    color: #1B8B59;
-    font-size: 14px;
-    font-weight: 500;
-    font-family: 'Montserrat', sans-serif;
-    cursor: pointer;
-    white-space: nowrap;
-    margin-top: 0;
-    text-align: right;
-    width: 100%;
-}
-
-.input-with-action .action-link:hover {
-    color: #166F47;
-}
-
-/* Submit button */
-.modal-submit-btn {
-    width: 100%;
-    padding: 1rem;
-    background-color: #1B8B59;
-    color: #fff;
-    border: none;
-    border-radius: 14px;
-    font-size: 16px;
-    font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
-    cursor: pointer;
-    margin-top: 1rem;
-}
-
-.modal-submit-btn:hover {
-    background-color: #166F47;
+/* Hide old inline profile buttons we never use */
+#bio-edit,
+#add-relative-btn,
+#choose-relative-btn {
+    display: none !important;
 }
 
 /* ─── Liturgy Section ─── */
@@ -701,10 +448,8 @@ body {
     font-size: 1.25rem;
     font-weight: 600;
     margin: 0 0 1.5rem;
-    font-family: 'Montserrat', sans-serif;
 }
 
-/* Date Selection */
 .liturgy-date {
     margin-bottom: 1.5rem;
 }
@@ -716,18 +461,14 @@ body {
     margin-bottom: 1rem;
 }
 
-.date-label {
-    font-size: 1rem;
-    font-weight: 500;
-    color: #000;
-    font-family: 'Montserrat', sans-serif;
-}
-
+.date-label,
 .selected-date {
     font-size: 1rem;
     font-weight: 500;
+}
+
+.selected-date {
     color: #666;
-    font-family: 'Montserrat', sans-serif;
 }
 
 .date-calendar {
@@ -746,29 +487,26 @@ body {
     border-radius: 16px;
     background-color: #F5F5F5;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all .2s;
 }
 
 .date-item.selected {
     background-color: #1B8B59;
-    color: white;
+    color: #fff;
 }
 
 .date-number {
     font-size: 1.25rem;
     font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
     line-height: 1;
 }
 
 .date-day {
-    font-size: 0.875rem;
+    font-size: .875rem;
     font-weight: 500;
-    font-family: 'Montserrat', sans-serif;
     margin-top: 4px;
 }
 
-/* Church Selection */
 .liturgy-church {
     margin-bottom: 1.5rem;
 }
@@ -777,37 +515,33 @@ body {
     display: block;
     font-size: 1rem;
     font-weight: 500;
-    color: #000;
-    font-family: 'Montserrat', sans-serif;
     margin-bottom: 1rem;
 }
 
 .church-options {
     display: flex;
-    gap: 0.75rem;
+    gap: .75rem;
     flex-wrap: wrap;
 }
 
 .church-btn {
-    padding: 0.75rem 1.25rem;
+    padding: .75rem 1.25rem;
     background-color: #F5F5F5;
     color: #666;
     border: none;
     border-radius: 20px;
-    font-size: 0.875rem;
+    font-size: .875rem;
     font-weight: 500;
-    font-family: 'Montserrat', sans-serif;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all .2s;
     white-space: nowrap;
 }
 
 .church-btn.selected {
     background-color: #1B8B59;
-    color: white;
+    color: #fff;
 }
 
-/* Service Details */
 .liturgy-details {
     background-color: #F8F9FA;
     border-radius: 16px;
@@ -818,19 +552,15 @@ body {
 .person-name {
     font-size: 1rem;
     font-weight: 600;
-    color: #000;
-    font-family: 'Montserrat', sans-serif;
-    margin-bottom: 0.5rem;
+    margin-bottom: .5rem;
 }
 
 .service-info {
-    font-size: 0.875rem;
+    font-size: .875rem;
     color: #666;
     line-height: 1.4;
-    font-family: 'Montserrat', sans-serif;
 }
 
-/* Donation Selection */
 .liturgy-donation {
     margin-bottom: 1.5rem;
 }
@@ -839,56 +569,51 @@ body {
     display: block;
     font-size: 1rem;
     font-weight: 500;
-    color: #000;
-    font-family: 'Montserrat', sans-serif;
     margin-bottom: 1rem;
 }
 
 .donation-options {
     display: flex;
-    gap: 0.75rem;
+    gap: .75rem;
     flex-wrap: wrap;
 }
 
 .donation-btn {
-    padding: 0.75rem 1.25rem;
+    padding: .75rem 1.25rem;
     background-color: #F5F5F5;
     color: #666;
     border: none;
     border-radius: 16px;
-    font-size: 0.875rem;
+    font-size: .875rem;
     font-weight: 500;
-    font-family: 'Montserrat', sans-serif;
-    cursor: pointer;
-    transition: all 0.2s ease;
     min-width: 70px;
+    cursor: pointer;
+    transition: all .2s;
 }
 
 .donation-btn.selected {
     background-color: #1B8B59;
-    color: white;
+    color: #fff;
 }
 
-/* Submit Button */
 .liturgy-submit {
     width: 100%;
     padding: 1rem;
     background-color: #1B8B59;
-    color: white;
+    color: #fff;
     border: none;
     border-radius: 16px;
     font-size: 1rem;
     font-weight: 600;
-    font-family: 'Montserrat', sans-serif;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: background-color .2s;
 }
 
 .liturgy-submit:hover {
     background-color: #166F47;
 }
 
-/* ─── Comments Section ─── */
+/* ─── Comments ─── */
 .profile-comments {
     background: #fff;
     border-radius: 20px;
@@ -900,7 +625,6 @@ body {
     font-size: 1.25rem;
     font-weight: 600;
     margin: 0 0 1.5rem;
-    font-family: 'Montserrat', sans-serif;
 }
 
 .comments-list {
@@ -920,27 +644,23 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 0.5rem;
+    margin-bottom: .5rem;
 }
 
 .comment-author {
     font-size: 1rem;
     font-weight: 600;
-    color: #000;
-    font-family: 'Montserrat', sans-serif;
 }
 
 .comment-date {
-    font-size: 0.875rem;
+    font-size: .875rem;
     color: #999;
-    font-family: 'Montserrat', sans-serif;
 }
 
 .comment-text {
     font-size: 1rem;
     color: #666;
     line-height: 1.4;
-    font-family: 'Montserrat', sans-serif;
     margin: 0;
 }
 
@@ -953,68 +673,33 @@ body {
     font-size: 1.1rem;
     font-weight: 600;
     margin: 0 0 1rem;
-    font-family: 'Montserrat', sans-serif;
 }
 
 .comment-templates {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: .5rem;
 }
 
-.template-btn {
-    padding: 0.5rem 1rem;
-    background-color: #F2F4F7;
-    color: #1C170D;
-    border: none;
-    border-radius: 14px;
-    font-size: 14px;
-    font-weight: 500;
-    font-family: 'Montserrat', sans-serif;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-.template-btn:hover {
-    background-color: #e0e3e8;
-}
-
-/* ─── Relatives Section ─── */
+/* ─── Relatives ─── */
 .profile-relatives {
     background: #fff;
     border-radius: 20px;
     padding: 1rem;
     margin-top: 1rem;
+    position: relative;
 }
 
 .relatives-title {
     font-size: 1.25rem;
     font-weight: 600;
     margin: 0 0 1rem;
-    font-family: 'Montserrat', sans-serif;
 }
 
 .relatives-controls {
     display: flex;
-    gap: 0.75rem;
+    gap: .75rem;
     margin-bottom: 1.5rem;
-}
-
-.relatives-btn {
-    padding: 0.5rem 1rem;
-    background-color: #F2F4F7;
-    color: #1C170D;
-    border: none;
-    border-radius: 14px;
-    font-size: 15px;
-    font-weight: 510;
-    font-family: 'Montserrat', sans-serif;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-.relatives-btn:hover {
-    background-color: #e0e3e8;
 }
 
 .relatives-list {
@@ -1027,11 +712,11 @@ body {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 0.75rem;
+    padding: .75rem;
     background-color: #F9F9F9;
     border-radius: 16px;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: background-color .2s;
 }
 
 .relative-item:hover {
@@ -1054,37 +739,29 @@ body {
 .relative-name {
     font-size: 1rem;
     font-weight: 600;
-    color: #000;
-    margin: 0 0 0.25rem;
-    font-family: 'Montserrat', sans-serif;
+    margin: 0 0 .25rem;
 }
 
 .relative-details {
-    font-size: 0.875rem;
+    font-size: .875rem;
     color: #666;
     margin: 0;
-    font-family: 'Montserrat', sans-serif;
 }
 
 .relative-relationship {
-    font-size: 0.875rem;
+    font-size: .875rem;
     color: #999;
     font-weight: 500;
-    font-family: 'Montserrat', sans-serif;
     white-space: nowrap;
 }
 
+/* ─── Back button (hero) ─── */
 .back-button {
-    /* position unchanged */
     position: absolute;
     top: calc(env(safe-area-inset-top, 0px) + 8px);
     left: 12px;
-
-    /* remove background circle */
     background: transparent;
-    padding: 8px;
-    padding-left: 0;
-    /* keeps the tap area comfy */
+    padding: 8px 0 8px 0;
     width: auto;
     height: auto;
     border-radius: 0;
@@ -1092,167 +769,213 @@ body {
 }
 
 .back-button:hover {
-    /* no hover background either */
     background: transparent;
 }
 
 .back-button svg {
-    /* white, slightly thicker stroke */
     stroke: #fff;
     stroke-width: 1.5;
     width: 30px;
     height: 30px;
 }
 
-.bio-body {
-    position: relative;
-    /* for absolutely-positioned toggle */
+/* ─── Modal (shared) ─── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .4);
+    z-index: 300;
 }
 
-/* 3-line collapse */
-.bio-content {
-    position: relative;
-    overflow: hidden;
-    /* 3 lines */
-    padding-right: 4rem;
-    /* room for the toggle at end */
-    transition: max-height .3s;
-}
-
-/* when expanded, show all text */
-.bio-content.expanded {
-    max-height: none;
-}
-
-/* the inline toggle at the end of text */
-.bio-toggle {
-    position: absolute;
-    bottom: 0.1em;
-    /* just above bottom of the last line */
-    right: 0.5rem;
-    /* inset from the right edge */
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     background: #fff;
-    /* covers text behind it */
-    padding: 0 .25rem;
+    border-radius: 12px;
+    padding: 24px 16px;
+    width: 90%;
+    max-width: 360px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .15);
+    text-align: center;
+    z-index: 301;
+}
+
+.modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: 0;
+    font-size: 1.25rem;
+    color: #90959C;
     cursor: pointer;
-    font-weight: 600;
-    color: #000;
 }
 
-/* once expanded, make it part of the flow on its own line */
-.bio-content.expanded .bio-toggle {
-    position: static;
-    float: right;
-    background: transparent;
-    padding: 0 .25rem;
+.modal-text {
+    margin: 32px 0 24px;
+    font-size: 16px;
+    font-family: 'Montserrat', sans-serif;
+    color: #222;
+    line-height: 1.4;
 }
 
-.bio-buttons {
-    display: inline-flex;
-    gap: 0.5rem;
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 8px;
 }
 
-/* 1) scroll container */
-.photos-scroll {
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 0.5rem;
-    /* give room for shadow or padding */
+.modal-ok {
+    padding: 12px 32px;
+    background: #397355;
+    color: #fff;
+    border: 0;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
 }
 
-/* 2) two-row, column-flow grid */
-.photos-list {
-    display: grid;
-    grid-auto-flow: column;
-    /* fill down then over */
-    grid-auto-columns: 198px;
-    /* fixed thumbnail width */
-    grid-template-rows: 198px 198px;
-    /* two fixed thumbnail heights */
-    gap: 0.75rem;
-    /* match your spacing */
-    list-style: none;
-    margin: 0;
-    padding: 0;
+.modal-cancel {
+    padding: 12px 32px;
+    background: #F2F4F7;
+    color: #222;
+    border: 0;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
 }
 
-/* 3) make images cover their cells */
-.photos-list li {
-    overflow: hidden;
-    border-radius: 0.5rem;
+/* ——— Comments: empty state (same look as photos empty) ——— */
+.comments-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    padding: 24px;
+    margin: 0 0 8px 0;
+    background: #F5F5F8;
+    color: #72767D;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.4;
 }
 
-.photos-list li img {
+/* ——— Modal for comment template → user name ——— */
+#comment-template-modal .modal-text {
+    margin-bottom: 12px;
+}
+
+#comment-user-input {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+    box-sizing: border-box;
+    background: #F1F3F5;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 15px;
+    margin: 8px 0 16px 0;
+    outline: none;
 }
 
-.photos-list {
-    display: inline-grid;
-    /* shrink-to-content in the inline axis */
-    grid-auto-flow: column;
-    /* fill down then over */
-    grid-auto-columns: 198px;
-    /* each column is 198px wide */
-    grid-template-rows: 198px 198px;
-    /* two rows, each 198px tall */
-    gap: 0.75rem;
+/* Header + login button (exactly like ritual_service_profile) */
+.ritual-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    padding: 0 12px 0 1px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+}
+
+.ritual-back-btn {
+    background: none;
+    border: 0;
     padding: 0;
     margin: 0;
-    list-style: none;
+    display: flex;
+    align-items: center;
+    cursor: pointer
 }
 
-.photos-list {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 198px;
-    grid-template-rows: 198px 198px;
-    gap: 0.75rem;
-    padding: 0;
-    margin: 0;
-    list-style: none;
-
-    /* **new**: make the container only as wide as its grid cells */
-    width: max-content;
+.ritual-login-btn {
+    background: none;
+    border: 0;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 510;
+    font-family: "Montserrat", sans-serif;
+    cursor: pointer
 }
 
-/* 1) Keep the horizontal scroll wrapper */
-.photos-scroll {
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
+/* Login modal (1:1 with ritual_service_profile) */
+.login-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 999
 }
 
-/* 2) Make the UL shrink‐to‐its‐content width, flow column-by-column, two rows */
-.photos-list {
-    display: grid;
-    /* flow items down then to the next column */
-    grid-auto-flow: column;
-    /* each column is 198px wide */
-    grid-auto-columns: 198px;
-    /* exactly two rows, each 198px tall */
-    grid-template-rows: 198px 198px;
-    gap: 0.75rem;
-
-    /* THIS is the key: force the grid to size to its children */
-    width: max-content;
-
-    margin: 0;
-    padding: 0;
-    list-style: none;
+.login-box {
+    background: #fff;
+    padding: 24px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 320px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .2);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative
 }
 
-/* 3) Ensure each <li> and its <img> fill their cell */
-.photos-list li {
-    overflow: hidden;
-    border-radius: 0.5rem;
+.login-box input {
+    padding: 10px;
+    font-size: 15px
 }
 
-.photos-list li img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+.login-box button {
+    background: #1b8b59;
+    color: #fff;
+    border: 0;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px
+}
+
+.login-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 50%;
+    background: none !important;
+    color: #222 !important;
+    font-size: 18px;
+    line-height: 28px;
+    text-align: center;
+    cursor: pointer
+}
+
+.login-close:hover {
+    background: #e6e6e6
+}
+
+.error-message {
+    color: red;
+    font-size: 14px;
+    margin: 0
 }

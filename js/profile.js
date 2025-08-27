@@ -1,12 +1,21 @@
 // js/profile.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    const API_BASE = 'https://memoria-test-app-ifisk.ondigitalocean.app/api/people';
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Config
+    // ─────────────────────────────────────────────────────────────────────────────
+    // const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
+    const API_URL = 'http://0.0.0.0:5000';
+    const API_BASE = `${API_URL}/api/people`;
+    const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
+
     const params = new URLSearchParams(window.location.search);
     const personId = params.get('personId');
     if (!personId) return;
 
-    // grab all of the elements we'll populate
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Grab key elements
+    // ─────────────────────────────────────────────────────────────────────────────
     const avatarEl = document.querySelector('.profile-avatar');
     const heroEl = document.querySelector('.profile-hero');
     const nameEl = document.querySelector('.profile-name');
@@ -14,476 +23,621 @@ document.addEventListener('DOMContentLoaded', () => {
     const cemeteryEl = document.querySelector('.profile-cemetery');
     const actionText = document.getElementById('action-btn');
     const locationBtn = document.getElementById('location-btn');
-    const bioContentEl = document.getElementById('bio-content');
-    const bioToggleEl = document.getElementById('bio-toggle');
-    const bioEditBtn = document.getElementById('bio-edit');
 
+    // Bio
+    const bioContentEl = document.getElementById('bio-content'); // <p id="bio-content">
+    const bioToggleEl = document.getElementById('bio-toggle');   // <span id="bio-toggle">
+    const bioEditBtn = document.getElementById('bio-edit');      // "Змінити"
+    const bioAddBtn = document.getElementById('bio-add');       // "Додати" (hidden by default)
+    const bioMenuBtn = document.getElementById('bio-menu-btn');  // dots
+
+    // Photos (profile)
+    const photosMenuBtn = document.getElementById('photos-menu-btn');
+    const photosMenu = document.getElementById('photos-menu');
+    const photosListEl = document.querySelector('.photos-list');
+    const addPhotoBtn = document.getElementById('add-photo-btn');
+    const choosePhotoBtn = document.getElementById('choose-photo-btn');
+    const deletePhotoBtn = document.getElementById('delete-photo-btn');
+    const fileInput = document.getElementById('photo-input'); // hidden <input type="file" multiple>, may be absent in older HTML
+    const photosScrollEl = document.querySelector('.photos-scroll');
+
+    // Dots popup options (if present)
+    document.getElementById('bio-edit-option')?.addEventListener('click', () => bioEditBtn?.click());
+    document.getElementById('photos-add-option')?.addEventListener('click', () => addPhotoBtn?.click());
+    document.getElementById('photos-choose-option')?.addEventListener('click', () => choosePhotoBtn?.click());
+    document.getElementById('photos-delete-option')?.addEventListener('click', () => deletePhotoBtn?.click());
+
+    // Comments
+    const commentsListEl = document.querySelector('.comments-list');
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Global click delegation for dots menus
+    // ─────────────────────────────────────────────────────────────────────────────
+    document.addEventListener('click', (e) => {
+        const option = e.target.closest('.popup-option');
+        if (option) {
+            option.closest('.popup-menu')?.classList.add('hidden');
+            return;
+        }
+        if (e.target.closest('.dots-btn')) {
+            const btn = e.target.closest('.dots-btn');
+            const menu = btn.nextElementSibling; // adjacent .popup-menu
+            document.querySelectorAll('.popup-menu').forEach(m => m.classList.add('hidden'));
+
+            if (menu) {
+                const wasHidden = menu.classList.contains('hidden');
+                if (wasHidden) {
+                    menu.style.visibility = 'hidden';
+                    menu.classList.remove('hidden');
+                    menu.style.left = '0px';
+                    menu.style.right = 'auto';
+                    void menu.offsetWidth;
+                }
+                const r = btn.getBoundingClientRect();
+                const menuWidth = Math.max(menu.offsetWidth, 160);
+                const vw = window.innerWidth;
+                const left = Math.min(vw - 12 - menuWidth, r.right - menuWidth);
+                const top = r.bottom + 8;
+                menu.style.left = `${Math.max(12, left)}px`;
+                menu.style.top = `${top}px`;
+                menu.style.right = 'auto';
+                menu.style.visibility = 'visible';
+                if (!wasHidden) menu.classList.add('hidden');
+            }
+            return;
+        }
+        if (!e.target.closest('.popup-menu')) {
+            document.querySelectorAll('.popup-menu').forEach(m => m.classList.add('hidden'));
+        }
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // State
+    // ─────────────────────────────────────────────────────────────────────────────
+    let photos = [];                 // profile photos (urls and temporary blob: urls)
+    let isSelecting = false;         // selection mode for photos
+    let selectedOrder = [];          // array of indexes of selected photos (in click order)
+    let pendingUploads = 0;
+    let comments = [];  // profile comments array
+    let premiumLock = false;
+    let premiumCreds = null;
+
+    const nonBlobPhotos = () =>
+        (photos || []).filter((u) => typeof u === 'string' && u && !u.startsWith('blob:'));
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────────────────────────────────────
+    function setPhotosControlsVisibility() {
+        const controls = document.querySelector('.profile-photos .photos-controls');
+        const has = photos.length > 0;
+
+        // 1) No photos → show only "Добавити" controls, hide dots
+        if (!has) {
+            if (controls) controls.style.display = 'flex';
+            if (addPhotoBtn) addPhotoBtn.style.display = '';
+            if (choosePhotoBtn) choosePhotoBtn.style.display = 'none';
+            if (deletePhotoBtn) deletePhotoBtn.style.display = 'none';
+            if (photosMenuBtn) photosMenuBtn.style.display = 'none';
+            return;
+        }
+
+        // 3) Selection mode → show "Скасувати" + "Видалити (n)", hide dots
+        if (isSelecting) {
+            if (controls) controls.style.display = 'flex';
+            if (addPhotoBtn) addPhotoBtn.style.display = 'none';
+            if (choosePhotoBtn) { choosePhotoBtn.style.display = ''; choosePhotoBtn.textContent = 'Скасувати'; }
+            if (deletePhotoBtn) deletePhotoBtn.style.display = 'inline-block';
+            if (photosMenuBtn) photosMenuBtn.style.display = 'none';
+            return;
+        }
+
+        // 2) Has photos (not selecting) → hide controls, show only dots menu
+        if (controls) controls.style.display = 'none';
+        if (photosMenuBtn) photosMenuBtn.style.display = 'inline-flex';
+    }
+
+    function updateDeleteButtonLabel() {
+        if (!deletePhotoBtn) return;
+        deletePhotoBtn.textContent = `Видалити (${selectedOrder.length})`;
+    }
+
+    function exitSelectionMode() {
+        isSelecting = false;
+        selectedOrder = [];
+        document.querySelector('.profile-photos')?.classList.remove('selection-mode');
+        refreshPhotosUI();
+        setPhotosControlsVisibility();
+    }
+
+    function enterSelectionMode() {
+        if (isSelecting || photos.length === 0) return;
+        isSelecting = true;
+        document.querySelector('.profile-photos')?.classList.add('selection-mode');
+        updateDeleteButtonLabel();
+        refreshPhotosUI();
+        setPhotosControlsVisibility();
+    }
+
+    function toggleSelectPhoto(index) {
+        const pos = selectedOrder.indexOf(index);
+        if (pos > -1) {
+            selectedOrder.splice(pos, 1);
+        } else {
+            selectedOrder.push(index);
+        }
+        refreshPhotosUI();
+        updateDeleteButtonLabel();
+    }
+
+    function openSlideshow(images, startIndex = 0) {
+        // Same lightweight slideshow as location page
+        const modal = document.createElement('div');
+        modal.className = 'slideshow-modal';
+
+        const closeBtnX = document.createElement('span');
+        closeBtnX.textContent = '✕';
+        closeBtnX.className = 'close-slideshow';
+        closeBtnX.onclick = () => document.body.removeChild(modal);
+
+        const track = document.createElement('div');
+        track.className = 'slideshow-track';
+
+        images.forEach((url) => {
+            const slide = document.createElement('div');
+            slide.className = 'slideshow-slide';
+            const slideImg = document.createElement('img');
+            slideImg.src = url;
+            slideImg.className = 'slideshow-img';
+            slide.appendChild(slideImg);
+            track.appendChild(slide);
+        });
+
+        const indicator = document.createElement('div');
+        indicator.className = 'slideshow-indicators';
+        images.forEach((_, idx) => {
+            const dot = document.createElement('span');
+            dot.className = 'slideshow-indicator';
+            dot.addEventListener('click', () => {
+                changeSlide(idx);
+            });
+            indicator.appendChild(dot);
+        });
+
+        function updateIndicators(index) {
+            indicator.querySelectorAll('.slideshow-indicator').forEach((dot, i) => {
+                dot.classList.toggle('active', i === index);
+            });
+        }
+        function changeSlide(newIndex) {
+            const slides = track.querySelectorAll('.slideshow-slide');
+            if (slides[newIndex]) {
+                slides[newIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }
+        }
+        track.addEventListener('scroll', () => {
+            const slideWidth = track.clientWidth;
+            const index = Math.round(track.scrollLeft / slideWidth);
+            updateIndicators(index);
+        });
+
+        modal.append(closeBtnX, track, indicator);
+        document.body.appendChild(modal);
+
+        requestAnimationFrame(() => {
+            changeSlide(startIndex);
+            updateIndicators(startIndex);
+        });
+    }
+
+    function refreshPhotosUI() {
+        if (!photosListEl) return;
+
+        // clear previous list
+        photosListEl.innerHTML = '';
+        photosListEl.classList.remove('rows-1', 'rows-2');
+        if (photosListEl.style) photosListEl.style.display = ''; // ensure visible by default
+
+        // remove old empty-state, if any
+        photosScrollEl?.querySelector('.photos-empty')?.remove();
+
+        const hasPhotos = photos.length > 0;
+        setPhotosControlsVisibility();
+
+        // 0) Empty state
+        if (!hasPhotos) {
+            // hide the UL and show the text block
+            if (photosListEl.style) photosListEl.style.display = 'none';
+            const empty = document.createElement('div');
+            empty.className = 'photos-empty';
+            empty.textContent = 'Немає фотографій. Будь ласка, поділіться спогадами';
+            photosScrollEl?.appendChild(empty);
+            return;
+        }
+
+        // 1) One row if exactly 1 photo, otherwise two rows
+        photosListEl.classList.add(photos.length === 1 ? 'rows-1' : 'rows-2');
+
+        // render items
+        photos.forEach((url, idx) => {
+            const li = document.createElement('li');
+            li.dataset.index = String(idx);
+
+            const img = document.createElement('img');
+            img.src = url;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'photo-selection-overlay';
+
+            const circle = document.createElement('div');
+            circle.className = 'photo-selection-circle';
+            const check = document.createElement('div');
+            check.className = 'selection-check';
+            check.textContent = '✓';
+            circle.appendChild(check);
+            overlay.appendChild(circle);
+
+            // selection badge
+            const orderPos = selectedOrder.indexOf(idx);
+            if (orderPos > -1) {
+                li.classList.add('selected');
+                circle.textContent = String(orderPos + 1);
+            }
+
+            // click behavior (open slideshow vs select)
+            li.addEventListener('click', () => {
+                if (isSelecting) {
+                    toggleSelectPhoto(idx);
+                } else {
+                    const onlyReal = nonBlobPhotos();
+                    const realIndex = onlyReal.indexOf(url);
+                    openSlideshow(onlyReal.length ? onlyReal : photos, Math.max(0, realIndex));
+                }
+            });
+
+            li.append(img, overlay);
+            photosListEl.appendChild(li);
+        });
+
+        if (photosMenuBtn) photosMenuBtn.style.visibility = isSelecting ? 'hidden' : 'visible';
+    }
+
+    async function saveProfilePhotos() {
+        // Persist only non-blob URLs
+        try {
+            const body = JSON.stringify({ photos: nonBlobPhotos() });
+            const res = await fetch(`${API_BASE}/${personId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body
+            });
+            if (!res.ok) throw new Error(res.statusText);
+        } catch (e) {
+            console.error('Failed to save profile photos:', e);
+            alert('Не вдалося зберегти фотографії профілю.');
+        }
+    }
+
+    function hookPhotoButtons() {
+        if (addPhotoBtn)
+            addPhotoBtn.addEventListener('click', () => {
+                photosMenu?.classList.add('hidden');
+                fileInput?.click();
+            });
+
+        if (choosePhotoBtn)
+            choosePhotoBtn.addEventListener('click', () => {
+                photosMenu?.classList.add('hidden');
+                if (isSelecting) {
+                    // cancel
+                    exitSelectionMode();
+                    choosePhotoBtn.textContent = 'Вибрати';
+                } else {
+                    enterSelectionMode();
+                    choosePhotoBtn.textContent = 'Скасувати';
+                }
+            });
+
+        if (deletePhotoBtn) {
+            const overlay = document.getElementById('modal-overlay');
+            const dlg = document.getElementById('confirm-delete-modal');
+            const closeX = document.getElementById('confirm-delete-close');
+            const cancelBtn = document.getElementById('confirm-delete-cancel');
+            const okBtn = document.getElementById('confirm-delete-ok');
+
+            const openConfirm = () => { overlay.hidden = false; dlg.hidden = false; };
+            const closeConfirm = () => { overlay.hidden = true; dlg.hidden = true; };
+
+            deletePhotoBtn.addEventListener('click', () => {
+                if (!isSelecting || selectedOrder.length === 0) { exitSelectionMode(); return; }
+                openConfirm();
+            });
+
+            [closeX, cancelBtn, overlay].forEach(el => el && el.addEventListener('click', closeConfirm));
+
+            okBtn?.addEventListener('click', async () => {
+                // Remove selected in descending order
+                const toDelete = [...selectedOrder].sort((a, b) => b - a);
+                toDelete.forEach(i => {
+                    if (i >= 0 && i < photos.length) {
+                        const u = photos[i];
+                        if (u?.startsWith('blob:')) { try { URL.revokeObjectURL(u); } catch { } }
+                        photos.splice(i, 1);
+                    }
+                });
+                selectedOrder = [];
+                await saveProfilePhotos();
+                closeConfirm();
+                exitSelectionMode();
+            });
+        }
+
+        if (fileInput)
+            fileInput.addEventListener('change', (e) => {
+                const files = Array.from(e.target.files || []);
+                if (!files.length) return;
+
+                const previews = files.map((f) => URL.createObjectURL(f));
+
+                // Show previews immediately
+                previews.forEach((url) => photos.push(url));
+                refreshPhotosUI();
+                fileInput.value = '';
+
+                // Upload each → replace blob with real URL, then persist
+                pendingUploads += files.length;
+
+                files.forEach(async (file, idx) => {
+                    const previewUrl = previews[idx];
+                    try {
+                        const form = new FormData();
+                        form.append('image', file);
+                        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                            method: 'POST',
+                            body: form,
+                        });
+                        const json = await res.json();
+                        const realUrl = json?.data?.url;
+                        const i = photos.indexOf(previewUrl);
+                        if (i > -1 && realUrl) {
+                            photos[i] = realUrl;
+                            try { URL.revokeObjectURL(previewUrl); } catch { }
+                            refreshPhotosUI();
+                            // Save incrementally so the user doesn’t lose progress
+                            await saveProfilePhotos();
+                        }
+                    } catch (err) {
+                        console.error('Upload failed:', err);
+                        alert('Не вдалося завантажити зображення.');
+                    } finally {
+                        pendingUploads = Math.max(0, pendingUploads - 1);
+                        refreshPhotosUI();
+                    }
+                });
+            });
+    }
+
+    function renderComments() {
+        if (!commentsListEl) return;
+
+        commentsListEl.innerHTML = '';
+
+        // 1) Empty-state
+        if (!Array.isArray(comments) || comments.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'comments-empty';
+            empty.textContent = 'Немає коментарів';
+            commentsListEl.appendChild(empty);
+            return;
+        }
+
+        // 2) Items
+        comments.forEach(c => {
+            const item = document.createElement('div');
+            item.className = 'comment-item';
+            const author = c.author ?? '';
+            const date = c.date ?? '';
+            const text = c.text ?? '';
+            item.innerHTML = `
+            <div class="comment-header">
+              <span class="comment-author">${author}</span>
+              <span class="comment-date">${date}</span>
+            </div>
+            <p class="comment-text">${text}</p>
+          `;
+            commentsListEl.appendChild(item);
+        });
+    }
+
+    function hideEditingUIForPremium() {
+        // Bio
+        document.getElementById('bio-edit')?.style && (document.getElementById('bio-edit').style.display = 'none');
+        document.getElementById('bio-add')?.style && (document.getElementById('bio-add').style.display = 'none');
+        document.getElementById('bio-menu-btn')?.style && (document.getElementById('bio-menu-btn').style.display = 'none');
+
+        // Photos controls + any dots
+        document.querySelectorAll('.photos-controls, #photos-menu-btn, .dots-btn, .popup-menu')
+            .forEach(el => el && (el.style.display = 'none'));
+
+        // Comment templates / any “add” actions on profile page (if present)
+        document.querySelectorAll('.comment-templates, .templates-row, .template-btn').forEach(el => el.style.display = 'none');
+
+        // Relatives / extra edit CTAs if you have them
+        document.getElementById('add-relative-btn')?.style && (document.getElementById('add-relative-btn').style.display = 'none');
+        document.getElementById('choose-relative-btn')?.style && (document.getElementById('choose-relative-btn').style.display = 'none');
+    }
+
+    function setupLoginModalOpenClose() {
+        const loginModal = document.getElementById('loginModal');
+        const loginBox = loginModal?.querySelector('.login-box');
+        const loginBtn = document.getElementById('profile-login-btn');
+        const closeBtn = document.getElementById('loginClose');
+
+        if (!loginModal || !loginBox || !loginBtn) return;
+
+        const open = () => { loginModal.style.display = 'flex'; };
+        const close = () => {
+            loginModal.style.display = 'none';
+            document.getElementById('loginInput').value = '';
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('loginError').textContent = '';
+        };
+
+        loginBtn.addEventListener('click', open);
+        closeBtn?.addEventListener('click', close);
+        loginModal.addEventListener('click', (e) => { if (!loginBox.contains(e.target)) close(); });
+        loginBox.addEventListener('click', (e) => e.stopPropagation());
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && loginModal.style.display === 'flex') close(); });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Load person
+    // ─────────────────────────────────────────────────────────────────────────────
     (async () => {
         try {
             const res = await fetch(`${API_BASE}/${personId}`);
             if (!res.ok) throw new Error(res.statusText);
             const data = await res.json();
 
+            // PREMIUM lock
+            premiumLock = !!data.premium;
+            premiumCreds = data.premium || null;
+
+            if (premiumLock) {
+                // Show header with "Увійти" and hide every edit affordance
+                document.getElementById('profile-login-header')?.removeAttribute('hidden');
+                hideEditingUIForPremium();
+                setupLoginModalOpenClose();
+            }
+
+            // COMMENTS: from API (may be empty or missing)
+            comments = Array.isArray(data.comments) ? data.comments : [];
+            renderComments();
+
             // Avatar & hero background
-            avatarEl.src = data.avatarUrl || 'img/default-avatar.jpg';
-            if (data.backgroundUrl) {
+            if (avatarEl) avatarEl.src = data.avatarUrl || 'img/default-avatar.jpg';
+            if (heroEl && data.backgroundUrl) {
                 heroEl.style.backgroundImage = `url(${data.backgroundUrl})`;
             }
 
             // Name, years, cemetery
-            nameEl.textContent = data.name;
-            yearsEl.textContent = `${data.birthDate} ${data.birthYear} – ${data.deathDate} ${data.deathYear || ''}`.trim();
-            cemeteryEl.textContent = data.cemetery.split(", ")[0] || '';
+            if (nameEl) nameEl.textContent = data.name || '';
+            if (yearsEl) {
+                yearsEl.textContent = `${data.birthDate || ''} ${data.birthYear || ''} – ${data.deathDate || ''} ${data.deathYear || ''}`.trim();
+            }
+            if (cemeteryEl) cemeteryEl.textContent = (data.cemetery || '').split(', ')[0] || '';
 
             // Action button (view vs add location)
             if (data?.location?.[0]) {
-                // there’s a truthy value in data.location[0]
                 actionText.textContent = 'Локація місця поховання';
                 locationBtn.href = `/location.html?personId=${personId}`;
             } else {
-                // no first element (or it’s empty/falsy)
                 actionText.textContent = 'Додати локацію місця поховання';
                 locationBtn.href = `/location.html?personId=${personId}`;
             }
 
-            // Biography text + toggle logic
+            // ─── BIO: render + toggle + edit buttons logic ───
             const fullBio = data.bio || '';
 
-            // A. Temporarily remove toggle to measure content correctly
-            bioToggleEl.remove();
-            bioContentEl.textContent = fullBio;
+            // If bio empty → show "Додати", hide "Змінити" & dots
+            if (!fullBio.trim()) {
+                bioAddBtn?.style && (bioAddBtn.style.display = 'inline-block');
+                bioEditBtn?.style && (bioEditBtn.style.display = 'none');
+                bioMenuBtn?.style && (bioMenuBtn.style.display = 'none');
+            } else {
+                bioAddBtn?.style && (bioAddBtn.style.display = 'none');
+                bioEditBtn?.style && (bioEditBtn.style.display = 'inline-block');
+                bioMenuBtn?.style && (bioMenuBtn.style.display = 'inline-flex');
+            }
 
-            // B. Check if the content is actually taller than its collapsed container
-            const isOverflowing = bioContentEl.scrollHeight > bioContentEl.clientHeight;
-            console.log(isOverflowing);
-
-            if (isOverflowing) {
-                // restore the toggle *inside* the bio-content paragraph
+            // Overflow toggle
+            bioToggleEl?.remove();
+            if (bioContentEl) bioContentEl.textContent = fullBio;
+            const isOverflowing = bioContentEl && (bioContentEl.scrollHeight > bioContentEl.clientHeight);
+            if (isOverflowing && bioContentEl && bioToggleEl) {
                 bioContentEl.appendChild(bioToggleEl);
                 bioToggleEl.style.display = 'inline';
                 bioToggleEl.textContent = '... більше';
-
-                // make sure there’s a bit of right padding so the span doesn’t get clipped
                 bioContentEl.style.paddingRight = '0.1rem';
-
-                // wire up the “… більше / менше” toggle
                 bioToggleEl.addEventListener('click', () => {
                     const expanded = bioContentEl.classList.toggle('expanded');
                     bioToggleEl.textContent = expanded ? 'менше' : '... більше';
                 });
-            } else {
-                // If it doesn't overflow, the toggle is already removed, so we do nothing.
             }
 
-            // 1) Switch to edit mode
-            bioEditBtn.addEventListener('click', enterBioEdit);
-
+            // BIO: enter edit mode (both when empty or already present)
             function enterBioEdit() {
-                // Hide the “… більше” toggle if present
-                bioToggleEl && (bioToggleEl.style.display = 'none');
+                // Create textarea in place of <p>
+                const bioBody = document.querySelector('.profile-bio .bio-body');
+                if (!bioBody) return;
+                bioBody.innerHTML = `
+                    <textarea id="bio-editor" placeholder="Додайте життєпис...">${fullBio || ''}</textarea>
+                `;
 
-                // Replace <p> with a <textarea>
-                const textarea = document.createElement('textarea');
-                textarea.id = 'bio-editor';
-                textarea.value = fullBio;
-                textarea.style.width = '100%';
-                textarea.style.minHeight = '120px';
-                textarea.style.boxSizing = 'border-box';
-                bioContentEl.replaceWith(textarea);
+                // Replace the buttons area with "Скасувати" + "Готово"
+                const btnsWrap = document.querySelector('.profile-bio .bio-buttons');
+                if (btnsWrap) {
+                    btnsWrap.innerHTML = '';
+                    const cancel = document.createElement('button');
+                    cancel.className = 'btn bio-edit-btn';
+                    cancel.id = 'bio-cancel-btn';
+                    cancel.textContent = 'Скасувати';
 
-                // Change the “Змінити” button into “Підтвердити”
-                bioEditBtn.textContent = 'Підтвердити';
-                bioEditBtn.removeEventListener('click', enterBioEdit);
-                bioEditBtn.addEventListener('click', openBioConfirmModal);
+                    const done = document.createElement('button');
+                    done.className = 'btn bio-edit-btn';
+                    done.id = 'bio-done-btn';
+                    done.textContent = 'Готово';
 
-                // Add a “Скасувати” button
-                const cancel = document.createElement('button');
-                cancel.id = 'bio-cancel-btn';
-                cancel.type = 'button';
-                cancel.className = 'btn bio-edit-btn';
-                cancel.textContent = 'Скасувати';
-                bioEditBtn.insertAdjacentElement('afterend', cancel);
-                cancel.addEventListener('click', () => {
-                    window.location.reload(); // simplest way to revert everything
-                });
-            }
+                    btnsWrap.append(cancel, done);
 
-            // 2) Open the modal to send/enter code
-            function openBioConfirmModal() {
-                document.getElementById('editBioModal').classList.add('open');
-            }
+                    cancel.addEventListener('click', () => {
+                        // reload page to restore original bio quickly
+                        window.location.reload();
+                    });
 
-            // 3) Handle modal “send code” + “submit”
-            const bioModal = document.getElementById('editBioModal');
-            const sendBioCodeBtn = document.getElementById('send-bio-code-btn');
-            const bioForm = document.getElementById('editBioForm');
-
-            sendBioCodeBtn.addEventListener('click', async () => {
-                const phone = document.getElementById('edit-phone-input').value;
-                // TODO: call your SMS-API here…
-                alert(`Код надіслано на ${phone}`);
-            });
-
-            bioForm.addEventListener('submit', async e => {
-                e.preventDefault();
-                const code = document.getElementById('edit-sms-code-input').value;
-                const newBio = document.getElementById('bio-editor').value;
-
-                // TODO: verify code with your backend…
-                // await fetch(`${API_BASE}/${personId}/verifyBioCode`, { … })
-
-                // Then push updated bio
-                const res = await fetch(`${API_BASE}/${personId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bio: newBio })
-                });
-                if (!res.ok) throw new Error(res.statusText);
-
-                // On success: close modal & update UI
-                bioModal.classList.remove('open');
-                document.getElementById('bio-cancel-btn').remove();
-                bioEditBtn.textContent = 'Змінити';
-                bioEditBtn.removeEventListener('click', openBioConfirmModal);
-                bioEditBtn.addEventListener('click', enterBioEdit);
-
-                // Restore the <p> with updated text and re-init toggle logic
-                const updatedP = document.createElement('p');
-                updatedP.className = 'bio-content';
-                updatedP.id = 'bio-content';
-                updatedP.textContent = newBio;
-                document.querySelector('.profile-bio').appendChild(updatedP);
-                // (you can re-run your overflow/toggle check here if desired)
-            });
-
-            //  ─── Photographs gallery ───
-            const photosListEl = document.querySelector('.photos-list');
-            const addPhotoBtn = document.getElementById('add-photo-btn');
-            const choosePhotoBtn = document.getElementById('choose-photo-btn');
-            let isSelectionMode = false;
-            let selectedPhotos = [];
-
-            if (Array.isArray(data.photos) && data.photos.length) {
-                data.photos.forEach((url, index) => {
-                    const li = document.createElement('li');
-                    li.dataset.photoIndex = index;
-                    li.dataset.photoUrl = url;
-
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.alt = data.name + ' — фото';
-
-                    // Add selection overlay (initially hidden)
-                    const overlay = document.createElement('div');
-                    overlay.className = 'photo-selection-overlay';
-                    overlay.innerHTML = `
-                        <div class="photo-selection-circle">
-                            <div class="selection-check">✓</div>
-                        </div>
-                    `;
-
-                    li.appendChild(img);
-                    li.appendChild(overlay);
-                    photosListEl.appendChild(li);
-
-                    // Add click handler for selection
-                    li.addEventListener('click', () => {
-                        if (isSelectionMode) {
-                            togglePhotoSelection(li, url);
+                    done.addEventListener('click', async () => {
+                        const newBio = (document.getElementById('bio-editor')?.value || '').trim();
+                        try {
+                            const res = await fetch(`${API_BASE}/${personId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ bio: newBio })
+                            });
+                            if (!res.ok) throw new Error(res.statusText);
+                            window.location.reload();
+                        } catch (e) {
+                            console.error('Failed to update bio:', e);
+                            alert('Не вдалося оновити життєпис.');
                         }
                     });
-                });
-            } else {
-                // optionally show a placeholder
-                const li = document.createElement('li');
-                li.textContent = 'Немає фото';
-                li.style.padding = '1rem';
-                photosListEl.appendChild(li);
-            }
-
-            // Add this new function for photo selection
-            function togglePhotoSelection(photoElement, photoUrl) {
-                const isSelected = selectedPhotos.has(photoUrl);
-
-                if (isSelected) {
-                    selectedPhotos.delete(photoUrl);
-                    photoElement.classList.remove('selected');
-                } else {
-                    selectedPhotos.add(photoUrl);
-                    photoElement.classList.add('selected');
-                }
-
-                updateDeleteButton();
-            }
-
-            // Add this function to update delete button state
-            function updateDeleteButton() {
-                const deleteBtn = document.getElementById('delete-photo-btn');
-                if (deleteBtn) {
-                    deleteBtn.style.display = selectedPhotos.size > 0 ? 'block' : 'none';
-                    deleteBtn.textContent = `Видалити (${selectedPhotos.size})`;
                 }
             }
 
-            // Add this function to toggle selection mode
-            function toggleSelectionMode() {
-                isSelectionMode = !isSelectionMode;
-                const photosSection = document.querySelector('.profile-photos');
-                const chooseBtn = document.getElementById('choose-photo-btn');
-                const deleteBtn = document.getElementById('delete-photo-btn');
+            bioAddBtn?.addEventListener('click', enterBioEdit);
+            bioEditBtn?.addEventListener('click', enterBioEdit);
 
-                if (isSelectionMode) {
-                    photosSection.classList.add('selection-mode');
-                    chooseBtn.textContent = 'Скасувати';
-                    deleteBtn.style.display = 'none';
-                } else {
-                    photosSection.classList.remove('selection-mode');
-                    chooseBtn.textContent = 'Вибрати';
-                    deleteBtn.style.display = 'none';
-                    // Clear all selections
-                    selectedPhotos.clear();
-                    document.querySelectorAll('.photos-list li').forEach(li => {
-                        li.classList.remove('selected');
-                    });
-                }
-            }
+            // ─── PHOTOS (Profile) ───
+            photos = Array.isArray(data.photos) ? data.photos.filter(Boolean) : [];
+            hookPhotoButtons();
+            refreshPhotosUI();
 
-            // Add this function to handle photo deletion
-            async function deleteSelectedPhotos() {
-                if (selectedPhotos.size === 0) return;
-
-                const confirmDelete = confirm(`Ви впевнені, що хочете видалити ${selectedPhotos.size} фото?`);
-                if (!confirmDelete) return;
-
-                try {
-                    // Example API request - replace with your actual endpoint
-                    const deletePromises = Array.from(selectedPhotos).map(photoUrl =>
-                        fetch(`${API_BASE}/${personId}/photos`, {
-                            method: 'DELETE',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ photoUrl })
-                        })
-                    );
-
-                    await Promise.all(deletePromises);
-
-                    // Remove deleted photos from DOM
-                    selectedPhotos.forEach(photoUrl => {
-                        const photoElement = document.querySelector(`[data-photo-url="${photoUrl}"]`);
-                        if (photoElement) {
-                            photoElement.remove();
-                        }
-                    });
-
-                    // Reset selection state
-                    selectedPhotos.clear();
-                    toggleSelectionMode(); // Exit selection mode
-
-                    alert('Фото успішно видалено!');
-
-                } catch (error) {
-                    console.error('Error deleting photos:', error);
-                    alert('Помилка при видаленні фото. Спробуйте ще раз.');
-                }
-            }
-
-            function enterSelectionMode() {
-                isSelectionMode = true;
-                selectedPhotos = [];
-
-                // Update button states
-                addPhotoBtn.textContent = 'Скасувати';
-                choosePhotoBtn.textContent = 'Видалити (0)';
-
-                // Add selection mode class
-                document.querySelector('.profile-photos').classList.add('selection-mode');
-
-                // Add click handlers to photos
-                const photoItems = document.querySelectorAll('.photos-list li');
-                photoItems.forEach((li, index) => {
-                    // Add selection circle
-                    const circle = document.createElement('div');
-                    circle.className = 'photo-selection-circle';
-                    li.appendChild(circle);
-
-                    // Add click handler
-                    li.addEventListener('click', () => togglePhotoSelection(li, index));
-                });
-            }
-
-            function exitSelectionMode() {
-                isSelectionMode = false;
-                selectedPhotos = [];
-
-                // Reset button states
-                addPhotoBtn.textContent = 'Додати';
-                choosePhotoBtn.textContent = 'Вибрати';
-
-                // Remove selection mode class
-                document.querySelector('.profile-photos').classList.remove('selection-mode');
-
-                // Remove selection circles and reset states
-                const photoItems = document.querySelectorAll('.photos-list li');
-                photoItems.forEach(li => {
-                    li.classList.remove('selected');
-                    const circle = li.querySelector('.photo-selection-circle');
-                    if (circle) circle.remove();
-
-                    // Remove click handlers by cloning the element
-                    const newLi = li.cloneNode(true);
-                    li.parentNode.replaceChild(newLi, li);
-                });
-            }
-
-            function togglePhotoSelection(photoElement, photoIndex) {
-                if (!isSelectionMode) return;
-
-                const isSelected = photoElement.classList.contains('selected');
-                const circle = photoElement.querySelector('.photo-selection-circle');
-
-                if (isSelected) {
-                    // Deselect
-                    photoElement.classList.remove('selected');
-                    const selectionIndex = selectedPhotos.indexOf(photoIndex);
-                    selectedPhotos.splice(selectionIndex, 1);
-                } else {
-                    // Select
-                    photoElement.classList.add('selected');
-                    selectedPhotos.push(photoIndex);
-                }
-
-                // Update circle number and button text
-                updateSelectionNumbers();
-                choosePhotoBtn.textContent = `Видалити (${selectedPhotos.length})`;
-            }
-
-            function updateSelectionNumbers() {
-                selectedPhotos.forEach((photoIndex, selectionOrder) => {
-                    const photoElement = document.querySelectorAll('.photos-list li')[0];
-                    console.log(photoIndex);
-                    console.log(photoElement);
-                    const circle = photoElement.querySelector('.photo-selection-circle');
-                    if (circle) {
-                        circle.textContent = selectionOrder + 1;
-                    }
-                });
-            }
-
-            addPhotoBtn.addEventListener('click', () => {
-                if (isSelectionMode) {
-                    // Cancel selection
-                    exitSelectionMode();
-                } else {
-                    // Open modal (existing functionality)
-                    filesToUpload = [];
-                    photoList.innerHTML = '';
-                    updatePhotoListVisibility();
-                    modal.classList.add('open');
-                }
-            });
-
-            choosePhotoBtn.addEventListener('click', () => {
-                if (isSelectionMode) {
-                    // Delete selected photos (implement your deletion logic here)
-                    console.log('Delete photos:', selectedPhotos);
-                    // Here you would typically make an API call to delete the photos
-                    alert(`Видалити ${selectedPhotos.length} фото?`);
-                    exitSelectionMode();
-                } else {
-                    // Enter selection mode
-                    enterSelectionMode();
-                }
-            });
-
-            // Add event listener for delete button (add this after your existing button listeners)
-            document.addEventListener('click', (e) => {
-                if (e.target.id === 'delete-photo-btn') {
-                    deleteSelectedPhotos();
-                }
-            });
         } catch (err) {
             console.error(err);
-            document.querySelector('.profile-info').innerHTML =
-                '<p>Не вдалося завантажити профіль.</p>';
+            document.querySelector('.profile-info')?.insertAdjacentHTML(
+                'beforeend',
+                '<p>Не вдалося завантажити профіль.</p>'
+            );
         }
     })();
 
-    // ─── Add Photo Modal (select + preview only) ───
-    const addBtn = document.getElementById('add-photo-btn');
-    const modal = document.getElementById('addPhotoModal');
-    const closeBtn = modal.querySelector('.modal-close');
-    const pickBtn = document.getElementById('pickPhotosBtn');
-    const fileInput = document.getElementById('photo-input');
-    const photoList = modal.querySelector('.modal-photo-list');
-    const photoScroll = modal.querySelector('.modal-photo-scroll'); // Add this reference
-    let filesToUpload = [];
-
-    // Function to update photo list visibility
-    function updatePhotoListVisibility() {
-        if (filesToUpload.length > 0) {
-            photoScroll.classList.add('has-photos');
-        } else {
-            photoScroll.classList.remove('has-photos');
-        }
-    }
-
-    // Open modal
-    addBtn.addEventListener('click', () => {
-        filesToUpload = [];
-        photoList.innerHTML = '';
-        updatePhotoListVisibility(); // Hide photo list when modal opens
-        modal.classList.add('open');
-    });
-
-    // Close modal
-    closeBtn.addEventListener('click', () => {
-        modal.classList.remove('open');
-    });
-
-    // Click "Вибрати фото" → trigger hidden file input
-    pickBtn.addEventListener('click', () => fileInput.click());
-
-    // When user picks files, show previews & store them
-    fileInput.addEventListener('change', evt => {
-        Array.from(evt.target.files).forEach(file => {
-            const url = URL.createObjectURL(file);
-            filesToUpload.push({ file, url });
-
-            const li = document.createElement('li');
-            const img = document.createElement('img');
-            img.src = url;
-            const rm = document.createElement('button');
-            rm.className = 'remove-btn';
-            rm.innerHTML = '&times;';
-            rm.addEventListener('click', () => {
-                // remove from array + DOM
-                filesToUpload = filesToUpload.filter(f => f.url !== url);
-                li.remove();
-                URL.revokeObjectURL(url);
-                updatePhotoListVisibility(); // Update visibility after removal
-            });
-            li.append(img, rm);
-            photoList.append(li);
-        });
-
-        updatePhotoListVisibility(); // Show photo list after adding photos
-
-        // reset input so same file can be re‐picked if needed
-        fileInput.value = '';
-    });
-
-    // ─── Liturgy Section Functionality ───
-
-    // Generate dynamic dates (today + 7 days)
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Liturgy Section (unchanged visual behavior, minor robustness)
+    // ─────────────────────────────────────────────────────────────────────────────
     function generateDates() {
         const dateCalendar = document.querySelector('.date-calendar');
         const selectedDateEl = document.querySelector('.selected-date');
 
-        if (!dateCalendar) return;
-
-        // Clear existing date items
+        if (!dateCalendar || !selectedDateEl) return;
         dateCalendar.innerHTML = '';
 
         const today = new Date();
@@ -508,51 +662,35 @@ document.addEventListener('DOMContentLoaded', () => {
             dateItem.appendChild(dateDay);
             dateCalendar.appendChild(dateItem);
 
-            // Store the date components directly instead of ISO string
-            dateItem.dataset.day = date.getDate();
-            dateItem.dataset.month = date.getMonth() + 1; // getMonth() is 0-indexed
-            dateItem.dataset.year = date.getFullYear();
+            dateItem.dataset.day = String(date.getDate());
+            dateItem.dataset.month = String(date.getMonth() + 1);
+            dateItem.dataset.year = String(date.getFullYear());
         }
 
-        // Set initial selected date (today) - use the same formatting logic
         const todayFormatted = `${String(today.getDate()).padStart(2, '0')}.${String(today.getMonth() + 1).padStart(2, '0')}.${today.getFullYear()}`;
         selectedDateEl.textContent = todayFormatted;
 
-        // Initial update of liturgy details
-        setTimeout(() => {
-            updateLiturgyDetails();
-        }, 100);
+        setTimeout(updateLiturgyDetails, 100);
     }
-
-    // Generate dates on page load
     generateDates();
 
-    // Date selection event handler
     document.addEventListener('click', (e) => {
         if (e.target.closest('.date-item')) {
             const clickedItem = e.target.closest('.date-item');
             const selectedDateEl = document.querySelector('.selected-date');
-
-            // Remove selected class from all items
             document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
-            // Add selected class to clicked item
             clickedItem.classList.add('selected');
 
-            // Get the stored date components
             const day = parseInt(clickedItem.dataset.day);
             const month = parseInt(clickedItem.dataset.month);
             const year = parseInt(clickedItem.dataset.year);
 
-            // Format the date using the same logic as initial date
             const formattedDate = `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
-            selectedDateEl.textContent = formattedDate;
-
-            // Update liturgy details
+            if (selectedDateEl) selectedDateEl.textContent = formattedDate;
             updateLiturgyDetails();
         }
     });
 
-    // Update liturgy details
     function updateLiturgyDetails() {
         const personNameEl = document.querySelector('.person-name');
         const serviceInfoEl = document.querySelector('.service-info');
@@ -563,192 +701,155 @@ document.addEventListener('DOMContentLoaded', () => {
         if (personNameEl && profileNameEl) {
             personNameEl.textContent = profileNameEl.textContent;
         }
-
         if (serviceInfoEl && selectedChurchEl && selectedDateEl) {
             const churchName = selectedChurchEl.textContent;
             const selectedDate = selectedDateEl.textContent;
-
             serviceInfoEl.textContent = `Божественна Літургія за упокій відбудеться у ${churchName}, ${selectedDate} р.`;
         }
     }
 
-    // Church selection
     const churchBtns = document.querySelectorAll('.church-btn');
-
     churchBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Remove selected class from all buttons
             churchBtns.forEach(b => b.classList.remove('selected'));
-            // Add selected class to clicked button
             btn.classList.add('selected');
-
-            // Update liturgy details
             updateLiturgyDetails();
         });
     });
 
-    // Donation amount selection
     const donationBtns = document.querySelectorAll('.donation-btn');
-
     donationBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Remove selected class from all buttons
             donationBtns.forEach(b => b.classList.remove('selected'));
-            // Add selected class to clicked button
             btn.classList.add('selected');
         });
     });
 
-    // Submit liturgy request
     const liturgySubmitBtn = document.querySelector('.liturgy-submit');
+    liturgySubmitBtn?.addEventListener('click', () => {
+        const selectedDate = document.querySelector('.selected-date')?.textContent || '';
+        const selectedChurch = document.querySelector('.church-btn.selected')?.textContent || '';
+        const selectedDonation = document.querySelector('.donation-btn.selected')?.textContent || '';
 
-    liturgySubmitBtn.addEventListener('click', () => {
-        // Get selected values
-        const selectedDate = selectedDateEl.textContent;
-        const selectedChurch = document.querySelector('.church-btn.selected').textContent;
-        const selectedDonation = document.querySelector('.donation-btn.selected').textContent;
-
-        // Here you would typically send this data to your API
-        console.log('Liturgy request:', {
-            personId,
-            date: selectedDate,
-            church: selectedChurch,
-            donation: selectedDonation
-        });
-
-        // Show success message or redirect
+        console.log('Liturgy request:', { personId, date: selectedDate, church: selectedChurch, donation: selectedDonation });
         alert('Записка надіслана до церкви!');
     });
 
-    // ─── Comments Section ───
-    function loadComments(personData) {
-        const commentsListEl = document.querySelector('.comments-list');
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Comments (sample), Relatives (sample) – unchanged
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Template → enter user name → create comment → PUT
+    (function hookCommentTemplates() {
+        const overlay = document.getElementById('modal-overlay');
+        const dlg = document.getElementById('comment-template-modal');
+        const closeX = document.getElementById('comment-template-close');
+        const cancelBtn = document.getElementById('comment-template-cancel');
+        const okBtn = document.getElementById('comment-template-ok');
+        const nameInput = document.getElementById('comment-user-input');
 
-        // Sample comments data - replace with actual API call
-        const comments = [
-            {
-                author: 'Петро',
-                date: '05.02.2025',
-                text: 'Вічна пам\'ять та слава герою'
-            },
-            {
-                author: 'Олександр',
-                date: '05.02.2025',
-                text: 'Щирі співчуття'
-            },
-            {
-                author: 'Степан',
-                date: '05.02.2025',
-                text: 'Добавте локацію'
-            },
-            {
-                author: 'Андрій',
-                date: '05.02.2025',
-                text: 'Співчуття рідним та близьким'
-            }
-        ];
+        const open = () => { overlay.hidden = false; dlg.hidden = false; nameInput.value = ''; nameInput.focus(); };
+        const close = () => { overlay.hidden = true; dlg.hidden = true; };
 
-        commentsListEl.innerHTML = '';
+        [closeX, cancelBtn, overlay].forEach(el => el && el.addEventListener('click', close));
 
-        comments.forEach(comment => {
-            const commentEl = document.createElement('div');
-            commentEl.className = 'comment-item';
-            commentEl.innerHTML = `
-            <div class="comment-header">
-                <span class="comment-author">${comment.author}</span>
-                <span class="comment-date">${comment.date}</span>
-            </div>
-            <p class="comment-text">${comment.text}</p>
-        `;
-            commentsListEl.appendChild(commentEl);
-        });
-
-        // Template buttons functionality
-        const templateBtns = document.querySelectorAll('.template-btn');
-        templateBtns.forEach(btn => {
+        // Click on a template opens modal
+        document.querySelectorAll('.template-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                // Here you would typically open a modal or form to submit the comment
-                const template = btn.textContent;
-                console.log('Selected comment template:', template);
-                // For now, just show an alert
-                alert(`Коментар "${template}" буде додано`);
+                dlg.dataset.templateText = btn.textContent || '';
+                open();
             });
         });
-    }
 
-    // ─── Relatives Section ───
-    function loadRelatives(personData) {
-        const relativesListEl = document.querySelector('.relatives-list');
-        const addRelativeBtn = document.getElementById('add-relative-btn');
-        const chooseRelativeBtn = document.getElementById('choose-relative-btn');
+        // Confirm → create + PUT
+        okBtn?.addEventListener('click', async () => {
+            const author = (nameInput.value || '').trim();
+            const text = dlg.dataset.templateText || '';
+            if (!author || !text) { nameInput.focus(); return; }
 
-        // Sample relatives data - replace with actual API call
-        const relatives = [
-            {
-                id: 1,
-                name: 'Кравчук Леонід Макарович',
-                years: '1975 - 2000',
-                relationship: 'Батько',
-                avatarUrl: 'https://via.placeholder.com/60x60'
-            },
-            {
-                id: 2,
-                name: 'Фаріон Ірина Олегівна',
-                years: '1982 - 2012',
-                relationship: 'Мати',
-                avatarUrl: 'https://via.placeholder.com/60x60'
-            },
-            {
-                id: 3,
-                name: 'Кенседі Валерій Петрович',
-                years: '1982 - 2012',
-                relationship: 'Брат',
-                avatarUrl: 'https://via.placeholder.com/60x60'
+            // dd.mm.yyyy
+            const d = new Date();
+            const date = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+
+            // optimistic update
+            comments = Array.isArray(comments) ? comments : [];
+            comments.push({ author, date, text });
+            renderComments();
+
+            try {
+                const res = await fetch(`${API_BASE}/${personId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comments })
+                });
+                if (!res.ok) throw new Error(res.statusText);
+            } catch (e) {
+                alert('Не вдалося оновити коментарі.');
+                console.error(e);
+            } finally {
+                close();
             }
+        });
+    })();
+
+    function loadRelatives() {
+        const relativesListEl = document.querySelector('.relatives-list');
+        if (!relativesListEl) return;
+
+        const relatives = [
+            { id: 1, name: 'Кравчук Леонід Макарович', years: '1975 - 2000', relationship: 'Батько', avatarUrl: 'https://via.placeholder.com/60x60' },
+            { id: 2, name: 'Фаріон Ірина Олегівна', years: '1982 - 2012', relationship: 'Мати', avatarUrl: 'https://via.placeholder.com/60x60' },
+            { id: 3, name: 'Кенседі Валерій Петрович', years: '1982 - 2012', relationship: 'Брат', avatarUrl: 'https://via.placeholder.com/60x60' }
         ];
 
         relativesListEl.innerHTML = '';
-
         relatives.forEach(relative => {
             const relativeEl = document.createElement('div');
             relativeEl.className = 'relative-item';
             relativeEl.innerHTML = `
-            <img class="relative-avatar" src="${relative.avatarUrl}" alt="${relative.name}">
-            <div class="relative-info">
-                <h3 class="relative-name">${relative.name}</h3>
-                <p class="relative-details">${relative.years}</p>
-            </div>
-            <span class="relative-relationship">${relative.relationship}</span>
-        `;
-
-            // Add click handler to navigate to relative's profile
+                <img class="relative-avatar" src="${relative.avatarUrl}" alt="${relative.name}">
+                <div class="relative-info">
+                    <h3 class="relative-name">${relative.name}</h3>
+                    <p class="relative-details">${relative.years}</p>
+                </div>
+                <span class="relative-relationship">${relative.relationship}</span>
+            `;
             relativeEl.addEventListener('click', () => {
                 window.location.href = `profile.html?personId=${relative.id}`;
             });
-
             relativesListEl.appendChild(relativeEl);
         });
 
-        // Button handlers
-        if (addRelativeBtn) {
-            addRelativeBtn.addEventListener('click', () => {
-                window.location.href = `add-relative.html?personId=${personId}`;
-            });
-        }
-
-        if (chooseRelativeBtn) {
-            chooseRelativeBtn.addEventListener('click', () => {
-                window.location.href = `choose-relative.html?personId=${personId}`;
-            });
-        }
+        document.getElementById('add-relative-btn')?.addEventListener('click', () => {
+            window.location.href = `add-relative.html?personId=${personId}`;
+        });
+        document.getElementById('choose-relative-btn')?.addEventListener('click', () => {
+            window.location.href = `choose-relative.html?personId=${personId}`;
+        });
     }
 
-    // Call these functions after loading the main person data
-    // Add these lines after the liturgy code in your main async function:
+    // Handle click "Увійти" – same UX as ritual_service pages
+    document.getElementById('loginSubmit')?.addEventListener('click', () => {
+        const login = document.getElementById('loginInput').value.trim();
+        const pass = document.getElementById('passwordInput').value.trim();
+        const errEl = document.getElementById('loginError');
+        errEl.textContent = '';
 
-    // Load comments
-    loadComments();
+        if (!premiumLock || !premiumCreds) {
+            errEl.textContent = 'Авторизація недоступна';
+            return;
+        }
 
-    // Load relatives  
+        if (login === premiumCreds.login && pass === premiumCreds.password) {
+            // Persist a token – mirror ritual_service flow but scoped per person
+            const tokenKey = `people_token_${personId}`;
+            localStorage.setItem(tokenKey, btoa(`${personId}:${Date.now()}`));
+
+            // Redirect to edit page (token read there)
+            window.location.href = `/profile_edit.html?personId=${personId}`;
+        } else {
+            errEl.textContent = 'Невірний логін або пароль';
+        }
+    });
+
     loadRelatives();
 });
