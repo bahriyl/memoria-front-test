@@ -4,8 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Config
     // ─────────────────────────────────────────────────────────────────────────────
-    // const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
-    const API_URL = 'http://0.0.0.0:5000';
+    const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
     const API_BASE = `${API_URL}/api/people`;
     const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
 
@@ -16,10 +15,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const tokenKey = `people_token_${personId}`;
     const token = localStorage.getItem(tokenKey);
 
-    if (token) {
-        window.location.replace(`/profile_edit.html?personId=${encodeURIComponent(personId)}`);
-        return; // важливо: далі скрипт profile.js не виконуємо
+    // If user is not logged-in, bounce back to public profile
+    if (!token) {
+        window.location.replace(`/profile.html?personId=${encodeURIComponent(personId)}`);
+        return;
     }
+
+    // Enable "Вийти"
+    document.getElementById('logout-btn')?.addEventListener('click', () => {
+        localStorage.removeItem(tokenKey);
+        window.location.replace(`/profile.html?personId=${encodeURIComponent(personId)}`);
+    });
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Grab key elements
@@ -118,8 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedOrder = [];          // array of indexes of selected photos (in click order)
     let pendingUploads = 0;
     let comments = [];  // profile comments array
-    let premiumLock = false;
-    let premiumCreds = null;
 
     const nonBlobPhotos = () =>
         (photos || []).filter((u) => typeof u === 'string' && u && !u.startsWith('blob:'));
@@ -127,42 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────────
-    function setPhotosControlsVisibility() {
-        if (premiumLock) {
-            const controls = document.querySelector('.profile-photos .photos-controls');
-            if (controls) controls.style.display = 'none';
-            if (photosMenuBtn) photosMenuBtn.style.display = 'none';
-            return;
-        }
-
-        const controls = document.querySelector('.profile-photos .photos-controls');
-        const has = photos.length > 0;
-
-        // 1) No photos → show only "Добавити" controls, hide dots
-        if (!has) {
-            if (controls) controls.style.display = 'flex';
-            if (addPhotoBtn) addPhotoBtn.style.display = '';
-            if (choosePhotoBtn) choosePhotoBtn.style.display = 'none';
-            if (deletePhotoBtn) deletePhotoBtn.style.display = 'none';
-            if (photosMenuBtn) photosMenuBtn.style.display = 'none';
-            return;
-        }
-
-        // 3) Selection mode → show "Скасувати" + "Видалити (n)", hide dots
-        if (isSelecting) {
-            if (controls) controls.style.display = 'flex';
-            if (addPhotoBtn) addPhotoBtn.style.display = 'none';
-            if (choosePhotoBtn) { choosePhotoBtn.style.display = ''; choosePhotoBtn.textContent = 'Скасувати'; }
-            if (deletePhotoBtn) deletePhotoBtn.style.display = 'inline-block';
-            if (photosMenuBtn) photosMenuBtn.style.display = 'none';
-            return;
-        }
-
-        // 2) Has photos (not selecting) → hide controls, show only dots menu
-        if (controls) controls.style.display = 'none';
-        if (photosMenuBtn) photosMenuBtn.style.display = 'inline-flex';
-    }
-
     function updateDeleteButtonLabel() {
         if (!deletePhotoBtn) return;
         deletePhotoBtn.textContent = `Видалити (${selectedOrder.length})`;
@@ -172,8 +140,8 @@ document.addEventListener('DOMContentLoaded', () => {
         isSelecting = false;
         selectedOrder = [];
         document.querySelector('.profile-photos')?.classList.remove('selection-mode');
-        refreshPhotosUI();
-        setPhotosControlsVisibility();
+        // Restore proper state (dots if photos exist, inline only if empty)
+        refreshPhotosUI()
     }
 
     function enterSelectionMode() {
@@ -181,8 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
         isSelecting = true;
         document.querySelector('.profile-photos')?.classList.add('selection-mode');
         updateDeleteButtonLabel();
+        // Switch to selection UI (inline Cancel + Delete, dots hidden)
         refreshPhotosUI();
-        setPhotosControlsVisibility();
     }
 
     function toggleSelectPhoto(index) {
@@ -258,22 +226,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function refreshPhotosUI() {
         if (!photosListEl) return;
-
-        // clear previous list
         photosListEl.innerHTML = '';
         photosListEl.classList.remove('rows-1', 'rows-2');
-        if (photosListEl.style) photosListEl.style.display = ''; // ensure visible by default
-
-        // remove old empty-state, if any
         photosScrollEl?.querySelector('.photos-empty')?.remove();
 
         const hasPhotos = photos.length > 0;
-        setPhotosControlsVisibility();
 
-        // 0) Empty state
+        // (4), (5), (6) implement visibility here:
+        setPhotosControlsVisibility_PROFILE({ isSelecting, hasPhotos });
+
         if (!hasPhotos) {
-            // hide the UL and show the text block
-            if (photosListEl.style) photosListEl.style.display = 'none';
+            photosListEl.style.display = 'none';
             const empty = document.createElement('div');
             empty.className = 'photos-empty';
             empty.textContent = 'Немає фотографій. Будь ласка, поділіться спогадами';
@@ -281,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 1) One row if exactly 1 photo, otherwise two rows
+        photosListEl.style.display = '';
         photosListEl.classList.add(photos.length === 1 ? 'rows-1' : 'rows-2');
 
         // render items
@@ -452,10 +415,6 @@ document.addEventListener('DOMContentLoaded', () => {
             empty.className = 'comments-empty';
             empty.textContent = 'Немає коментарів';
             commentsListEl.appendChild(empty);
-
-            // reset any previous clamp
-            commentsListEl.style.maxHeight = '';
-            commentsListEl.style.overflowY = '';
             return;
         }
 
@@ -497,63 +456,85 @@ document.addEventListener('DOMContentLoaded', () => {
                 // guard against overshoot
                 const maxPx = Math.min(clampPx, commentsListEl.scrollHeight);
 
+                console.log(clampPx, maxPx);
+
                 commentsListEl.style.maxHeight = `${maxPx}px`;
                 commentsListEl.style.overflowY = 'auto';
             });
         }
     }
 
-    function hideEditingUIForPremium() {
-        // Bio
-        const bioEdit = document.getElementById('bio-edit');
-        if (bioEdit) bioEdit.style.display = 'none';
-
-        const bioAdd = document.getElementById('bio-add');
-        if (bioAdd) bioAdd.style.display = 'none';
-
+    function setBioControlsVisibility(fullBio) {
+        const bioButtons = document.querySelector('.profile-bio .bio-buttons');
+        const bioAddBtn = document.getElementById('bio-add');
+        const bioEditBtn = document.getElementById('bio-edit');
         const bioMenuBtn = document.getElementById('bio-menu-btn');
-        if (bioMenuBtn) bioMenuBtn.style.display = 'none';
 
-        // Photos controls + any dots
-        document.querySelectorAll('.photos-controls, #photos-menu-btn, .dots-btn, .popup-menu')
-            .forEach(el => {
-                if (el) el.style.display = 'none';
-            });
+        if (!bioButtons) return;
 
-        // Relatives
-        const addRelative = document.getElementById('add-relative-btn');
-        if (addRelative) addRelative.style.display = 'none';
-
-        const chooseRelative = document.getElementById('choose-relative-btn');
-        if (chooseRelative) chooseRelative.style.display = 'none';
+        if (!fullBio.trim()) {
+            bioAddBtn?.classList.add('show');
+            bioEditBtn?.classList.remove('show');
+            bioMenuBtn?.style && (bioMenuBtn.style.display = 'none');
+        } else {
+            bioAddBtn?.classList.remove('show');
+            bioEditBtn?.classList.remove('show');
+            bioMenuBtn?.style && (bioMenuBtn.style.display = 'inline-flex');
+        }
     }
 
-    function setupLoginModalOpenClose() {
-        const loginModal = document.getElementById('loginModal');
-        const loginBox = loginModal?.querySelector('.login-box');
-        const loginBtn = document.getElementById('profile-login-btn');
-        const closeBtn = document.getElementById('loginClose');
+    function setPhotosControlsVisibility_PROFILE(spec = { isSelecting: false, hasPhotos: false }) {
+        const controls = document.querySelector('.profile-photos .photos-controls');
+        const dotsBtn = document.getElementById('photos-menu-btn');
+        const chooseBtn = document.getElementById('choose-photo-btn');
+        const delBtn = document.getElementById('delete-photo-btn');
+        const addBtn = document.getElementById('add-photo-btn');
 
-        if (!loginModal || !loginBox || !loginBtn) {
-            console.warn('One or more login modal elements not found');
+        if (!controls) return;
+
+        // (4) No photos → show empty text elsewhere + ONLY "Додати" in controls; hide dots
+        if (!spec.hasPhotos) {
+            controls.style.display = 'flex';
+            addBtn && (addBtn.style.display = '');
+            chooseBtn && (chooseBtn.style.display = 'none');
+            delBtn && (delBtn.style.display = 'none');
+            dotsBtn && (dotsBtn.style.display = 'none');
             return;
         }
 
-        const open = () => {
-            loginModal.style.display = 'flex';
-        };
-        const close = () => {
-            loginModal.style.display = 'none';
-            document.getElementById('loginInput').value = '';
-            document.getElementById('passwordInput').value = '';
-            document.getElementById('loginError').textContent = '';
-        };
+        // (6) Selecting → show "Скасувати" + red "Видалити (count)" in controls; hide dots
+        if (spec.isSelecting) {
+            controls.style.display = 'flex';
+            addBtn && (addBtn.style.display = 'none');
+            chooseBtn && (chooseBtn.style.display = '');
+            chooseBtn && (chooseBtn.textContent = 'Скасувати');
+            delBtn && (delBtn.style.display = 'inline-block');
+            dotsBtn && (dotsBtn.style.display = 'none');
+            return;
+        }
 
-        loginBtn.addEventListener('click', open);
-        closeBtn?.addEventListener('click', close);
-        loginModal.addEventListener('click', (e) => { if (!loginBox.contains(e.target)) close(); });
-        loginBox.addEventListener('click', (e) => e.stopPropagation());
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && loginModal.style.display === 'flex') close(); });
+        // (5) Has photos + not selecting → show dots with "Вибрати" і "Добавити"; hide inline controls
+        controls.style.display = 'none';
+        dotsBtn && (dotsBtn.style.display = 'inline-flex');
+    }
+
+    function setRelativesControlsVisibility(hasRelatives) {
+        const relControls = document.querySelector('.profile-relatives .relatives-controls');
+        const relDots = document.getElementById('rel-menu-btn');
+        if (!relControls) return;
+
+        // (8) No relatives → empty text elsewhere + ONLY "Додати" button; hide dots
+        if (!hasRelatives) {
+            relControls.style.display = 'flex';
+            document.getElementById('add-relative-btn')?.style && (document.getElementById('add-relative-btn').style.display = 'inline-block');
+            document.getElementById('choose-relative-btn')?.style && (document.getElementById('choose-relative-btn').style.display = 'none');
+            relDots && (relDots.style.display = 'none');
+            return;
+        }
+
+        // (9) Has relatives → hide inline controls; show dots menu with "Додати" + "Вибрати"
+        relControls.style.display = 'none';
+        relDots && (relDots.style.display = 'inline-flex');
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -564,29 +545,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(`${API_BASE}/${personId}`);
             if (!res.ok) throw new Error(res.statusText);
             const data = await res.json();
-
-            // PREMIUM lock
-            premiumLock = !!data.premium;
-            premiumCreds = data.premium || null;
-
-            console.log(premiumLock);
-
-            if (premiumLock) {
-                // Show header with "Увійти" and hide every edit affordance
-                document.getElementById('profile-login-header')?.removeAttribute('hidden');
-                hideEditingUIForPremium();
-                setupLoginModalOpenClose();
-                // Defensive: if something prevented handler binding earlier, bind here again.
-                const loginBtn = document.getElementById('profile-login-btn');
-                const loginModal = document.getElementById('loginModal');
-                const loginBox = loginModal?.querySelector('.login-box');
-                if (loginBtn && loginModal && loginBox) {
-                    const open = () => { loginModal.style.display = 'flex'; };
-                    loginBtn.onclick = open;                 // direct binding
-                    loginBox.onclick = (e) => e.stopPropagation();
-                    loginModal.onclick = (e) => { if (!loginBox.contains(e.target)) loginModal.style.display = 'none'; };
-                }
-            }
 
             // COMMENTS: from API (may be empty or missing)
             comments = Array.isArray(data.comments) ? data.comments : [];
@@ -617,12 +575,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // ─── BIO: render + toggle + edit buttons logic ───
             const fullBio = data.bio || '';
 
-            // clean будь-який старий empty-state
+            // elements you'll already have grabbed earlier in the file:
+            // bioContentEl, bioToggleEl, bioAddBtn, bioEditBtn, bioMenuBtn
+
+            // clean old empty-state
             const bioBodyWrap = document.querySelector('.profile-bio .bio-body');
+            const bioBtnsWrap = document.querySelector('.profile-bio .bio-buttons');
             bioBodyWrap?.querySelector('.bio-empty')?.remove();
 
-            // 1) Якщо біо пусте → показати empty-state + сховати <p>
             if (!fullBio.trim()) {
+                // empty-state UI
                 if (bioContentEl) {
                     bioContentEl.textContent = '';
                     bioContentEl.style.display = 'none';
@@ -633,8 +595,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     empty.textContent = 'Життєпис ще не заповнено. Будь ласка, додайте інформацію';
                     bioBodyWrap.prepend(empty);
                 }
+
+                // show ONLY "Додати" inline
+                if (bioBtnsWrap) bioBtnsWrap.style.display = 'flex';
+                if (bioAddBtn) {
+                    bioAddBtn.style.display = 'inline-flex';  // override any old inline style
+                    bioAddBtn.classList.add('show');          // pairs with CSS to make it visible
+                }
+                if (bioEditBtn) {
+                    bioEditBtn.classList.remove('show');      // keep hidden
+                    bioEditBtn.style.display = 'inline-flex'; // safe default
+                }
+                if (bioMenuBtn) bioMenuBtn.style.display = 'none';
+
             } else {
-                // 2) Якщо біо є → показати текст + toggle overflow
+                // has bio → show text & dots, hide inline buttons area
                 if (bioContentEl) {
                     bioContentEl.style.display = '';
                     bioContentEl.textContent = fullBio;
@@ -652,32 +627,29 @@ document.addEventListener('DOMContentLoaded', () => {
                         bioToggleEl.textContent = expanded ? 'менше' : '... більше';
                     });
                 }
+
+                if (bioBtnsWrap) bioBtnsWrap.style.display = 'none';
+                if (bioAddBtn) bioAddBtn.classList.remove('show');
+                if (bioEditBtn) bioEditBtn.classList.remove('show');
+                if (bioMenuBtn) bioMenuBtn.style.display = 'inline-flex';
             }
 
-            // 3) Логіка кнопок (лише якщо НЕ premium)
-            if (!premiumLock) {
-                if (!fullBio.trim()) {
-                    bioAddBtn?.style && (bioAddBtn.style.display = 'inline-block');
-                    bioEditBtn?.style && (bioEditBtn.style.display = 'none');
-                    bioMenuBtn?.style && (bioMenuBtn.style.display = 'none');
-                } else {
-                    bioAddBtn?.style && (bioAddBtn.style.display = 'none');
-                    bioEditBtn?.style && (bioEditBtn.style.display = 'inline-block');
-                    bioMenuBtn?.style && (bioMenuBtn.style.display = 'inline-flex');
-                }
-            }
-
-            // 4) Режим редагування (і коли пусте, і коли вже є)
+            // (3) entering edit mode (from Add or from dots→"Змінити")
             function enterBioEdit() {
                 const bioBody = document.querySelector('.profile-bio .bio-body');
                 if (!bioBody) return;
-                bioBody.innerHTML = `
-        <textarea id="bio-editor" placeholder="Додайте життєпис...">${fullBio || ''}</textarea>
-    `;
 
+                // swap body to textarea
+                bioBody.innerHTML = `
+    <textarea id="bio-editor" placeholder="Додайте життєпис...">${fullBio || ''}</textarea>
+  `;
+
+                // in edit mode: show only "Скасувати" + "Готово" buttons inline; hide dots
                 const btnsWrap = document.querySelector('.profile-bio .bio-buttons');
                 if (btnsWrap) {
+                    btnsWrap.style.display = 'flex';
                     btnsWrap.innerHTML = '';
+
                     const cancel = document.createElement('button');
                     cancel.className = 'btn bio-edit-btn';
                     cancel.id = 'bio-cancel-btn';
@@ -690,9 +662,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     btnsWrap.append(cancel, done);
 
-                    cancel.addEventListener('click', () => {
-                        window.location.reload();
-                    });
+                    // hide dots while editing
+                    bioMenuBtn && (bioMenuBtn.style.display = 'none');
+
+                    cancel.addEventListener('click', () => window.location.reload());
 
                     done.addEventListener('click', async () => {
                         const newBio = (document.getElementById('bio-editor')?.value || '').trim();
@@ -712,8 +685,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // wire actions:
+            // – inline Add (for empty state)
+            // – inline Edit (if you keep it)
+            // – dots menu item "Змінити" (make sure the popup option has id="bio-edit-option")
             bioAddBtn?.addEventListener('click', enterBioEdit);
             bioEditBtn?.addEventListener('click', enterBioEdit);
+            document.getElementById('bio-edit-option')?.addEventListener('click', () => {
+                document.getElementById('bio-menu')?.classList.add('hidden'); // close popup if open
+                enterBioEdit();
+            });
 
             // ─── PHOTOS (Profile) ───
             photos = Array.isArray(data.photos) ? data.photos.filter(Boolean) : [];
@@ -891,33 +872,52 @@ document.addEventListener('DOMContentLoaded', () => {
     })();
 
     function loadRelatives() {
-        const relativesListEl = document.querySelector('.relatives-list');
-        if (!relativesListEl) return;
+        const list = document.querySelector('.relatives-list');
+        if (!list) return;
 
-        const relatives = [
-            { id: 1, name: 'Кравчук Леонід Макарович', years: '1975 - 2000', relationship: 'Батько', avatarUrl: 'https://via.placeholder.com/60x60' },
-            { id: 2, name: 'Фаріон Ірина Олегівна', years: '1982 - 2012', relationship: 'Мати', avatarUrl: 'https://via.placeholder.com/60x60' },
-            { id: 3, name: 'Кенседі Валерій Петрович', years: '1982 - 2012', relationship: 'Брат', avatarUrl: 'https://via.placeholder.com/60x60' }
-        ];
+        // TODO: replace with API in future
+        const relatives = []; // ← set [] to see empty-state; or keep your sample array
 
-        relativesListEl.innerHTML = '';
-        relatives.forEach(relative => {
-            const relativeEl = document.createElement('div');
-            relativeEl.className = 'relative-item';
-            relativeEl.innerHTML = `
-                <img class="relative-avatar" src="${relative.avatarUrl}" alt="${relative.name}">
-                <div class="relative-info">
-                    <h3 class="relative-name">${relative.name}</h3>
-                    <p class="relative-details">${relative.years}</p>
-                </div>
-                <span class="relative-relationship">${relative.relationship}</span>
-            `;
-            relativeEl.addEventListener('click', () => {
-                window.location.href = `profile.html?personId=${relative.id}`;
+        list.innerHTML = '';
+
+        const hasRel = Array.isArray(relatives) && relatives.length > 0;
+
+        if (!hasRel) {
+            // (8) Empty message
+            const empty = document.createElement('div');
+            empty.className = 'relatives-empty';
+            empty.textContent = 'Родичів ще не додано';
+            list.appendChild(empty);
+            setRelativesControlsVisibility(false);
+            // Only "Добавити" works:
+            document.getElementById('add-relative-btn')?.addEventListener('click', () => {
+                window.location.href = `add-relative.html?personId=${personId}`;
             });
-            relativesListEl.appendChild(relativeEl);
+            return;
+        }
+
+        // Render relatives
+        relatives.forEach(r => {
+            const el = document.createElement('div');
+            el.className = 'relative-item';
+            el.innerHTML = `
+            <img class="relative-avatar" src="${r.avatarUrl}" alt="${r.name}">
+            <div class="relative-info">
+              <h3 class="relative-name">${r.name}</h3>
+              <p class="relative-details">${r.years}</p>
+            </div>
+            <span class="relative-relationship">${r.relationship}</span>
+          `;
+            el.addEventListener('click', () => {
+                window.location.href = `profile.html?personId=${r.id}`;
+            });
+            list.appendChild(el);
         });
 
+        // (9) Has relatives → dots menu shows "Добавити" + "Вибрати"
+        setRelativesControlsVisibility(true);
+
+        // Wire inline controls if user chooses to show them later
         document.getElementById('add-relative-btn')?.addEventListener('click', () => {
             window.location.href = `add-relative.html?personId=${personId}`;
         });
@@ -925,30 +925,6 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = `choose-relative.html?personId=${personId}`;
         });
     }
-
-    // Handle click "Увійти" – same UX as ritual_service pages
-    document.getElementById('loginSubmit')?.addEventListener('click', () => {
-        const login = document.getElementById('loginInput').value.trim();
-        const pass = document.getElementById('passwordInput').value.trim();
-        const errEl = document.getElementById('loginError');
-        errEl.textContent = '';
-
-        if (!premiumLock || !premiumCreds) {
-            errEl.textContent = 'Авторизація недоступна';
-            return;
-        }
-
-        if (login === premiumCreds.login && pass === premiumCreds.password) {
-            // Persist a token – mirror ritual_service flow but scoped per person
-            const tokenKey = `people_token_${personId}`;
-            localStorage.setItem(tokenKey, btoa(`${personId}:${Date.now()}`));
-
-            // Redirect to edit page (token read there)
-            window.location.href = `/profile_edit.html?personId=${personId}`;
-        } else {
-            errEl.textContent = 'Невірний логін або пароль';
-        }
-    });
 
     loadRelatives();
 });

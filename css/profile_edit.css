@@ -1,0 +1,80 @@
+/* css/profile_edit.css */
+@import url('./profile.css');
+
+.profile-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: relative;
+}
+
+.logout-btn {
+    position: absolute;
+    top: 20px;
+    right: 12px;
+    background: none;
+    border: 0;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 510;
+    font-family: "Montserrat", sans-serif;
+    cursor: pointer;
+    z-index: 10;
+}
+
+/* Edit page: always show edit controls; hide 3-dot menus */
+.profile-bio .bio-buttons {
+    display: none;
+    gap: 12px;
+}
+
+#bio-add,
+#bio-edit {
+    display: inline-flex;
+    visibility: hidden;
+    /* default hidden */
+}
+
+#bio-add.show,
+#bio-edit.show {
+    visibility: visible;
+    /* JS adds .show to reveal */
+}
+
+.photos-controls {
+    display: none;
+}
+
+#photos-menu-btn,
+#bio-menu-btn,
+#rel-menu-btn,
+.ritual-header {
+    display: inline-flex;
+}
+
+.bio-empty,
+.relatives-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    padding: 24px;
+    margin: 0 0 8px 0;
+    background: #F5F5F8;
+    color: #72767D;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+/* Override profile.css rules for edit page */
+.profile-relatives #add-relative-btn,
+.profile-bio #bio-edit {
+    display: inline-flex !important;
+}
+
+/* no 3-dots; no “Увійти” header */
+
+/* Keep photo selection delete visible when selecting (already in base css) */
+/* (no extra rule needed) */

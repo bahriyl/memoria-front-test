@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Memoria — Профіль</title>
 
-    <link rel="stylesheet" href="css/profile.css">
+    <link rel="stylesheet" href="css/profile_edit.css">
 </head>
 
 <body>
@@ -19,6 +19,8 @@
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </a>
+
+            <button id="logout-btn" class="logout-btn">Вийти</button>
 
             <img class="profile-avatar" src="" alt="Фото особи" />
         </header>
@@ -65,7 +67,7 @@
 
                 <div class="bio-buttons">
                     <button class="btn bio-edit-btn" id="bio-edit">Змінити</button>
-                    <button class="btn bio-edit-btn" id="bio-add" style="display:none;">Додати</button>
+                    <button class="btn bio-edit-btn" id="bio-add">Додати</button>
                 </div>
             </div>
 
@@ -218,24 +220,7 @@
         </div>
     </div>
 
-    <!-- Premium header -->
-    <div class="ritual-header" id="profile-login-header" hidden>
-        <button class="ritual-login-btn" id="profile-login-btn">Увійти</button>
-    </div>
-
-    <!-- Same modal markup as ritual_service_profile -->
-    <div class="login-modal" id="loginModal">
-        <div class="login-box">
-            <button id="loginClose" class="login-close" type="button" aria-label="Закрити">✕</button>
-            <h2>Авторизація</h2>
-            <input type="text" id="loginInput" placeholder="Логін" />
-            <input type="password" id="passwordInput" placeholder="Пароль" />
-            <button id="loginSubmit">Увійти</button>
-            <p id="loginError" class="error-message"></p>
-        </div>
-    </div>
-
-    <script src="js/profile.js"></script>
+    <script src="js/profile_edit.js"></script>
 </body>
 
 </html>
