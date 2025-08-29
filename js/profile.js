@@ -57,6 +57,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const sharedDeleteBtn = document.getElementById('shared-delete-btn');
     const sharedInput = document.getElementById('shared-input');
 
+    // Toast wiring
+    const toastEl = document.getElementById('toast');
+    const toastTextEl = document.getElementById('toast-text');
+    const toastCloseEl = document.getElementById('toast-close');
+    function showToast(msg) {
+        if (!toastEl || !toastTextEl) return;
+        toastTextEl.textContent = msg;
+        toastEl.hidden = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    toastCloseEl?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (toastEl) toastEl.hidden = true;
+    });
+
     // Dots popup options (if present)
     document.getElementById('bio-edit-option')?.addEventListener('click', () => bioEditBtn?.click());
     document.getElementById('photos-add-option')?.addEventListener('click', () => addPhotoBtn?.click());
@@ -169,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const renderItems = [...localPendingBlobs, ...sharedPhotos];
         const hasAny = renderItems.length > 0;
         sharedListEl.classList.remove('rows-1', 'rows-2');
-        sharedListEl.classList.add(hasAny && renderItems.length === 1 ? 'rows-1' : 'rows-2');
+        sharedListEl.classList.add('rows-1');
 
         // pending first
         renderItems.forEach((p, idx) => {
@@ -241,6 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const hosted = await uploadToImgBB(files[i]);
                 // замінюємо blob на hosted
                 await submitSharedOffer(hosted);
+                showToast("Успішно відправлено на модерацію! Ми сповістимо вас коли буде готово");
                 // remove the local preview entry; server-side pending should not be shown on public page
                 sharedPending.splice(start + i, 1);
                 refreshSharedUI();

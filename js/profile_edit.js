@@ -64,6 +64,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const sharedDeleteBtn = document.getElementById('shared-delete-btn');
     const sharedInput = document.getElementById('shared-input');
 
+    // Create inline "Скасувати" (appears next to red "Видалити" when selecting)
+    let sharedCancelBtn = document.getElementById('shared-cancel-btn');
+    if (!sharedCancelBtn) {
+        const controls = document.querySelector('.profile-shared .shared-controls');
+        if (controls) {
+            sharedCancelBtn = document.createElement('button');
+            sharedCancelBtn.id = 'shared-cancel-btn';
+            sharedCancelBtn.className = 'btn photo-btn';
+            sharedCancelBtn.textContent = 'Скасувати';
+            sharedCancelBtn.style.display = 'none';
+            controls.insertBefore(sharedCancelBtn, sharedDeleteBtn); // show before the red delete
+        }
+    }
+
+    sharedCancelBtn?.addEventListener('click', () => {
+        sharedSelecting = false;
+        sharedSelectedOrder = [];
+        document.querySelector('.profile-shared')?.classList.remove('selection-mode');
+
+        // Restore dots; hide inline controls
+        if (sharedMenuBtn) sharedMenuBtn.style.display = 'inline-flex';
+        if (sharedDeleteBtn) sharedDeleteBtn.style.display = 'none';
+        if (sharedCancelBtn) sharedCancelBtn.style.display = 'none';
+
+        refreshSharedUI();
+    });
+
     // Dots popup options (if present)
     document.getElementById('bio-edit-option')?.addEventListener('click', () => bioEditBtn?.click());
     document.getElementById('photos-add-option')?.addEventListener('click', () => addPhotoBtn?.click());
@@ -73,10 +100,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // dots options
     document.getElementById('shared-add-option')?.addEventListener('click', () => sharedAddBtn?.click());
     document.getElementById('shared-choose-option')?.addEventListener('click', () => {
-        sharedSelecting = !sharedSelecting;
-        document.querySelector('.profile-shared')?.classList.toggle('selection-mode', sharedSelecting);
-        const chooseOpt = document.getElementById('shared-choose-option');
-        if (chooseOpt) chooseOpt.textContent = sharedSelecting ? 'Скасувати' : 'Вибрати';
+        // Enter selection mode
+        sharedSelecting = true;
+        document.querySelector('.profile-shared')?.classList.add('selection-mode');
+
+        // Close the popup and switch controls to inline "Скасувати" + "Видалити"
+        sharedMenu?.classList.remove('show');
+        if (sharedMenuBtn) sharedMenuBtn.style.display = 'none';
+        if (sharedDeleteBtn) sharedDeleteBtn.style.display = 'inline-block';
+        if (sharedCancelBtn) sharedCancelBtn.style.display = 'inline-block';
+
         refreshSharedUI();
     });
 
@@ -212,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const all = [...sharedPending.map(p => ({ ...p, _pending: true })), ...sharedPhotos.map(p => ({ ...p, _pending: false }))];
 
         sharedListEl.classList.remove('rows-1', 'rows-2');
-        sharedListEl.classList.add(all.length <= 1 ? 'rows-1' : 'rows-2');
+        sharedListEl.classList.add('rows-1');
 
         all.forEach((p, visibleIdx) => {
             const li = document.createElement('li');
@@ -254,18 +287,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // Controls visibility for shared section
             const hasAnyShared = (sharedPending.length + sharedPhotos.length) > 0;
-            const addBtn = document.getElementById('shared-add-btn');
 
-            if (addBtn) {
-                if (hasAnyShared) {
-                    // приховати, бо вже є фото
-                    addBtn.style.display = 'none';
-                } else {
-                    // показати inline тільки коли немає жодного фото
-                    addBtn.style.display = 'inline-flex';
-                }
-            }
+            // inline buttons
+            if (sharedDeleteBtn) sharedDeleteBtn.style.display = sharedSelecting ? 'inline-block' : 'none';
+            if (sharedCancelBtn) sharedCancelBtn.style.display = sharedSelecting ? 'inline-block' : 'none';
+
+            // dots only when NOT selecting and there are items
+            if (sharedMenuBtn) sharedMenuBtn.style.display = (!sharedSelecting && hasAnyShared) ? 'inline-flex' : 'none';
+
+            // never show inline "Добавити" unless the album is empty (your requirement)
+            if (sharedAddBtn) sharedAddBtn.style.display = hasAnyShared ? 'none' : 'inline-flex';
 
             sharedListEl.appendChild(li);
         });
