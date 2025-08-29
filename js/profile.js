@@ -164,12 +164,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!sharedListEl) return;
         sharedListEl.innerHTML = '';
 
-        const hasAny = (sharedPending.length + sharedPhotos.length) > 0;
+        // PUBLIC PAGE: show only accepted photos + local blob previews
+        const localPendingBlobs = sharedPending.filter(p => isBlob(p.url));
+        const renderItems = [...localPendingBlobs, ...sharedPhotos];
+        const hasAny = renderItems.length > 0;
         sharedListEl.classList.remove('rows-1', 'rows-2');
-        sharedListEl.classList.add(hasAny && (sharedPending.length + sharedPhotos.length) === 1 ? 'rows-1' : 'rows-2');
+        sharedListEl.classList.add(hasAny && renderItems.length === 1 ? 'rows-1' : 'rows-2');
 
         // pending first
-        [...sharedPending, ...sharedPhotos].forEach((p, idx) => {
+        renderItems.forEach((p, idx) => {
             const li = document.createElement('li');
             const img = document.createElement('img');
             img.src = p.url; li.appendChild(img);
@@ -182,8 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.appendChild(hint);
             }
 
-            const isPending = idx < sharedPending.length;
-            if (!isPending) {
+            const isAccepted = !isBlob(p.url); // in public view we only render blobs (local) or accepted
+            if (isAccepted) {
                 // Accepted → open slideshow on click
                 li.addEventListener('click', () => {
                     const images = sharedRealUrls();
@@ -237,9 +240,10 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const hosted = await uploadToImgBB(files[i]);
                 // замінюємо blob на hosted
-                sharedPending[start + i] = { url: hosted };
-                refreshSharedUI();
                 await submitSharedOffer(hosted);
+                // remove the local preview entry; server-side pending should not be shown on public page
+                sharedPending.splice(start + i, 1);
+                refreshSharedUI();
             } catch (err) {
                 console.error('Offer upload failed', err);
                 sharedPending.splice(start + i, 1);
