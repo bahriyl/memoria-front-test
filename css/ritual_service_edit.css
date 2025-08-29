@@ -504,3 +504,99 @@ textarea {
   border-radius: 8px;
   object-fit: cover;
 }
+
+/* Fullscreen slideshow modal */
+.slideshow-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.slideshow-img {
+  max-width: 92vw;
+  max-height: 72vh;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+/* Close (X) */
+.close-slideshow {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 26px;
+  color: #fff;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Dots */
+.slideshow-indicators {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.slideshow-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .35);
+  cursor: pointer;
+}
+
+.slideshow-indicator.active {
+  background: #fff;
+}
+
+.slideshow-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 64px;
+  color: #fff;
+  text-align: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 480;
+  padding: 0 18px;
+  opacity: .95;
+}
+
+.modal-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(0, 0, 0, .15);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: rs-spin .85s linear infinite;
+}
+
+.progress-text {
+  font-family: "Montserrat", sans-serif;
+  font-size: 14px;
+  font-weight: 510;
+  color: #1C170D;
+}
+
+@keyframes rs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

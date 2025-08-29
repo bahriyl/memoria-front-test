@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Config
     // ─────────────────────────────────────────────────────────────────────────────
+    // const API_URL = 'http://0.0.0.0:5000'
     const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
     const API_BASE = `${API_URL}/api/people`;
     const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
@@ -41,18 +42,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // Photos (profile)
     const photosMenuBtn = document.getElementById('photos-menu-btn');
     const photosMenu = document.getElementById('photos-menu');
-    const photosListEl = document.querySelector('.photos-list');
+    const photosListEl = document.querySelector('.profile-photos .photos-list');
     const addPhotoBtn = document.getElementById('add-photo-btn');
     const choosePhotoBtn = document.getElementById('choose-photo-btn');
     const deletePhotoBtn = document.getElementById('delete-photo-btn');
     const fileInput = document.getElementById('photo-input'); // hidden <input type="file" multiple>, may be absent in older HTML
-    const photosScrollEl = document.querySelector('.photos-scroll');
+    const photosScrollEl = document.querySelector('.profile-photos .photos-scroll');
+
+    // ─── Shared album elements ───
+    const sharedMenuBtn = document.getElementById('shared-menu-btn');
+    const sharedMenu = document.getElementById('shared-menu');
+    const sharedListEl = document.querySelector('.shared-list');
+    const sharedAddBtn = document.getElementById('shared-add-btn');
+    const sharedDeleteBtn = document.getElementById('shared-delete-btn');
+    const sharedInput = document.getElementById('shared-input');
 
     // Dots popup options (if present)
     document.getElementById('bio-edit-option')?.addEventListener('click', () => bioEditBtn?.click());
     document.getElementById('photos-add-option')?.addEventListener('click', () => addPhotoBtn?.click());
     document.getElementById('photos-choose-option')?.addEventListener('click', () => choosePhotoBtn?.click());
     document.getElementById('photos-delete-option')?.addEventListener('click', () => deletePhotoBtn?.click());
+
+    // Підвʼязка опцій дотс-меню
+    document.getElementById('shared-add-option')?.addEventListener('click', () => sharedAddBtn?.click());
+    document.getElementById('shared-choose-option')?.addEventListener('click', () => {
+        /* гість не може вибирати → ігноруємо */
+    });
 
     // Comments
     const commentsListEl = document.querySelector('.comments-list');
@@ -112,20 +127,128 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // State
     // ─────────────────────────────────────────────────────────────────────────────
-    let photos = [];                 // profile photos (urls and temporary blob: urls)
+    let photos = [];                 // Array<Photo>  [{url, description}]
     let isSelecting = false;         // selection mode for photos
     let selectedOrder = [];          // array of indexes of selected photos (in click order)
     let pendingUploads = 0;
     let comments = [];  // profile comments array
     let premiumLock = false;
     let premiumCreds = null;
+    let sharedPending = []; // [{url}]  — запропоновані гостями (pending)
+    let sharedPhotos = []; // [{url, description?}] — прийняті
+    let sharedSelecting = false;     // режим вибору для прийнятих (не використовується гостем)
+    let sharedSelectedOrder = [];
 
     const nonBlobPhotos = () =>
         (photos || []).filter((u) => typeof u === 'string' && u && !u.startsWith('blob:'));
+    const isBlobUrl = (u) => typeof u === 'string' && u.startsWith('blob:');
+    const realPhotos = () => (photos || []).filter(p => p && typeof p.url === 'string' && !isBlobUrl(p.url));
+    const realPhotoUrls = () => realPhotos().map(p => p.url);
+    function isBlob(u) { return typeof u === 'string' && u.startsWith('blob:'); }
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────────
+    // Гість: показуємо тільки “Добавити”, ховаємо “Вибрати”
+    if (sharedMenu) {
+        sharedMenu.querySelector('#shared-choose-option')?.classList.add('hidden');
+    }
+    if (sharedDeleteBtn) sharedDeleteBtn.style.display = 'none';
+
+    const sharedRealPhotos = () =>
+        (sharedPhotos || []).filter(p => p && typeof p.url === 'string' && !isBlob(p.url));
+    const sharedRealUrls = () => sharedRealPhotos().map(p => p.url);
+
+    // Рендер
+    function refreshSharedUI() {
+        if (!sharedListEl) return;
+        sharedListEl.innerHTML = '';
+
+        const hasAny = (sharedPending.length + sharedPhotos.length) > 0;
+        sharedListEl.classList.remove('rows-1', 'rows-2');
+        sharedListEl.classList.add(hasAny && (sharedPending.length + sharedPhotos.length) === 1 ? 'rows-1' : 'rows-2');
+
+        // pending first
+        [...sharedPending, ...sharedPhotos].forEach((p, idx) => {
+            const li = document.createElement('li');
+            const img = document.createElement('img');
+            img.src = p.url; li.appendChild(img);
+
+            // uploading overlay for blob previews
+            if (isBlob(p.url)) {
+                li.classList.add('uploading');
+                const hint = document.createElement('div');
+                hint.className = 'uploading-hint'; hint.textContent = 'Завантаження…';
+                li.appendChild(hint);
+            }
+
+            const isPending = idx < sharedPending.length;
+            if (!isPending) {
+                // Accepted → open slideshow on click
+                li.addEventListener('click', () => {
+                    const images = sharedRealUrls();
+                    const captions = sharedRealPhotos().map(x => x.description || '');
+                    const start = images.indexOf(p.url);
+                    openSlideshow(
+                        images.length ? images : [p.url],
+                        images.length && start >= 0 ? start : 0,
+                        images.length ? captions : [p.description || '']
+                    );
+                });
+            }
+
+            sharedListEl.appendChild(li);
+        });
+    }
+
+
+    // Аплоад на ImgBB (як у фото)
+    async function uploadToImgBB(file) {
+        const form = new FormData(); form.append('image', file);
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: form });
+        const json = await res.json(); if (!json.success) throw new Error('Upload failed');
+        return json.data.url;
+    }
+
+    // Заглушка бекенду: відправка оферів (зробіть на бекенді як зручно)
+    async function submitSharedOffer(hostedUrl) {
+        await fetch(`${API_BASE}/${personId}/shared/offer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: hostedUrl })
+        });
+    }
+
+    // Клік “Добавити” → file input
+    sharedAddBtn?.addEventListener('click', () => sharedInput?.click());
+
+    // File input → миттєві превʼю → аплоад → POST як pending
+    sharedInput?.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []); if (!files.length) return;
+
+        // миттєво додаємо превʼю pending
+        const start = sharedPending.length;
+        const previews = files.map(f => URL.createObjectURL(f));
+        previews.forEach(url => sharedPending.push({ url }));
+        refreshSharedUI();
+        sharedInput.value = '';
+
+        for (let i = 0; i < files.length; i++) {
+            try {
+                const hosted = await uploadToImgBB(files[i]);
+                // замінюємо blob на hosted
+                sharedPending[start + i] = { url: hosted };
+                refreshSharedUI();
+                await submitSharedOffer(hosted);
+            } catch (err) {
+                console.error('Offer upload failed', err);
+                sharedPending.splice(start + i, 1);
+                refreshSharedUI();
+                alert('Не вдалося надіслати фото в спільний альбом.');
+            }
+        }
+    });
+
     function setPhotosControlsVisibility() {
         if (premiumLock) {
             const controls = document.querySelector('.profile-photos .photos-controls');
@@ -195,8 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDeleteButtonLabel();
     }
 
-    function openSlideshow(images, startIndex = 0) {
-        // Same lightweight slideshow as location page
+    function openSlideshow(images, startIndex = 0, captions = []) {
         const modal = document.createElement('div');
         modal.className = 'slideshow-modal';
 
@@ -208,13 +330,49 @@ document.addEventListener('DOMContentLoaded', () => {
         const track = document.createElement('div');
         track.className = 'slideshow-track';
 
-        images.forEach((url) => {
+        images.forEach((url, i) => {
             const slide = document.createElement('div');
             slide.className = 'slideshow-slide';
+
             const slideImg = document.createElement('img');
             slideImg.src = url;
             slideImg.className = 'slideshow-img';
             slide.appendChild(slideImg);
+
+            // Caption overlay (if present)
+            // Caption overlay (if present)
+            const text = captions[i] || '';
+            if (text && text.trim()) {
+                const cap = document.createElement('div');
+                cap.className = 'slideshow-caption';
+
+                const span = document.createElement('span');
+                span.className = 'caption-text';
+                span.textContent = text;
+
+                const toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.className = 'caption-toggle';
+                toggle.textContent = '… більше';
+
+                cap.append(span, toggle);
+                slide.appendChild(cap);
+
+                // Після вставки в DOM міряємо переповнення й показуємо “більше”, якщо треба
+                requestAnimationFrame(() => {
+                    const overflowing = span.scrollHeight > span.clientHeight + 1;
+                    if (overflowing) {
+                        cap.classList.add('has-toggle');
+                        toggle.addEventListener('click', () => {
+                            const expanded = cap.classList.toggle('expanded');
+                            toggle.textContent = expanded ? 'менше' : '… більше';
+                        });
+                    } else {
+                        toggle.remove(); // текст короткий — кнопка не потрібна
+                    }
+                });
+            }
+
             track.appendChild(slide);
         });
 
@@ -223,16 +381,14 @@ document.addEventListener('DOMContentLoaded', () => {
         images.forEach((_, idx) => {
             const dot = document.createElement('span');
             dot.className = 'slideshow-indicator';
-            dot.addEventListener('click', () => {
-                changeSlide(idx);
-            });
+            dot.addEventListener('click', () => changeSlide(idx));
             indicator.appendChild(dot);
         });
 
         function updateIndicators(index) {
-            indicator.querySelectorAll('.slideshow-indicator').forEach((dot, i) => {
-                dot.classList.toggle('active', i === index);
-            });
+            indicator.querySelectorAll('.slideshow-indicator').forEach((dot, i) =>
+                dot.classList.toggle('active', i === index)
+            );
         }
         function changeSlide(newIndex) {
             const slides = track.querySelectorAll('.slideshow-slide');
@@ -284,12 +440,23 @@ document.addEventListener('DOMContentLoaded', () => {
         photosListEl.classList.add(photos.length === 1 ? 'rows-1' : 'rows-2');
 
         // render items
-        photos.forEach((url, idx) => {
+        photos.forEach((p, idx) => {
+            const url = p.url;
+
             const li = document.createElement('li');
             li.dataset.index = String(idx);
 
             const img = document.createElement('img');
             img.src = url;
+
+            // If this is a local preview (blob:), show uploading overlay + hint
+            if (typeof url === 'string' && url.startsWith('blob:')) {
+                li.classList.add('uploading');
+                const hint = document.createElement('div');
+                hint.className = 'uploading-hint';
+                hint.textContent = 'Завантаження…';
+                li.appendChild(hint);
+            }
 
             const overlay = document.createElement('div');
             overlay.className = 'photo-selection-overlay';
@@ -314,9 +481,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isSelecting) {
                     toggleSelectPhoto(idx);
                 } else {
-                    const onlyReal = nonBlobPhotos();
-                    const realIndex = onlyReal.indexOf(url);
-                    openSlideshow(onlyReal.length ? onlyReal : photos, Math.max(0, realIndex));
+                    // We only show real (uploaded) photos in slideshow
+                    const images = realPhotoUrls();               // array of urls
+                    const captions = realPhotos().map(p => p.description || '');
+                    const startIndex = images.indexOf(url);
+                    const safeIndex = Math.max(0, startIndex);
+                    openSlideshow(
+                        images.length ? images : [url],
+                        images.length ? safeIndex : 0,
+                        images.length ? captions : [p.description || '']
+                    );
                 }
             });
 
@@ -328,9 +502,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function saveProfilePhotos() {
-        // Persist only non-blob URLs
         try {
-            const body = JSON.stringify({ photos: nonBlobPhotos() });
+            const clean = realPhotos().map(p => ({ url: p.url, description: p.description || '' }));
+            const body = JSON.stringify({ photos: clean });
             const res = await fetch(`${API_BASE}/${personId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -379,12 +553,11 @@ document.addEventListener('DOMContentLoaded', () => {
             [closeX, cancelBtn, overlay].forEach(el => el && el.addEventListener('click', closeConfirm));
 
             okBtn?.addEventListener('click', async () => {
-                // Remove selected in descending order
                 const toDelete = [...selectedOrder].sort((a, b) => b - a);
                 toDelete.forEach(i => {
                     if (i >= 0 && i < photos.length) {
-                        const u = photos[i];
-                        if (u?.startsWith('blob:')) { try { URL.revokeObjectURL(u); } catch { } }
+                        const u = photos[i]?.url;
+                        if (isBlobUrl(u)) { try { URL.revokeObjectURL(u); } catch { } }
                         photos.splice(i, 1);
                     }
                 });
@@ -396,38 +569,86 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (fileInput)
-            fileInput.addEventListener('change', (e) => {
+            fileInput.addEventListener('change', async (e) => {
                 const files = Array.from(e.target.files || []);
                 if (!files.length) return;
 
+                // Create blob previews and temp caption map (by index)
                 const previews = files.map((f) => URL.createObjectURL(f));
+                const tempCaptions = new Array(previews.length).fill('');
 
-                // Show previews immediately
-                previews.forEach((url) => photos.push(url));
+                // === 1) SHOW CAPTION MODAL (stepper) ===
+                const overlay = document.getElementById('modal-overlay');
+                const dlg = document.getElementById('photo-desc-modal');
+                const closeX = document.getElementById('photo-desc-close');
+                const prevBtn = document.getElementById('photo-desc-prev');
+                const nextBtn = document.getElementById('photo-desc-next');
+                const previewEl = document.getElementById('photo-desc-preview');
+                const textEl = document.getElementById('photo-desc-text');
+                const counterEl = document.getElementById('photo-desc-counter');
+
+                let step = 0;
+                const total = previews.length;
+
+                const open = () => { overlay.hidden = false; dlg.hidden = false; };
+                const close = () => { overlay.hidden = true; dlg.hidden = true; };
+
+                function renderStep() {
+                    previewEl.src = previews[step];
+                    textEl.value = tempCaptions[step] || '';
+                    counterEl.textContent = `Фото ${step + 1} з ${total}`;
+                    prevBtn.style.display = step === 0 ? 'none' : '';
+                    nextBtn.textContent = step === total - 1 ? 'Готово' : 'Далі';
+                }
+
+                function commitCurrent() {
+                    tempCaptions[step] = (textEl.value || '').trim();
+                }
+
+                closeX.onclick = () => { commitCurrent(); close(); };
+                prevBtn.onclick = () => { commitCurrent(); step = Math.max(0, step - 1); renderStep(); };
+                nextBtn.onclick = () => {
+                    commitCurrent();
+                    if (step < total - 1) { step++; renderStep(); }
+                    else close();
+                };
+
+                open();
+                renderStep();
+
+                // Wait until dialog closes (simple polling of hidden attribute)
+                await new Promise((resolve) => {
+                    const iv = setInterval(() => { if (!dlg || dlg.hidden) { clearInterval(iv); resolve(); } }, 60);
+                });
+
+                // === 2) Optimistically show previews with captions ===
+                previews.forEach((url, i) => {
+                    photos.push({ url, description: tempCaptions[i] || '' });  // push object
+                });
                 refreshPhotosUI();
                 fileInput.value = '';
 
-                // Upload each → replace blob with real URL, then persist
+                // === 3) Upload each → replace blob.url with real URL and keep description ===
                 pendingUploads += files.length;
 
                 files.forEach(async (file, idx) => {
                     const previewUrl = previews[idx];
+
                     try {
                         const form = new FormData();
                         form.append('image', file);
                         const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-                            method: 'POST',
-                            body: form,
+                            method: 'POST', body: form,
                         });
                         const json = await res.json();
                         const realUrl = json?.data?.url;
-                        const i = photos.indexOf(previewUrl);
+
+                        const i = photos.findIndex(p => p.url === previewUrl);
                         if (i > -1 && realUrl) {
-                            photos[i] = realUrl;
+                            photos[i].url = realUrl;                          // keep its description
                             try { URL.revokeObjectURL(previewUrl); } catch { }
                             refreshPhotosUI();
-                            // Save incrementally so the user doesn’t lose progress
-                            await saveProfilePhotos();
+                            await saveProfilePhotos(); // incremental save
                         }
                     } catch (err) {
                         console.error('Upload failed:', err);
@@ -564,47 +785,48 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error(res.statusText);
             const data = await res.json();
 
-            // PREMIUM lock
+            // PREMIUM lock (означає, що сторінка преміум і редагування заблоковане поки не увійти)
             premiumLock = !!data.premium;
             premiumCreds = data.premium || null;
 
-            console.log(premiumLock);
-
             if (premiumLock) {
-                // Show header with "Увійти" and hide every edit affordance
+                // Показати шапку з “Увійти” та сховати всі кнопки редагування
                 document.getElementById('profile-login-header')?.removeAttribute('hidden');
-                hideEditingUIForPremium();
-                setupLoginModalOpenClose();
-                // Defensive: if something prevented handler binding earlier, bind here again.
+                hideEditingUIForPremium?.();
+                setupLoginModalOpenClose?.();
+
+                // дублюємо безпечне підв’язування
                 const loginBtn = document.getElementById('profile-login-btn');
                 const loginModal = document.getElementById('loginModal');
                 const loginBox = loginModal?.querySelector('.login-box');
                 if (loginBtn && loginModal && loginBox) {
                     const open = () => { loginModal.style.display = 'flex'; };
-                    loginBtn.onclick = open;                 // direct binding
+                    loginBtn.onclick = open;
                     loginBox.onclick = (e) => e.stopPropagation();
-                    loginModal.onclick = (e) => { if (!loginBox.contains(e.target)) loginModal.style.display = 'none'; };
+                    loginModal.onclick = (e) => {
+                        if (!loginBox.contains(e.target)) loginModal.style.display = 'none';
+                    };
                 }
             }
 
-            // COMMENTS: from API (may be empty or missing)
+            // ─── COMMENTS ───
             comments = Array.isArray(data.comments) ? data.comments : [];
-            renderComments();
+            renderComments?.();
 
-            // Avatar & hero background
+            // ─── AVATAR / HERO ───
             if (avatarEl) avatarEl.src = data.avatarUrl || 'img/default-avatar.jpg';
             if (heroEl && data.backgroundUrl) {
                 heroEl.style.backgroundImage = `url(${data.backgroundUrl})`;
             }
 
-            // Name, years, cemetery
+            // ─── NAME / YEARS / CEMETERY ───
             if (nameEl) nameEl.textContent = data.name || '';
             if (yearsEl) {
                 yearsEl.textContent = `${data.birthDate || ''} ${data.birthYear || ''} – ${data.deathDate || ''} ${data.deathYear || ''}`.trim();
             }
             if (cemeteryEl) cemeteryEl.textContent = (data.cemetery || '').split(', ')[0] || '';
 
-            // Action button (view vs add location)
+            // ─── ACTION BTN (location) ───
             if (data?.location?.[0]) {
                 actionText.textContent = 'Локація місця поховання';
                 locationBtn.href = `/location.html?personId=${personId}`;
@@ -613,14 +835,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 locationBtn.href = `/location.html?personId=${personId}`;
             }
 
-            // ─── BIO: render + toggle + edit buttons logic ───
+            // ─── BIO ───
             const fullBio = data.bio || '';
-
-            // clean будь-який старий empty-state
             const bioBodyWrap = document.querySelector('.profile-bio .bio-body');
             bioBodyWrap?.querySelector('.bio-empty')?.remove();
 
-            // 1) Якщо біо пусте → показати empty-state + сховати <p>
             if (!fullBio.trim()) {
                 if (bioContentEl) {
                     bioContentEl.textContent = '';
@@ -633,12 +852,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     bioBodyWrap.prepend(empty);
                 }
             } else {
-                // 2) Якщо біо є → показати текст + toggle overflow
                 if (bioContentEl) {
                     bioContentEl.style.display = '';
                     bioContentEl.textContent = fullBio;
                 }
-
                 bioToggleEl?.remove();
                 const isOverflowing = bioContentEl && (bioContentEl.scrollHeight > bioContentEl.clientHeight);
                 if (isOverflowing && bioContentEl && bioToggleEl) {
@@ -653,26 +870,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // 3) Логіка кнопок (лише якщо НЕ premium)
+            // Кнопки біо показуємо/ховаємо лише якщо НЕ premium (на публічній сторінці це й так read-only)
             if (!premiumLock) {
                 if (!fullBio.trim()) {
-                    bioAddBtn?.style && (bioAddBtn.style.display = 'inline-block');
-                    bioEditBtn?.style && (bioEditBtn.style.display = 'none');
-                    bioMenuBtn?.style && (bioMenuBtn.style.display = 'none');
+                    bioAddBtn && (bioAddBtn.style.display = 'inline-block');
+                    bioEditBtn && (bioEditBtn.style.display = 'none');
+                    bioMenuBtn && (bioMenuBtn.style.display = 'none');
                 } else {
-                    bioAddBtn?.style && (bioAddBtn.style.display = 'none');
-                    bioEditBtn?.style && (bioEditBtn.style.display = 'inline-block');
-                    bioMenuBtn?.style && (bioMenuBtn.style.display = 'inline-flex');
+                    bioAddBtn && (bioAddBtn.style.display = 'none');
+                    bioEditBtn && (bioEditBtn.style.display = 'inline-block');
+                    bioMenuBtn && (bioMenuBtn.style.display = 'inline-flex');
                 }
             }
 
-            // 4) Режим редагування (і коли пусте, і коли вже є)
+            // Редагування біо (для випадку, якщо дозволено)
             function enterBioEdit() {
                 const bioBody = document.querySelector('.profile-bio .bio-body');
                 if (!bioBody) return;
-                bioBody.innerHTML = `
-        <textarea id="bio-editor" placeholder="Додайте життєпис...">${fullBio || ''}</textarea>
-    `;
+                bioBody.innerHTML = `<textarea id="bio-editor" placeholder="Додайте життєпис...">${fullBio || ''}</textarea>`;
 
                 const btnsWrap = document.querySelector('.profile-bio .bio-buttons');
                 if (btnsWrap) {
@@ -689,19 +904,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     btnsWrap.append(cancel, done);
 
-                    cancel.addEventListener('click', () => {
-                        window.location.reload();
-                    });
+                    cancel.addEventListener('click', () => window.location.reload());
 
                     done.addEventListener('click', async () => {
                         const newBio = (document.getElementById('bio-editor')?.value || '').trim();
                         try {
-                            const res = await fetch(`${API_BASE}/${personId}`, {
+                            const up = await fetch(`${API_BASE}/${personId}`, {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ bio: newBio })
                             });
-                            if (!res.ok) throw new Error(res.statusText);
+                            if (!up.ok) throw new Error(up.statusText);
                             window.location.reload();
                         } catch (e) {
                             console.error('Failed to update bio:', e);
@@ -710,14 +923,55 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             }
-
             bioAddBtn?.addEventListener('click', enterBioEdit);
             bioEditBtn?.addEventListener('click', enterBioEdit);
 
-            // ─── PHOTOS (Profile) ───
-            photos = Array.isArray(data.photos) ? data.photos.filter(Boolean) : [];
-            hookPhotoButtons();
-            refreshPhotosUI();
+            // ─── PHOTOS (звичайні) ───
+            photos = Array.isArray(data.photos)
+                ? data.photos
+                    .filter(p => p && typeof p.url === 'string' && p.url.trim())
+                    .map(p => ({ url: p.url.trim(), description: (p.description ?? '').toString() }))
+                : [];
+            hookPhotoButtons?.();
+            refreshPhotosUI?.();
+
+            // ─────────────────────────────────────────────────────────────────────────
+            // SHARED ALBUM (показується лише якщо є premium у цієї особи)
+            // ─────────────────────────────────────────────────────────────────────────
+            const sharedSection = document.querySelector('.profile-shared');
+            const sharedChooseOpt = document.getElementById('shared-choose-option');
+            const sharedDeleteBtn = document.getElementById('shared-delete-btn');
+
+            if (sharedSection) {
+                if (data.premium) {
+                    // секція активна
+                    sharedSection.removeAttribute('hidden');
+
+                    // Ініціалізація масивів (ВАЖЛИВО: у локальні змінні, не window.*)
+                    sharedPending = Array.isArray(data.sharedPending)
+                        ? data.sharedPending
+                            .filter(p => p && typeof p.url === 'string' && p.url.trim())
+                            .map(p => ({ url: p.url.trim() }))
+                        : [];
+
+                    sharedPhotos = Array.isArray(data.sharedPhotos)
+                        ? data.sharedPhotos
+                            .filter(p => p && typeof p.url === 'string' && p.url.trim())
+                            .map(p => ({ url: p.url.trim(), description: (p.description ?? '').toString() }))
+                        : [];
+
+                    // Публічна сторінка → “гостьовий” режим:
+                    // ховаємо "Вибрати" та кнопку масового видалення
+                    sharedChooseOpt?.classList.add('hidden');
+                    if (sharedDeleteBtn) sharedDeleteBtn.style.display = 'none';
+
+                    // Рендер (pending → першими)
+                    if (typeof refreshSharedUI === 'function') refreshSharedUI();
+                } else {
+                    // нема преміуму — секцію ховаємо
+                    sharedSection.setAttribute('hidden', 'hidden');
+                }
+            }
 
         } catch (err) {
             console.error(err);

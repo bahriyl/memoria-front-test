@@ -364,3 +364,17 @@ body {
   color: #FFFFFF;
   pointer-events: none;
 }
+
+.slideshow-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 64px;
+  color: #fff;
+  text-align: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+  font-weight: 480;
+  padding: 0 18px;
+  opacity: .95;
+}

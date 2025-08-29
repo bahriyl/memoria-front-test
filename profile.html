@@ -77,6 +77,34 @@
             </div>
         </section>
 
+        <!-- Shared Album (Cпільний альбом) -->
+        <section class="profile-shared">
+            <h2 class="shared-title">Cпільний альбом</h2>
+
+            <!-- 3-dots menu -->
+            <button id="shared-menu-btn" class="dots-btn" aria-label="Дії">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#585858" viewBox="0 0 24 24">
+                    <circle cx="12" cy="5" r="2"></circle>
+                    <circle cx="12" cy="12" r="2"></circle>
+                    <circle cx="12" cy="19" r="2"></circle>
+                </svg>
+            </button>
+            <div id="shared-menu" class="popup-menu">
+                <div id="shared-add-option" class="popup-option">Добавити</div>
+                <div id="shared-choose-option" class="popup-option">Вибрати</div>
+            </div>
+
+            <!-- Інлайнових кнопок для “Вибрати” немає; все через dots -->
+            <div class="shared-controls">
+                <button id="shared-add-btn" class="btn photo-btn">Добавити</button>
+                <button id="shared-delete-btn" class="btn photo-btn">Видалити</button>
+                <input type="file" id="shared-input" accept="image/*" multiple hidden />
+            </div>
+
+            <div class="shared-scroll">
+                <ul class="photos-list shared-list"></ul>
+            </div>
+        </section>
 
         <!-- Photographs section -->
         <section class="profile-photos">
@@ -232,6 +260,28 @@
             <input type="password" id="passwordInput" placeholder="Пароль" />
             <button id="loginSubmit">Увійти</button>
             <p id="loginError" class="error-message"></p>
+        </div>
+    </div>
+
+    <!-- Add descriptions for selected photos -->
+    <div id="photo-desc-modal" class="modal" hidden>
+        <button id="photo-desc-close" class="modal-close" aria-label="Закрити">&times;</button>
+        <h3 style="margin:0 0 12px">Опис фотографій</h3>
+
+        <!-- Step area -->
+        <div class="photo-desc-step" style="margin-bottom:12px">
+            <div style="display:flex; gap:10px; align-items:center">
+                <img id="photo-desc-preview" alt=""
+                    style="width:80px; height:80px; object-fit:cover; border-radius:8px; background:#eee">
+                <textarea id="photo-desc-text" placeholder="Додайте опис до фото…"
+                    style="flex:1; min-height:80px; resize:vertical"></textarea>
+            </div>
+            <div id="photo-desc-counter" style="margin-top:8px; font-size:13px; color:#666"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button id="photo-desc-prev" class="modal-cancel">Назад</button>
+            <button id="photo-desc-next" class="modal-ok">Далі</button>
         </div>
     </div>
 

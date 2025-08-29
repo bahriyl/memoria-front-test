@@ -1,4 +1,5 @@
 const API = "https://memoria-test-app-ifisk.ondigitalocean.app/api";
+// const API = "http://0.0.0.0:5000/api"
 const IMGBB_API_KEY = "726ae764867cf6b3a259967071cbdd80";
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -30,7 +31,17 @@ if (logoutBtn) {
 
 function normalizeItems(struct) {
   if (!Array.isArray(struct?.items)) return struct;
-  struct.items = struct.items.map(([title, imgs]) => [title, Array.isArray(imgs) ? imgs : []]);
+  struct.items = struct.items.map(([title, arr]) => {
+    const albums = Array.isArray(arr) ? arr.map((x) => {
+      if (typeof x === "string") return { photos: [x], description: "" };
+      if (Array.isArray(x)) return { photos: x, description: "" };
+      return {
+        photos: Array.isArray(x?.photos) ? x.photos : [],
+        description: (x?.description || "").toString(),
+      };
+    }) : [];
+    return [title, albums];
+  });
   return struct;
 }
 
@@ -43,6 +54,20 @@ async function fetchRitualService() {
   } catch (e) {
     console.error("Error loading profile:", e);
   }
+}
+
+async function uploadToImgBB(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+    method: "POST",
+    body: formData
+  });
+  if (!res.ok) throw new Error(`IMGBB ${res.status}`);
+  const json = await res.json();
+  const url = json?.data?.url;
+  if (!url) throw new Error("IMGBB: no url");
+  return url;
 }
 
 function renderData(data) {
@@ -66,7 +91,8 @@ function renderData(data) {
     const section = document.createElement("section");
     section.className = "ritual-item-section";
 
-    const hasPhotos = Array.isArray(images) && images.length > 0;
+    const albums = Array.isArray(images) ? images : [];
+    const hasPhotos = albums.length > 0;
 
     // === Header (title + dots + popup) ===
     const sectionHeader = document.createElement("div");
@@ -105,6 +131,7 @@ function renderData(data) {
     const fileInput = document.createElement("input");
     fileInput.type = "file";
     fileInput.accept = "image/*";
+    fileInput.multiple = true;
     fileInput.style.display = "none";
 
     // If no photos — show "Добавити" button here; if has photos — keep row hidden (until selection mode)
@@ -117,21 +144,23 @@ function renderData(data) {
     function renderImages() {
       imagesContainer.innerHTML = "";
 
-      // Add appropriate class based on number of images
-      if (images && images.length === 1) {
+      if (albums.length === 1) {
         imagesContainer.className = "item-images single-image";
-      } else if (images && images.length > 1) {
+      } else if (albums.length > 1) {
         imagesContainer.className = "item-images multiple-images";
       } else {
         imagesContainer.className = "item-images";
       }
 
-      (images || []).forEach((url) => {
+      albums.forEach((album) => {
+        if (!album.photos?.length) return;
+        const cover = album.photos[0];
+
         const wrap = document.createElement("div");
         wrap.className = "image-wrap";
 
         const img = document.createElement("img");
-        img.src = url;
+        img.src = cover;
         img.alt = title;
         img.className = "item-image";
 
@@ -139,8 +168,8 @@ function renderData(data) {
         badge.className = "select-badge";
 
         img.addEventListener("click", () => {
-          if (!isSelecting) return;
-          toggleSelect(wrap);
+          if (isSelecting) toggleSelect(wrap);
+          else openSlideshow(album.photos, album.description); // <— with description
         });
 
         wrap.append(img, badge);
@@ -198,7 +227,10 @@ function renderData(data) {
       deleteBtn.addEventListener("click", async () => {
         if (selectedOrder.length === 0) { exitSelectionMode(); return; }
         const toRemove = new Set(selectedOrder.map(w => w.querySelector("img").src));
-        ritualData.items[index][1] = ritualData.items[index][1].filter(u => !toRemove.has(u));
+        ritualData.items[index][1] = ritualData.items[index][1].filter((album) => {
+          const cover = album?.photos?.[0];
+          return !toRemove.has(cover);
+        });
         await updateItems(ritualData.items);
       });
 
@@ -233,65 +265,108 @@ function renderData(data) {
     }
 
     // Upload handler
-    // --- in renderData(...) inside fileInput.change handler, make the push safe and verbose ---
     fileInput.addEventListener("change", async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
 
-      try {
-        // optional client checks
-        const maxMb = 20;
-        if (file.size > maxMb * 1024 * 1024) {
-          alert(`Файл завеликий. Ліміт ${maxMb} MB.`);
-          return;
-        }
-        if (!file.type.startsWith("image/")) {
-          alert("Оберіть файл зображення.");
-          return;
-        }
+      // Build (or reuse) modal
+      let modal = document.querySelector(".modal-overlay");
+      if (!modal) {
+        modal = document.createElement("div");
+        modal.className = "modal-overlay";
+        document.body.appendChild(modal);
+      }
+      modal.innerHTML = `
+        <div class="rename-modal">
+          <h2>Новий альбом</h2>
+          <p class="picked-count" style="margin:0 0 8px 0;">Обрано фото: ${files.length}</p>
+          <textarea id="albumDesc" placeholder="Опис альбому" style="width:100%;height:90px;"></textarea>
+          <div class="modal-actions">
+            <button class="confirm-btn">Завантажити</button>
+            <button class="cancel-btn">Скасувати</button>
+          </div>
+          <div class="modal-progress" style="display:none;">
+            <div class="spinner"></div>
+            <div class="progress-text">Завантаження… 0/${files.length}</div>
+          </div>
+        </div>`;
+      modal.style.display = "flex";
 
+      const close = () => { modal.style.display = "none"; };
+      modal.querySelector(".cancel-btn").onclick = close;
+      modal.addEventListener("click", (ev) => { if (ev.target === modal) close(); });
+
+      const confirmBtn = modal.querySelector(".confirm-btn");
+      const cancelBtn = modal.querySelector(".cancel-btn");
+      const progressEl = modal.querySelector(".modal-progress");
+      const progressTxt = modal.querySelector(".progress-text");
+
+      // tiny helper (or use your global one if you have it)
+      async function uploadToImgBB(file) {
         const formData = new FormData();
         formData.append("image", file);
-
-        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-          method: "POST",
-          body: formData,
-        });
-
-        // ✅ check status *before* parsing JSON
-        if (!res.ok) {
-          let msg = `IMGBB ${res.status}`;
-          try {
-            const maybeJson = await res.json();
-            msg = maybeJson?.error?.message || msg;
-          } catch {
-            const txt = await res.text();
-            if (txt) msg += `: ${txt.slice(0, 140)}…`;
-          }
-          alert(`Не вдалось завантажити зображення на imgbb. ${msg}`);
-          return;
-        }
-
-        // now it's safe to parse JSON
-        const result = await res.json();
-        const imageUrl = result?.data?.url;
-        if (!imageUrl) {
-          console.error("IMGBB unexpected response:", result);
-          alert("Не вдалось отримати URL зображення від imgbb.");
-          return;
-        }
-
-        // make sure the array exists, then push
-        if (!Array.isArray(ritualData.items[index][1])) ritualData.items[index][1] = [];
-        ritualData.items[index][1].push(imageUrl);
-
-        await updateItems(ritualData.items); // will reload on success
-      } catch (err) {
-        console.error("Upload error:", err);
-        alert("Сталася помилка під час завантаження зображення.");
-      } finally {
-        e.target.value = ""; // allow selecting the same file again
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
+        if (!res.ok) throw new Error(`IMGBB ${res.status}`);
+        const json = await res.json();
+        const url = json?.data?.url;
+        if (!url) throw new Error("IMGBB: no url in response");
+        return url;
       }
+
+      confirmBtn.onclick = async () => {
+        const desc = modal.querySelector("#albumDesc").value.trim();
+
+        // lock UI + show progress
+        confirmBtn.disabled = true;
+        cancelBtn.disabled = true;
+        progressEl.style.display = "flex";
+        progressTxt.textContent = `Завантаження… 0/${files.length}`;
+
+        try {
+          // Upload in parallel; update N/M as each finishes
+          let done = 0;
+          const tick = () => { done += 1; progressTxt.textContent = `Завантаження… ${done}/${files.length}`; };
+
+          const tasks = files.map(async (f) => {
+            if (!f.type.startsWith("image/")) { tick(); return null; }
+            try {
+              const url = await uploadToImgBB(f);
+              tick();
+              return url;
+            } catch (err) {
+              console.error("Upload failed:", err);
+              tick();
+              return null; // continue; we keep successful ones
+            }
+          });
+
+          const settled = await Promise.allSettled(tasks);
+          const urls = settled.map(r => (r.status === "fulfilled" ? r.value : null)).filter(Boolean);
+
+          if (!urls.length) {
+            alert("Не вдалося завантажити фото.");
+            confirmBtn.disabled = false;
+            cancelBtn.disabled = false;
+            progressEl.style.display = "none";
+            return;
+          }
+
+          // Push as a single ALBUM (photos[] + description)
+          if (!Array.isArray(ritualData.items[index][1])) ritualData.items[index][1] = [];
+          ritualData.items[index][1].push({ photos: urls, description: desc });
+
+          close();
+          await updateItems(ritualData.items); // your existing saver (reloads on success)
+        } catch (err) {
+          console.error(err);
+          alert("Сталася помилка при завантаженні.");
+          confirmBtn.disabled = false;
+          cancelBtn.disabled = false;
+          progressEl.style.display = "none";
+        } finally {
+          e.target.value = ""; // reset picker
+        }
+      };
     });
 
     // === Add everything into section ===
@@ -540,6 +615,71 @@ function openAddCategoryModal() {
     close();
     await updateItems(ritualData.items);     // saves and reloads
   };
+}
+
+function openSlideshow(images, desc = "") {
+  if (!Array.isArray(images) || !images.length) return;
+
+  // Backdrop
+  const modal = document.createElement("div");
+  modal.className = "slideshow-modal";
+
+  // Close (X)
+  const closeBtn = document.createElement("span");
+  closeBtn.className = "close-slideshow";
+  closeBtn.textContent = "✕";
+  closeBtn.onclick = () => document.body.removeChild(modal);
+
+  // Main image
+  let idx = 0;
+  const img = document.createElement("img");
+  img.className = "slideshow-img";
+  img.src = images[idx];
+
+  // Caption (album description)
+  const caption = document.createElement("div");
+  caption.className = "slideshow-caption";
+  caption.textContent = desc || "";
+
+  // Dots
+  const dots = document.createElement("div");
+  dots.className = "slideshow-indicators";
+  images.forEach((_, i) => {
+    const dot = document.createElement("span");
+    dot.className = "slideshow-indicator";
+    dot.addEventListener("click", () => {
+      idx = i;
+      img.src = images[idx];
+      updateDots();
+    });
+    dots.appendChild(dot);
+  });
+
+  function updateDots() {
+    dots.querySelectorAll(".slideshow-indicator").forEach((d, i) => {
+      d.classList.toggle("active", i === idx);
+    });
+  }
+
+  // swipe support
+  let startX = 0;
+  img.addEventListener("touchstart", e => { startX = e.changedTouches[0].screenX; });
+  img.addEventListener("touchend", e => {
+    const dx = e.changedTouches[0].screenX - startX;
+    if (Math.abs(dx) > 50) {
+      idx = dx > 0 ? (idx - 1 + images.length) % images.length
+        : (idx + 1) % images.length;
+      img.src = images[idx];
+      updateDots();
+    }
+  });
+
+  modal.appendChild(closeBtn);
+  modal.appendChild(img);
+  modal.appendChild(caption);
+  modal.appendChild(dots);
+  document.body.appendChild(modal);
+  updateDots();
 }
 
 // Select the back button

@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Config
     // ─────────────────────────────────────────────────────────────────────────────
+    // const API_URL = 'http://0.0.0.0:5000'
     const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
     const API_BASE = `${API_URL}/api/people`;
     const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
@@ -48,18 +49,36 @@ document.addEventListener('DOMContentLoaded', () => {
     // Photos (profile)
     const photosMenuBtn = document.getElementById('photos-menu-btn');
     const photosMenu = document.getElementById('photos-menu');
-    const photosListEl = document.querySelector('.photos-list');
+    const photosListEl = document.querySelector('.profile-photos .photos-list');
     const addPhotoBtn = document.getElementById('add-photo-btn');
     const choosePhotoBtn = document.getElementById('choose-photo-btn');
     const deletePhotoBtn = document.getElementById('delete-photo-btn');
     const fileInput = document.getElementById('photo-input'); // hidden <input type="file" multiple>, may be absent in older HTML
-    const photosScrollEl = document.querySelector('.photos-scroll');
+    const photosScrollEl = document.querySelector('.profile-photos .photos-scroll');
+
+    // ─── Shared album (edit) ───
+    const sharedMenuBtn = document.getElementById('shared-menu-btn');
+    const sharedMenu = document.getElementById('shared-menu');
+    const sharedListEl = document.querySelector('.shared-list');
+    const sharedAddBtn = document.getElementById('shared-add-btn');
+    const sharedDeleteBtn = document.getElementById('shared-delete-btn');
+    const sharedInput = document.getElementById('shared-input');
 
     // Dots popup options (if present)
     document.getElementById('bio-edit-option')?.addEventListener('click', () => bioEditBtn?.click());
     document.getElementById('photos-add-option')?.addEventListener('click', () => addPhotoBtn?.click());
     document.getElementById('photos-choose-option')?.addEventListener('click', () => choosePhotoBtn?.click());
     document.getElementById('photos-delete-option')?.addEventListener('click', () => deletePhotoBtn?.click());
+
+    // dots options
+    document.getElementById('shared-add-option')?.addEventListener('click', () => sharedAddBtn?.click());
+    document.getElementById('shared-choose-option')?.addEventListener('click', () => {
+        sharedSelecting = !sharedSelecting;
+        document.querySelector('.profile-shared')?.classList.toggle('selection-mode', sharedSelecting);
+        const chooseOpt = document.getElementById('shared-choose-option');
+        if (chooseOpt) chooseOpt.textContent = sharedSelecting ? 'Скасувати' : 'Вибрати';
+        refreshSharedUI();
+    });
 
     // Comments
     const commentsListEl = document.querySelector('.comments-list');
@@ -124,13 +143,165 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedOrder = [];          // array of indexes of selected photos (in click order)
     let pendingUploads = 0;
     let comments = [];  // profile comments array
+    let sharedPending = []; // pending (буде першим у рендері)
+    let sharedPhotos = []; // прийняті
+    let sharedSelecting = false;
+    let sharedSelectedOrder = [];
 
     const nonBlobPhotos = () =>
         (photos || []).filter((u) => typeof u === 'string' && u && !u.startsWith('blob:'));
+    const toPhotoObj = (p) =>
+        typeof p === 'string' ? { url: p, description: '' } : { url: p.url, description: p.description || '' };
+    const realPhotos = () => (photos || []).filter(p => typeof p?.url === 'string' && !p.url.startsWith('blob:'));
+    function isBlob(u) { return typeof u === 'string' && u.startsWith('blob:'); }
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────────
+    function toggleSelectShared(idx, isPending) {
+        if (isPending) return; // pending не вибираємо
+        const pos = sharedSelectedOrder.indexOf(idx);
+        if (pos > -1) sharedSelectedOrder.splice(pos, 1); else sharedSelectedOrder.push(idx);
+        refreshSharedUI();
+        sharedDeleteBtn.textContent = `Видалити (${sharedSelectedOrder.length})`;
+    }
+
+    // збереження (PUT у ваш /api/people/:id)
+    async function saveSharedAlbum() {
+        try {
+            const body = JSON.stringify({
+                sharedPending: sharedPending.map(p => ({ url: p.url })),
+                sharedPhotos: sharedPhotos.map(p => ({ url: p.url, description: p.description || '' }))
+            });
+            const res = await fetch(`${API_BASE}/${personId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body });
+            if (!res.ok) throw new Error(res.statusText);
+        } catch (e) {
+            console.error('Failed to save shared album', e);
+            alert('Не вдалося зберегти спільний альбом.');
+        }
+    }
+
+    // підтвердження/відхилення pending
+    async function acceptPending(i) {
+        const item = sharedPending[i]; if (!item) return;
+        sharedPending.splice(i, 1); sharedPhotos.unshift({ url: item.url }); // accepted на початок accepted-масиву?
+        await saveSharedAlbum(); refreshSharedUI();
+    }
+
+    async function declinePending(i) {
+        sharedPending.splice(i, 1);
+        await saveSharedAlbum(); refreshSharedUI();
+    }
+
+    // delete for accepted (selection)
+    sharedDeleteBtn?.addEventListener('click', async () => {
+        if (!sharedSelecting || sharedSelectedOrder.length === 0) { sharedSelecting = false; document.querySelector('.profile-shared')?.classList.remove('selection-mode'); refreshSharedUI(); return; }
+        // видаляємо за індексами (у зворотньому порядку)
+        [...sharedSelectedOrder].sort((a, b) => b - a).forEach(i => sharedPhotos.splice(i, 1));
+        sharedSelectedOrder = [];
+        await saveSharedAlbum();
+        sharedSelecting = false;
+        document.querySelector('.profile-shared')?.classList.remove('selection-mode');
+        refreshSharedUI();
+    });
+
+    // рендер (pending завжди першими)
+    function refreshSharedUI() {
+        if (!sharedListEl) return;
+        sharedListEl.innerHTML = '';
+        const all = [...sharedPending.map(p => ({ ...p, _pending: true })), ...sharedPhotos.map(p => ({ ...p, _pending: false }))];
+
+        sharedListEl.classList.remove('rows-1', 'rows-2');
+        sharedListEl.classList.add(all.length <= 1 ? 'rows-1' : 'rows-2');
+
+        all.forEach((p, visibleIdx) => {
+            const li = document.createElement('li');
+            const img = document.createElement('img'); img.src = p.url; li.appendChild(img);
+
+            // uploading overlay для blob
+            if (isBlob(p.url)) {
+                li.classList.add('uploading');
+                const hint = document.createElement('div'); hint.className = 'uploading-hint'; hint.textContent = 'Завантаження…';
+                li.appendChild(hint);
+            }
+
+            if (p._pending) {
+                // White circle X
+                const close = document.createElement('button');
+                close.className = 'shared-decline-x'; // new CSS class
+                close.textContent = '✕';
+                close.addEventListener('click', () => declinePending(visibleIdx));
+
+                // Confirm button bottom-center
+                const acceptBtn = document.createElement('button');
+                acceptBtn.className = 'shared-accept';
+                acceptBtn.textContent = 'Підтвердити';
+                acceptBtn.addEventListener('click', () => acceptPending(visibleIdx));
+
+                li.append(close, acceptBtn);
+            } else {
+                // Accepted: режим вибору
+                if (sharedSelecting) {
+                    li.classList.add('selected');
+                    li.addEventListener('click', () => toggleSelectShared(visibleIdx - sharedPending.length, false));
+                } else {
+                    li.addEventListener('click', () => {
+                        // показ слайдшоу тільки для accepted (як у звичайних фото)
+                        const images = sharedPhotos.map(x => x.url);
+                        const idx = images.indexOf(p.url);
+                        openSlideshow(images, Math.max(0, idx));
+                    });
+                }
+            }
+
+            const hasAnyShared = (sharedPending.length + sharedPhotos.length) > 0;
+            const addBtn = document.getElementById('shared-add-btn');
+
+            if (addBtn) {
+                if (hasAnyShared) {
+                    // приховати, бо вже є фото
+                    addBtn.style.display = 'none';
+                } else {
+                    // показати inline тільки коли немає жодного фото
+                    addBtn.style.display = 'inline-flex';
+                }
+            }
+
+            sharedListEl.appendChild(li);
+        });
+
+        // керування видимістю контролів
+        const hasAny = (sharedPending.length + sharedPhotos.length) > 0;
+        // інлайнові кнопки ховаємо завжди (кнопка delete зʼявляється лише у selection-mode)
+        if (sharedDeleteBtn) sharedDeleteBtn.style.display = sharedSelecting ? 'inline-block' : 'none';
+        if (sharedMenuBtn) sharedMenuBtn.style.display = hasAny ? 'inline-flex' : 'none';
+    }
+
+    // додавання від редагування (залогінений теж може “додати” як гість → летить у pending)
+    sharedAddBtn?.addEventListener('click', () => sharedInput?.click());
+    sharedInput?.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []); if (!files.length) return;
+        const start = sharedPending.length;
+        const previews = files.map(f => URL.createObjectURL(f));
+        previews.forEach(url => sharedPending.push({ url }));
+        refreshSharedUI(); sharedInput.value = '';
+
+        for (let i = 0; i < files.length; i++) {
+            try {
+                const hosted = await uploadToImgBB(files[i]);
+                sharedPending[start + i] = { url: hosted };
+                refreshSharedUI();
+                // (опційно) одразу збережемо pending на бекенді
+                await saveSharedAlbum();
+            } catch (err) {
+                console.error('Shared upload failed', err);
+                sharedPending.splice(start + i, 1);
+                refreshSharedUI();
+                alert('Не вдалося додати фото до спільного альбому.');
+            }
+        }
+    });
+
     function updateDeleteButtonLabel() {
         if (!deletePhotoBtn) return;
         deletePhotoBtn.textContent = `Видалити (${selectedOrder.length})`;
@@ -164,8 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDeleteButtonLabel();
     }
 
-    function openSlideshow(images, startIndex = 0) {
-        // Same lightweight slideshow as location page
+    function openSlideshow(images, startIndex = 0, captions = []) {
         const modal = document.createElement('div');
         modal.className = 'slideshow-modal';
 
@@ -177,13 +347,48 @@ document.addEventListener('DOMContentLoaded', () => {
         const track = document.createElement('div');
         track.className = 'slideshow-track';
 
-        images.forEach((url) => {
+        images.forEach((url, i) => {
             const slide = document.createElement('div');
             slide.className = 'slideshow-slide';
+
             const slideImg = document.createElement('img');
             slideImg.src = url;
             slideImg.className = 'slideshow-img';
             slide.appendChild(slideImg);
+
+            // Caption with “… більше/менше” toggle, only if there is text
+            const text = captions[i] || '';
+            if (text && text.trim()) {
+                const cap = document.createElement('div');
+                cap.className = 'slideshow-caption';
+
+                const span = document.createElement('span');
+                span.className = 'caption-text';
+                span.textContent = text;
+
+                const toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.className = 'caption-toggle';
+                toggle.textContent = '… більше';
+
+                cap.append(span, toggle);
+                slide.appendChild(cap);
+
+                // Show toggle only when text is truncated; then expand/collapse
+                requestAnimationFrame(() => {
+                    const overflowing = span.scrollHeight > span.clientHeight + 1;
+                    if (overflowing) {
+                        cap.classList.add('has-toggle');
+                        toggle.addEventListener('click', () => {
+                            const expanded = cap.classList.toggle('expanded');
+                            toggle.textContent = expanded ? 'менше' : '… більше';
+                        });
+                    } else {
+                        toggle.remove();
+                    }
+                });
+            }
+
             track.appendChild(slide);
         });
 
@@ -192,22 +397,17 @@ document.addEventListener('DOMContentLoaded', () => {
         images.forEach((_, idx) => {
             const dot = document.createElement('span');
             dot.className = 'slideshow-indicator';
-            dot.addEventListener('click', () => {
-                changeSlide(idx);
-            });
+            dot.addEventListener('click', () => changeSlide(idx));
             indicator.appendChild(dot);
         });
 
         function updateIndicators(index) {
-            indicator.querySelectorAll('.slideshow-indicator').forEach((dot, i) => {
-                dot.classList.toggle('active', i === index);
-            });
+            indicator.querySelectorAll('.slideshow-indicator')
+                .forEach((dot, i) => dot.classList.toggle('active', i === index));
         }
         function changeSlide(newIndex) {
             const slides = track.querySelectorAll('.slideshow-slide');
-            if (slides[newIndex]) {
-                slides[newIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-            }
+            if (slides[newIndex]) slides[newIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
         }
         track.addEventListener('scroll', () => {
             const slideWidth = track.clientWidth;
@@ -248,12 +448,21 @@ document.addEventListener('DOMContentLoaded', () => {
         photosListEl.classList.add(photos.length === 1 ? 'rows-1' : 'rows-2');
 
         // render items
-        photos.forEach((url, idx) => {
+        photos.forEach((p, idx) => {
             const li = document.createElement('li');
             li.dataset.index = String(idx);
 
             const img = document.createElement('img');
-            img.src = url;
+            img.src = p.url;
+
+            // If this is a local preview (blob:), show uploading overlay + hint
+            if (typeof p.url === 'string' && p.url.startsWith('blob:')) {
+                li.classList.add('uploading');
+                const hint = document.createElement('div');
+                hint.className = 'uploading-hint';
+                hint.textContent = 'Завантаження…';
+                li.appendChild(hint);
+            }
 
             const overlay = document.createElement('div');
             overlay.className = 'photo-selection-overlay';
@@ -278,9 +487,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isSelecting) {
                     toggleSelectPhoto(idx);
                 } else {
-                    const onlyReal = nonBlobPhotos();
-                    const realIndex = onlyReal.indexOf(url);
-                    openSlideshow(onlyReal.length ? onlyReal : photos, Math.max(0, realIndex));
+                    const images = realPhotos().map(pp => pp.url);
+                    const captions = realPhotos().map(pp => pp.description || '');
+                    const safeIndex = Math.max(0, images.indexOf(p.url));
+                    openSlideshow(images.length ? images : [p.url], images.length ? safeIndex : 0, images.length ? captions : [p.description || '']);
                 }
             });
 
@@ -292,9 +502,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function saveProfilePhotos() {
-        // Persist only non-blob URLs
         try {
-            const body = JSON.stringify({ photos: nonBlobPhotos() });
+            const clean = realPhotos().map(p => ({ url: p.url, description: p.description || '' }));
+            const body = JSON.stringify({ photos: clean });
             const res = await fetch(`${API_BASE}/${personId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -305,6 +515,18 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to save profile photos:', e);
             alert('Не вдалося зберегти фотографії профілю.');
         }
+    }
+
+    async function uploadToImgBB(file) {
+        const form = new FormData();
+        form.append('image', file);
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+            method: 'POST',
+            body: form
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error('Upload failed');
+        return json.data.url; // hosted image URL
     }
 
     function hookPhotoButtons() {
@@ -348,7 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 toDelete.forEach(i => {
                     if (i >= 0 && i < photos.length) {
                         const u = photos[i];
-                        if (u?.startsWith('blob:')) { try { URL.revokeObjectURL(u); } catch { } }
+                        // if (u?.startsWith('blob:')) { try { URL.revokeObjectURL(u); } catch { } }
                         photos.splice(i, 1);
                     }
                 });
@@ -360,48 +582,86 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (fileInput)
-            fileInput.addEventListener('change', (e) => {
-                const files = Array.from(e.target.files || []);
-                if (!files.length) return;
+            if (fileInput)
+                fileInput.addEventListener('change', async (e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (!files.length) return;
 
-                const previews = files.map((f) => URL.createObjectURL(f));
+                    // 0) Додаємо МИТТЄВІ превʼю в photos
+                    const startIndex = photos.length;
+                    const previews = files.map(f => URL.createObjectURL(f));
+                    const tempCaptions = new Array(previews.length).fill('');
 
-                // Show previews immediately
-                previews.forEach((url) => photos.push(url));
-                refreshPhotosUI();
-                fileInput.value = '';
+                    previews.forEach((url) => {
+                        photos.push({ url, description: '' /* тимчасово */, _temp: true });
+                    });
+                    refreshPhotosUI();  // покаже ліст із класом .uploading для blob:
+                    // ↓ відкриваємо степпер описів як і раніше
+                    const overlay = document.getElementById('modal-overlay');
+                    const dlg = document.getElementById('photo-desc-modal');
+                    const closeX = document.getElementById('photo-desc-close');
+                    const prevBtn = document.getElementById('photo-desc-prev');
+                    const nextBtn = document.getElementById('photo-desc-next');
+                    const previewEl = document.getElementById('photo-desc-preview');
+                    const textEl = document.getElementById('photo-desc-text');
+                    const counterEl = document.getElementById('photo-desc-counter');
 
-                // Upload each → replace blob with real URL, then persist
-                pendingUploads += files.length;
+                    let step = 0; const total = previews.length;
+                    const open = () => { overlay.hidden = false; dlg.hidden = false; };
+                    const close = () => { overlay.hidden = true; dlg.hidden = true; };
 
-                files.forEach(async (file, idx) => {
-                    const previewUrl = previews[idx];
-                    try {
+                    function renderStep() {
+                        previewEl.src = previews[step];
+                        textEl.value = tempCaptions[step] || '';
+                        counterEl.textContent = `Фото ${step + 1} з ${total}`;
+                        prevBtn.style.display = step === 0 ? 'none' : '';
+                        nextBtn.textContent = step === total - 1 ? 'Готово' : 'Далі';
+                    }
+                    function commitCurrent() { tempCaptions[step] = (textEl.value || '').trim(); }
+
+                    closeX.onclick = () => { commitCurrent(); close(); };
+                    prevBtn.onclick = () => { commitCurrent(); step = Math.max(0, step - 1); renderStep(); };
+                    nextBtn.onclick = () => { commitCurrent(); if (step < total - 1) { step++; renderStep(); } else close(); };
+
+                    open(); renderStep();
+
+                    // чекаємо, поки користувач закриє діалог
+                    await new Promise((resolve) => {
+                        const iv = setInterval(() => { if (dlg.hidden) { clearInterval(iv); resolve(); } }, 60);
+                    });
+
+                    // 1) Асинхронно вантажимо на ImgBB та замінюємо blob → hosted URL
+                    async function uploadToImgBB(file) {
                         const form = new FormData();
                         form.append('image', file);
-                        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-                            method: 'POST',
-                            body: form,
-                        });
+                        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: form });
                         const json = await res.json();
-                        const realUrl = json?.data?.url;
-                        const i = photos.indexOf(previewUrl);
-                        if (i > -1 && realUrl) {
-                            photos[i] = realUrl;
-                            try { URL.revokeObjectURL(previewUrl); } catch { }
-                            refreshPhotosUI();
-                            // Save incrementally so the user doesn’t lose progress
-                            await saveProfilePhotos();
-                        }
-                    } catch (err) {
-                        console.error('Upload failed:', err);
-                        alert('Не вдалося завантажити зображення.');
-                    } finally {
-                        pendingUploads = Math.max(0, pendingUploads - 1);
-                        refreshPhotosUI();
+                        if (!json.success) throw new Error('Upload failed');
+                        return json.data.url;
                     }
+
+                    for (let i = 0; i < files.length; i++) {
+                        const listIndex = startIndex + i; // позиція тимчасового елемента в photos
+                        try {
+                            const hostedUrl = await uploadToImgBB(files[i]);
+                            // звільняємо blob і підміняємо на фінальний обʼєкт
+                            try { URL.revokeObjectURL(previews[i]); } catch { }
+                            const desc = tempCaptions[i] || '';
+                            photos[listIndex] = { url: hostedUrl, description: desc }; // прибираємо _temp
+                            refreshPhotosUI(); // оновимо картку (зникне оверлей "Завантаження…")
+                        } catch (err) {
+                            console.error('Upload failed for', files[i].name, err);
+                            alert(`Не вдалося завантажити фото ${files[i].name}`);
+                            // видаляємо зірване превʼю
+                            photos.splice(listIndex, 1);
+                            refreshPhotosUI();
+                        }
+                    }
+
+                    // 2) Зберігаємо профіль уже з hosted URL’ами
+                    await saveProfilePhotos();
+                    e.target.value = '';
                 });
-            });
     }
 
     function renderComments() {
@@ -546,24 +806,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error(res.statusText);
             const data = await res.json();
 
-            // COMMENTS: from API (may be empty or missing)
+            // ─── COMMENTS ───
             comments = Array.isArray(data.comments) ? data.comments : [];
             renderComments();
 
-            // Avatar & hero background
+            // ─── AVATAR / HERO ───
             if (avatarEl) avatarEl.src = data.avatarUrl || 'img/default-avatar.jpg';
             if (heroEl && data.backgroundUrl) {
                 heroEl.style.backgroundImage = `url(${data.backgroundUrl})`;
             }
 
-            // Name, years, cemetery
+            // ─── NAME / YEARS / CEMETERY ───
             if (nameEl) nameEl.textContent = data.name || '';
             if (yearsEl) {
                 yearsEl.textContent = `${data.birthDate || ''} ${data.birthYear || ''} – ${data.deathDate || ''} ${data.deathYear || ''}`.trim();
             }
             if (cemeteryEl) cemeteryEl.textContent = (data.cemetery || '').split(', ')[0] || '';
 
-            // Action button (view vs add location)
+            // ─── ACTION BTN (location) ───
             if (data?.location?.[0]) {
                 actionText.textContent = 'Локація місця поховання';
                 locationBtn.href = `/location.html?personId=${personId}`;
@@ -572,13 +832,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 locationBtn.href = `/location.html?personId=${personId}`;
             }
 
-            // ─── BIO: render + toggle + edit buttons logic ───
+            // ─── BIO ───
             const fullBio = data.bio || '';
-
-            // elements you'll already have grabbed earlier in the file:
-            // bioContentEl, bioToggleEl, bioAddBtn, bioEditBtn, bioMenuBtn
-
-            // clean old empty-state
             const bioBodyWrap = document.querySelector('.profile-bio .bio-body');
             const bioBtnsWrap = document.querySelector('.profile-bio .bio-buttons');
             bioBodyWrap?.querySelector('.bio-empty')?.remove();
@@ -596,25 +851,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     bioBodyWrap.prepend(empty);
                 }
 
-                // show ONLY "Додати" inline
+                // show ONLY "Додати"
                 if (bioBtnsWrap) bioBtnsWrap.style.display = 'flex';
                 if (bioAddBtn) {
-                    bioAddBtn.style.display = 'inline-flex';  // override any old inline style
-                    bioAddBtn.classList.add('show');          // pairs with CSS to make it visible
+                    bioAddBtn.style.display = 'inline-flex';
+                    bioAddBtn.classList.add('show');
                 }
-                if (bioEditBtn) {
-                    bioEditBtn.classList.remove('show');      // keep hidden
-                    bioEditBtn.style.display = 'inline-flex'; // safe default
-                }
+                if (bioEditBtn) bioEditBtn.classList.remove('show');
                 if (bioMenuBtn) bioMenuBtn.style.display = 'none';
-
             } else {
-                // has bio → show text & dots, hide inline buttons area
+                // has bio
                 if (bioContentEl) {
                     bioContentEl.style.display = '';
                     bioContentEl.textContent = fullBio;
                 }
-
                 bioToggleEl?.remove();
                 const isOverflowing = bioContentEl && (bioContentEl.scrollHeight > bioContentEl.clientHeight);
                 if (isOverflowing && bioContentEl && bioToggleEl) {
@@ -634,17 +884,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (bioMenuBtn) bioMenuBtn.style.display = 'inline-flex';
             }
 
-            // (3) entering edit mode (from Add or from dots→"Змінити")
             function enterBioEdit() {
                 const bioBody = document.querySelector('.profile-bio .bio-body');
                 if (!bioBody) return;
+                bioBody.innerHTML = `<textarea id="bio-editor" placeholder="Додайте життєпис...">${fullBio || ''}</textarea>`;
 
-                // swap body to textarea
-                bioBody.innerHTML = `
-    <textarea id="bio-editor" placeholder="Додайте життєпис...">${fullBio || ''}</textarea>
-  `;
-
-                // in edit mode: show only "Скасувати" + "Готово" buttons inline; hide dots
                 const btnsWrap = document.querySelector('.profile-bio .bio-buttons');
                 if (btnsWrap) {
                     btnsWrap.style.display = 'flex';
@@ -661,21 +905,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     done.textContent = 'Готово';
 
                     btnsWrap.append(cancel, done);
-
-                    // hide dots while editing
                     bioMenuBtn && (bioMenuBtn.style.display = 'none');
 
                     cancel.addEventListener('click', () => window.location.reload());
-
                     done.addEventListener('click', async () => {
                         const newBio = (document.getElementById('bio-editor')?.value || '').trim();
                         try {
-                            const res = await fetch(`${API_BASE}/${personId}`, {
+                            const up = await fetch(`${API_BASE}/${personId}`, {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ bio: newBio })
                             });
-                            if (!res.ok) throw new Error(res.statusText);
+                            if (!up.ok) throw new Error(up.statusText);
                             window.location.reload();
                         } catch (e) {
                             console.error('Failed to update bio:', e);
@@ -684,22 +925,37 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             }
-
-            // wire actions:
-            // – inline Add (for empty state)
-            // – inline Edit (if you keep it)
-            // – dots menu item "Змінити" (make sure the popup option has id="bio-edit-option")
             bioAddBtn?.addEventListener('click', enterBioEdit);
             bioEditBtn?.addEventListener('click', enterBioEdit);
             document.getElementById('bio-edit-option')?.addEventListener('click', () => {
-                document.getElementById('bio-menu')?.classList.add('hidden'); // close popup if open
+                document.getElementById('bio-menu')?.classList.add('hidden');
                 enterBioEdit();
             });
 
-            // ─── PHOTOS (Profile) ───
+            // ─── PHOTOS (звичайні) ───
             photos = Array.isArray(data.photos) ? data.photos.filter(Boolean) : [];
             hookPhotoButtons();
             refreshPhotosUI();
+
+            // ──────────────────────────────────────────────────────────────
+            // SHARED ALBUM (edit page) – pending + accepted
+            // ──────────────────────────────────────────────────────────────
+            const sharedSection = document.querySelector('.profile-shared');
+            if (sharedSection && data.premium) {
+                sharedSection.removeAttribute('hidden');
+
+                sharedPending = Array.isArray(data.sharedPending)
+                    ? data.sharedPending.filter(p => p && typeof p.url === 'string' && p.url.trim())
+                    : [];
+                sharedPhotos = Array.isArray(data.sharedPhotos)
+                    ? data.sharedPhotos.filter(p => p && typeof p.url === 'string' && p.url.trim())
+                    : [];
+
+                // тут для редактора доступні всі функції: accept/decline pending, вибір accepted
+                typeof refreshSharedUI === 'function' && refreshSharedUI();
+            } else if (sharedSection) {
+                sharedSection.setAttribute('hidden', 'hidden');
+            }
 
         } catch (err) {
             console.error(err);

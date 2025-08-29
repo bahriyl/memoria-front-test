@@ -389,6 +389,50 @@ body {
     grid-template-rows: 198px 198px;
 }
 
+/* Uploading overlay */
+.photos-list li.uploading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .35);
+    pointer-events: none;
+}
+
+.photos-list li.uploading::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 34px;
+    height: 34px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, .35);
+    border-top-color: #fff;
+    animation: memoria-spin 0.9s linear infinite;
+}
+
+/* same tiny hint as on location */
+.photos-list li.uploading .uploading-hint {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 16px;
+    color: #fff;
+    background: rgba(0, 0, 0, .45);
+}
+
+/* Spinner keyframes (reuse if not present) */
+@keyframes memoria-spin {
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
 /* ─── 3-dots button + popup ─── */
 .dots-btn {
     position: absolute;
@@ -1036,6 +1080,7 @@ body {
     align-items: center;
     justify-content: center;
     scroll-snap-align: center;
+    position: relative;
 }
 
 .slideshow-img {
@@ -1078,6 +1123,145 @@ body {
     background: #1B8B59;
 }
 
+/* Slideshow caption (bottom overlay) */
+.slideshow-caption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 14px 16px 18px;
+    background: rgba(0, 0, 0, .65);
+    color: #fff;
+    box-sizing: border-box;
+    font-size: 16px;
+    line-height: 1.4;
+    margin-bottom: 30px;
+}
+
+.slideshow-caption .caption-text {
+    display: inline;
+    max-height: calc(1.4em * 2);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    /* clamp to 2 lines */
+    -webkit-box-orient: vertical;
+}
+
+.slideshow-caption.expanded .caption-text {
+    -webkit-line-clamp: unset;
+    /* повний текст */
+    overflow: visible;
+    max-height: none;
+}
+
+.slideshow-caption .caption-more {
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: 6px;
+    text-decoration: none;
+}
+
+.caption-toggle {
+    display: none;
+    /* показуємо тільки якщо є переповнення */
+    background: none;
+    border: 0;
+    padding: 0 0 0 6px;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.slideshow-caption.has-toggle .caption-toggle {
+    display: inline;
+}
+
 [hidden] {
     display: none !important;
+}
+
+/* ─── Shared Album ─── */
+.profile-shared {
+    background: #fff;
+    border-radius: 20px;
+    padding: 1rem 1rem .5rem;
+    margin-top: 1rem;
+    position: relative;
+}
+
+.shared-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 .75rem;
+}
+
+.shared-controls {
+    display: flex;
+    gap: .75rem;
+    margin-bottom: .75rem;
+    align-items: center;
+}
+
+/* Кнопки підтвердження/відхилення на pending-картках */
+.shared-offer-actions {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    z-index: 3;
+}
+
+.shared-accept,
+.shared-decline {
+    border: 0;
+    border-radius: 14px;
+    padding: 6px 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.shared-accept {
+    background: #1B8B59;
+    color: #fff;
+}
+
+.shared-decline {
+    background: rgba(0, 0, 0, .55);
+    color: #fff;
+}
+
+.shared-close-x {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .55);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 3;
+}
+
+/* У режимі вибору показуємо червону кнопку видалення */
+.profile-shared.selection-mode #shared-delete-btn {
+    display: inline-block !important;
+}
+
+#shared-delete-btn {
+    display: none;
+    background: #DC3545;
+    color: #fff;
+}
+
+#shared-delete-btn:hover {
+    background: #C82333;
 }

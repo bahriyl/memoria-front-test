@@ -74,6 +74,40 @@
     display: inline-flex !important;
 }
 
+.shared-list li {
+    position: relative;
+}
+
+.shared-decline-x {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid #ccc;
+    color: #333;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.shared-accept {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #F2F4F7;
+    color: #1C170D;
+    border: none;
+    border-radius: 14px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 510;
+}
+
 /* no 3-dots; no “Увійти” header */
 
 /* Keep photo selection delete visible when selecting (already in base css) */

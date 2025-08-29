@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    const API_BASE =
-        "https://memoria-test-app-ifisk.ondigitalocean.app/api/ritual_services";
+    const API_BASE = "https://memoria-test-app-ifisk.ondigitalocean.app/api/ritual_services";
+    // const API_BASE = "http://0.0.0.0:5000/api/ritual_services"
     const params = new URLSearchParams(window.location.search);
     const ritualId = params.get("id");
 
@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // 5) Блоки з фотографіями
         const container = document.querySelector(".ritual-container");
-        data.items.forEach(([title, images]) => {
+        data.items.forEach(([title, rawImagesOrAlbums]) => {
             const section = document.createElement("section");
             section.className = "ritual-item-section";
 
@@ -86,13 +86,39 @@ document.addEventListener("DOMContentLoaded", async () => {
             const imagesContainer = document.createElement("div");
             imagesContainer.className = "item-images";
 
-            images.forEach((url, _, allUrls) => {
+            // --- Normalize to albums ---
+            const albums = (Array.isArray(rawImagesOrAlbums) ? rawImagesOrAlbums : []).map((x) => {
+                if (typeof x === "string") return { photos: [x], description: "" };
+                if (Array.isArray(x)) return { photos: x, description: "" }; // safety
+                // assume new shape
+                return {
+                    photos: Array.isArray(x?.photos) ? x.photos : [],
+                    description: (x?.description || "").toString(),
+                };
+            });
+
+            albums.forEach((album) => {
+                if (!album.photos?.length) return;
+                const coverUrl = album.photos[0];
+
+                const wrapper = document.createElement("div");
+                wrapper.className = "image-wrapper";
+
                 const img = document.createElement("img");
-                img.src = url;
+                img.src = coverUrl;
                 img.alt = title;
                 img.classList.add("preview-img");
-                img.addEventListener("click", () => openSlideshow(allUrls));
-                imagesContainer.appendChild(img);
+
+                // little counter badge: “1/5” etc. (optional)
+                const counter = document.createElement("div");
+                counter.className = "image-counter";
+                counter.textContent = `${album.photos.length}`;
+
+                img.addEventListener("click", () => openSlideshow(album.photos, album.description));
+
+                wrapper.appendChild(img);
+                if (album.photos.length > 1) wrapper.appendChild(counter);
+                imagesContainer.appendChild(wrapper);
             });
 
             section.appendChild(heading);
@@ -171,7 +197,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 
     // Функція відкриття слайдшоу
-    function openSlideshow(images) {
+    function openSlideshow(images, desc = "") {
         const modal = document.createElement("div");
         modal.className = "slideshow-modal";
 
@@ -184,6 +210,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         closeBtn.textContent = "✕";
         closeBtn.className = "close-slideshow";
         closeBtn.onclick = () => document.body.removeChild(modal);
+
+        // NEW: description under image
+        const caption = document.createElement("div");
+        caption.className = "slideshow-caption";
+        caption.textContent = desc || "";
 
         const indicator = document.createElement("div");
         indicator.className = "slideshow-indicators";
@@ -199,26 +230,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         function updateIndicators() {
-            indicator
-                .querySelectorAll(".slideshow-indicator")
-                .forEach((dot, i) => {
-                    dot.classList.toggle("active", i === currentIndex);
-                });
+            indicator.querySelectorAll(".slideshow-indicator").forEach((dot, i) => {
+                dot.classList.toggle("active", i === currentIndex);
+            });
         }
 
-        // SWIPE logic
+        // swipe handlers unchanged…
         let touchStartX = 0;
-        img.addEventListener("touchstart", (e) => {
-            touchStartX = e.changedTouches[0].screenX;
-        });
+        img.addEventListener("touchstart", (e) => { touchStartX = e.changedTouches[0].screenX; });
         img.addEventListener("touchend", (e) => {
-            const touchEndX = e.changedTouches[0].screenX;
-            const dist = touchEndX - touchStartX;
+            const dist = e.changedTouches[0].screenX - touchStartX;
             if (Math.abs(dist) > 50) {
-                currentIndex =
-                    dist > 0
-                        ? (currentIndex - 1 + images.length) % images.length
-                        : (currentIndex + 1) % images.length;
+                currentIndex = dist > 0
+                    ? (currentIndex - 1 + images.length) % images.length
+                    : (currentIndex + 1) % images.length;
                 img.src = images[currentIndex];
                 updateIndicators();
             }
@@ -226,6 +251,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         modal.appendChild(closeBtn);
         modal.appendChild(img);
+        modal.appendChild(caption);       // <— insert caption
         modal.appendChild(indicator);
         document.body.appendChild(modal);
         updateIndicators();
