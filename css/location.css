@@ -380,25 +380,16 @@ textarea::placeholder {
 }
 
 /* === Slideshow (1:1 з ritual_service_profile) === */
+/* === Slideshow (exactly like on Profile) === */
 .slideshow-modal {
     position: fixed;
-    top: 0;
-    left: 0;
+    inset: 0;
     z-index: 10000;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, .95);
+    background: rgba(0, 0, 0, .95);
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-}
-
-.slideshow-img {
-    width: 100vw;
-    height: auto;
-    max-height: 100vh;
-    object-fit: contain;
 }
 
 .close-slideshow {
@@ -408,30 +399,100 @@ textarea::placeholder {
     font-size: 28px;
     color: #fff;
     cursor: pointer;
-    z-index: 10000;
+    z-index: 10001;
+}
+
+.slideshow-track {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+    transform: translateX(0);
+    transition: transform .25s ease;
+}
+
+.slideshow-slide {
+    min-width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.slideshow-img {
+    width: 100vw;
+    max-height: 100vh;
+    object-fit: contain;
 }
 
 .slideshow-indicators {
     position: absolute;
-    bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
+    bottom: calc(16px + env(safe-area-inset-bottom));
     display: flex;
     gap: 8px;
-    z-index: 10;
+    z-index: 10001;
 }
 
 .slideshow-indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #fff;
-    cursor: pointer;
-    transition: background-color .3s;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .4);
 }
 
 .slideshow-indicator.active {
-    background: #1B8B59;
+    background: #fff;
+}
+
+/* Caption overlay like on Profile */
+.slideshow-caption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    color: #fff;
+    background: linear-gradient(transparent, rgba(0, 0, 0, .55));
+}
+
+.slideshow-caption .caption-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+    font-size: 15px;
+    max-width: calc(100% - 96px);
+}
+
+.slideshow-caption .caption-toggle {
+    display: none;
+    /* shown only if truncated */
+    padding: 0;
+    background: none;
+    border: 0;
+    color: #fff;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.slideshow-caption.has-toggle .caption-toggle {
+    display: inline;
+}
+
+.slideshow-caption.expanded .caption-text {
+    -webkit-line-clamp: unset;
+}
+
+.slideshow-caption.expanded .caption-toggle::after {
+    content: '';
 }
 
 /* 3 dots button + popup - exactly like ritual_service_edit */

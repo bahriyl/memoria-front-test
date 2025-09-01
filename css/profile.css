@@ -193,7 +193,7 @@ body {
     color: #000;
     font-weight: 600;
     white-space: nowrap;
-    /* keep “… більше” on one line */
+    cursor: pointer;
     vertical-align: baseline;
 }
 
@@ -1109,7 +1109,7 @@ body {
     margin: 0
 }
 
-/* === Slideshow (same as location) === */
+/* === Slideshow === */
 .slideshow-modal {
     position: fixed;
     inset: 0;
@@ -1409,4 +1409,12 @@ body {
 
 .toast[hidden] {
     display: none !important;
+}
+
+/* Вимикаємо webkit-кламп, коли керуємо з JS */
+.bio-content.manual-clamp {
+    display: block !important;
+    -webkit-line-clamp: unset !important;
+    -webkit-box-orient: initial !important;
+    overflow: visible;
 }

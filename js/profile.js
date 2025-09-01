@@ -947,37 +947,90 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // ─── BIO ───
-            const fullBio = data.bio || '';
+            const fullBio = (data.bio || '').trim();
             const bioBodyWrap = document.querySelector('.profile-bio .bio-body');
             bioBodyWrap?.querySelector('.bio-empty')?.remove();
 
-            if (fullBio.trim()) {
-                bioContentEl.textContent = fullBio;
+            function applyBio(text) {
+                const LINES = 4;
+                const moreLabel = 'більше';
+                const lessLabel = 'менше';
 
-                // measure overflow
-                requestAnimationFrame(() => {
-                    const overflowing = bioContentEl.scrollHeight > bioContentEl.clientHeight + 1;
-                    if (overflowing) {
-                        // create toggle button
-                        const toggle = document.createElement('button');
-                        toggle.type = 'button';
-                        toggle.className = 'bio-toggle';
-                        toggle.textContent = '…\u00A0більше';
+                bioContentEl.classList.add('manual-clamp'); // вимикаємо css-кламп
+                bioContentEl.innerHTML = '';                // очистка
 
-                        toggle.addEventListener('click', () => {
-                            const expanded = bioContentEl.classList.toggle('expanded');
-                            toggle.textContent = expanded ? 'менше' : '… більше';
-                        });
+                // Створюємо вузли, які і під час вимірювань, і фінально будуть стояти поряд
+                const textSpan = document.createElement('span'); // сам текст
+                const nbsp = document.createTextNode('\u00A0');  // NBSP між "…" і toggle (щоб не ламався рядок)
+                const toggle = document.createElement('span');   // перемикач
+                toggle.className = 'bio-toggle';
+                toggle.setAttribute('role', 'button');
+                toggle.tabIndex = 0;
 
-                        bioContentEl.appendChild(toggle);
+                const cs = getComputedStyle(bioContentEl);
+                const line = parseFloat(cs.lineHeight) || (1.5 * parseFloat(cs.fontSize) || 21);
+                const maxH = Math.round(LINES * line);
+
+                // Швидка гілка: увесь текст влазить у 4 рядки — показуємо без toggle
+                textSpan.textContent = text;
+                bioContentEl.appendChild(textSpan);
+                if (bioContentEl.clientHeight <= maxH + 1) {
+                    return;
+                }
+
+                // Функція вимірювання: кладемо "префікс + ' …' + NBSP + <span class= bio-toggle>більше</span>"
+                function heightForPrefix(prefixLen) {
+                    bioContentEl.innerHTML = '';
+                    textSpan.textContent = text.slice(0, prefixLen).trimEnd() + ' …';
+                    toggle.textContent = moreLabel; // саме та ж стилістика, що буде у фіналі
+                    bioContentEl.append(textSpan, nbsp, toggle);
+                    return bioContentEl.clientHeight;
+                }
+
+                // Бінарний пошук максимальної довжини, щоб увесь блок лишався висотою <= 4 рядки
+                let lo = 0, hi = text.length, best = 0;
+                while (lo <= hi) {
+                    const mid = (lo + hi) >> 1;
+                    if (heightForPrefix(mid) <= maxH + 1) {
+                        best = mid; lo = mid + 1;
+                    } else {
+                        hi = mid - 1;
                     }
+                }
+
+                // Фіксуємо фінальну розмітку (у тому ж складі, що й під час вимірювання)
+                bioContentEl.innerHTML = '';
+                textSpan.textContent = text.slice(0, best).trimEnd() + ' …';
+                toggle.textContent = moreLabel;
+                bioContentEl.append(textSpan, document.createTextNode('\u00A0'), toggle);
+
+                // Обробники розкриття/згортання
+                let expanded = false;
+                const expand = () => {
+                    expanded = true;
+                    bioContentEl.innerHTML = '';
+                    textSpan.textContent = text + ' ';
+                    toggle.textContent = lessLabel;
+                    bioContentEl.append(textSpan, toggle);
+                };
+                const collapse = () => {
+                    expanded = false;
+                    // Перераховуємо обрізання — це поверне toggle рівно в кінець 4-го рядка
+                    applyBio(text);
+                };
+                const onToggle = () => (expanded ? collapse() : expand());
+
+                toggle.addEventListener('click', onToggle);
+                toggle.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); }
                 });
             }
-            if (!fullBio.trim()) {
-                if (bioContentEl) {
-                    bioContentEl.textContent = '';
-                    bioContentEl.style.display = 'none';
-                }
+
+            if (fullBio) {
+                applyBio(fullBio);
+            } else {
+                bioContentEl.textContent = '';
+                bioContentEl.style.display = 'none';
                 if (bioBodyWrap) {
                     const empty = document.createElement('div');
                     empty.className = 'bio-empty';
