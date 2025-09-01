@@ -164,15 +164,21 @@ function renderData(data) {
         img.alt = title;
         img.className = "item-image";
 
+        // little counter badge
+        const counter = document.createElement("div");
+        counter.className = "image-counter";
+        counter.textContent = `${album.photos.length}`;
+
         const badge = document.createElement("span");
         badge.className = "select-badge";
 
         img.addEventListener("click", () => {
-          if (isSelecting) toggleSelect(wrap);
-          else openSlideshow(album.photos, album.description); // <— with description
+          // repeat the album description for every image (or build per-image captions array if you have it)
+          const captions = album.photos.map(() => album.description || '');
+          openSlideshow(album.photos, 0, captions);
         });
 
-        wrap.append(img, badge);
+        wrap.append(img, badge, counter);
         imagesContainer.appendChild(wrap);
       });
     }
@@ -617,69 +623,101 @@ function openAddCategoryModal() {
   };
 }
 
-function openSlideshow(images, desc = "") {
-  if (!Array.isArray(images) || !images.length) return;
+function openSlideshow(images, startIndex = 0, captions = []) {
+  const modal = document.createElement('div');
+  modal.className = 'slideshow-modal';
 
-  // Backdrop
-  const modal = document.createElement("div");
-  modal.className = "slideshow-modal";
+  const closeBtnX = document.createElement('span');
+  closeBtnX.textContent = '✕';
+  closeBtnX.className = 'close-slideshow';
+  closeBtnX.onclick = () => {
+    document.body.style.overflow = ''; // restore scroll
+    document.body.removeChild(modal);
+  };
 
-  // Close (X)
-  const closeBtn = document.createElement("span");
-  closeBtn.className = "close-slideshow";
-  closeBtn.textContent = "✕";
-  closeBtn.onclick = () => document.body.removeChild(modal);
+  const track = document.createElement('div');
+  track.className = 'slideshow-track';
 
-  // Main image
-  let idx = 0;
-  const img = document.createElement("img");
-  img.className = "slideshow-img";
-  img.src = images[idx];
+  images.forEach((url, i) => {
+    const slide = document.createElement('div');
+    slide.className = 'slideshow-slide';
 
-  // Caption (album description)
-  const caption = document.createElement("div");
-  caption.className = "slideshow-caption";
-  caption.textContent = desc || "";
+    const img = document.createElement('img');
+    img.src = url;
+    img.className = 'slideshow-img';
+    slide.appendChild(img);
+
+    // Optional caption
+    const text = Array.isArray(captions) ? (captions[i] || '') : (captions || '');
+    if (text && text.trim()) {
+      const cap = document.createElement('div');
+      cap.className = 'slideshow-caption';
+
+      const span = document.createElement('span');
+      span.className = 'caption-text';
+      span.textContent = text;
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'caption-toggle';
+      toggle.textContent = '… більше';
+
+      cap.append(span, toggle);
+      slide.appendChild(cap);
+
+      // Show "… більше" only if text overflows
+      requestAnimationFrame(() => {
+        const overflowing = span.scrollHeight > span.clientHeight + 1;
+        if (overflowing) {
+          cap.classList.add('has-toggle');
+          toggle.addEventListener('click', () => {
+            const expanded = cap.classList.toggle('expanded');
+            toggle.textContent = expanded ? 'менше' : '… більше';
+          });
+        } else {
+          toggle.remove();
+        }
+      });
+    }
+
+    track.appendChild(slide);
+  });
 
   // Dots
-  const dots = document.createElement("div");
-  dots.className = "slideshow-indicators";
-  images.forEach((_, i) => {
-    const dot = document.createElement("span");
-    dot.className = "slideshow-indicator";
-    dot.addEventListener("click", () => {
-      idx = i;
-      img.src = images[idx];
-      updateDots();
-    });
-    dots.appendChild(dot);
+  const indicator = document.createElement('div');
+  indicator.className = 'slideshow-indicators';
+  images.forEach((_, idx) => {
+    const dot = document.createElement('span');
+    dot.className = 'slideshow-indicator';
+    dot.addEventListener('click', () => changeSlide(idx));
+    indicator.appendChild(dot);
   });
 
-  function updateDots() {
-    dots.querySelectorAll(".slideshow-indicator").forEach((d, i) => {
-      d.classList.toggle("active", i === idx);
-    });
+  function updateIndicators(index) {
+    indicator.querySelectorAll('.slideshow-indicator').forEach((dot, i) =>
+      dot.classList.toggle('active', i === index)
+    );
   }
-
-  // swipe support
-  let startX = 0;
-  img.addEventListener("touchstart", e => { startX = e.changedTouches[0].screenX; });
-  img.addEventListener("touchend", e => {
-    const dx = e.changedTouches[0].screenX - startX;
-    if (Math.abs(dx) > 50) {
-      idx = dx > 0 ? (idx - 1 + images.length) % images.length
-        : (idx + 1) % images.length;
-      img.src = images[idx];
-      updateDots();
+  function changeSlide(newIndex) {
+    const slides = track.querySelectorAll('.slideshow-slide');
+    if (slides[newIndex]) {
+      slides[newIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
     }
+  }
+  track.addEventListener('scroll', () => {
+    const slideWidth = track.clientWidth;
+    const index = Math.round(track.scrollLeft / slideWidth);
+    updateIndicators(index);
   });
 
-  modal.appendChild(closeBtn);
-  modal.appendChild(img);
-  modal.appendChild(caption);
-  modal.appendChild(dots);
+  modal.append(closeBtnX, track, indicator);
   document.body.appendChild(modal);
-  updateDots();
+  document.body.style.overflow = 'hidden'; // prevent background scroll
+
+  requestAnimationFrame(() => {
+    changeSlide(startIndex);
+    updateIndicators(startIndex);
+  });
 }
 
 // Select the back button

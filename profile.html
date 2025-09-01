@@ -72,7 +72,6 @@
             <div class="bio-body">
                 <p class="bio-content collapsed" id="bio-content">
                     <!-- JS will inject fullBio text here... -->
-                    <span class="bio-toggle" id="bio-toggle">… більше</span>
                 </p>
             </div>
         </section>
@@ -191,8 +190,9 @@
                 <h3 class="add-comment-title">Додати коментар</h3>
                 <div class="comment-templates">
                     <button class="template-btn">Щирі співчуття</button>
-                    <button class="template-btn">Вічна пам'ять та слава</button>
+                    <button class="template-btn">Вічна пам'ять та слава герою</button>
                     <button class="template-btn">Співчуття рідним та близьким</button>
+                    <button class="template-btn">Добавте локацію</button>
                 </div>
             </div>
         </section>
@@ -288,6 +288,18 @@
         <div class="modal-actions">
             <button id="photo-desc-prev" class="modal-cancel">Назад</button>
             <button id="photo-desc-next" class="modal-ok">Далі</button>
+        </div>
+    </div>
+
+    <!-- Custom Donation Modal -->
+    <div id="donation-modal" class="modal" hidden>
+        <button id="donation-close" class="modal-close" aria-label="Закрити">&times;</button>
+        <p class="modal-text">Введіть суму пожертви (грн)</p>
+        <input id="donation-input" type="number" min="1" step="1" placeholder="Сума, грн"
+            style="width:100%;box-sizing:border-box;background:#F1F3F5;border:none;border-radius:8px;padding:10px 12px;font-size:15px;outline:none;">
+        <div class="modal-actions">
+            <button id="donation-cancel" class="modal-cancel">Скасувати</button>
+            <button id="donation-ok" class="modal-ok">Підтвердити</button>
         </div>
     </div>
 

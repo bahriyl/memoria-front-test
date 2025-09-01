@@ -775,22 +775,26 @@ textarea::placeholder {
 }
 
 .slideshow-indicators {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 0;
+    gap: 8px;
+    z-index: 10;
 }
 
 .slideshow-indicator {
-    width: 8px;
-    height: 8px;
-    background: #777;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
+    background: #fff;
     cursor: pointer;
+    transition: background-color .3s;
 }
 
 .slideshow-indicator.active {
-    background: #fff;
+    background: #1B8B59;
 }
 
 .close-slideshow {

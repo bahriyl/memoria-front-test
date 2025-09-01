@@ -72,6 +72,91 @@ document.addEventListener('DOMContentLoaded', () => {
         if (toastEl) toastEl.hidden = true;
     });
 
+    // ─── Liturgy: custom donation (“Інше”) ───
+    const donationOptions = document.querySelector('.donation-options');
+    const overlayEl = document.getElementById('modal-overlay');         // already exists in your HTML
+    const donationModal = document.getElementById('donation-modal');
+    const donationInput = document.getElementById('donation-input');
+    const donationOk = document.getElementById('donation-ok');
+    const donationCancel = document.getElementById('donation-cancel');
+    const donationClose = document.getElementById('donation-close');
+
+    // Mark the original "Інше" button as custom so we can always detect it
+    const customDonationBtn = Array.from(donationOptions?.querySelectorAll('.donation-btn') || [])
+        .find(btn => btn.textContent.trim() === 'Інше');
+    if (customDonationBtn) {
+        customDonationBtn.dataset.custom = '1';
+    }
+
+    function openDonationModal(presetValue = '') {
+        if (!donationModal || !overlayEl) return;
+        donationInput.value = presetValue || '';
+        overlayEl.hidden = false;
+        donationModal.hidden = false;
+        // focus after paint
+        requestAnimationFrame(() => donationInput?.focus());
+    }
+
+    function closeDonationModal() {
+        if (!donationModal || !overlayEl) return;
+        donationModal.hidden = true;
+        overlayEl.hidden = true;
+    }
+
+    function selectDonationButton(btn) {
+        // clear previous selection
+        donationOptions?.querySelectorAll('.donation-btn').forEach(b => b.classList.remove('selected'));
+        // select this one
+        btn?.classList.add('selected');
+    }
+
+    donationOptions?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.donation-btn');
+        if (!btn) return;
+
+        // If it's our custom (“Інше”) button → open modal
+        if (btn.dataset.custom === '1') {
+            // If user previously entered a custom amount, show it again
+            const current = btn.textContent.trim();
+            const preset = current !== 'Інше' ? current.replace(/[^\d]/g, '') : '';
+            openDonationModal(preset);
+            // remember which button we are editing
+            donationModal._targetBtn = btn;
+            return;
+        }
+
+        // Otherwise: normal predefined amount → just select it
+        selectDonationButton(btn);
+    });
+
+    // Modal buttons
+    donationCancel?.addEventListener('click', closeDonationModal);
+    donationClose?.addEventListener('click', closeDonationModal);
+
+    // Confirm custom sum
+    donationOk?.addEventListener('click', () => {
+        const btn = donationModal?._targetBtn || customDonationBtn;
+        const raw = (donationInput?.value || '').trim();
+        const amount = parseInt(raw, 10);
+
+        if (!amount || amount <= 0) {
+            alert('Введіть коректну суму (мінімум 1 грн).');
+            donationInput?.focus();
+            return;
+        }
+
+        // Format like “123 грн”
+        const label = `${amount} грн`;
+        if (btn) {
+            btn.textContent = label;
+            // also keep data-amount if you later need to read it
+            btn.dataset.amount = String(amount);
+            selectDonationButton(btn);
+        }
+
+        closeDonationModal();
+    });
+
     // Dots popup options (if present)
     document.getElementById('bio-edit-option')?.addEventListener('click', () => bioEditBtn?.click());
     document.getElementById('photos-add-option')?.addEventListener('click', () => addPhotoBtn?.click());
@@ -834,7 +919,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderComments?.();
 
             // ─── AVATAR / HERO ───
-            if (avatarEl) avatarEl.src = data.avatarUrl || 'img/default-avatar.jpg';
+            if (avatarEl) avatarEl.src = data.avatarUrl || 'https://i.ibb.co/mrQJL133/Frame-519.jpg';
             if (heroEl && data.backgroundUrl) {
                 heroEl.style.backgroundImage = `url(${data.backgroundUrl})`;
             }
@@ -845,6 +930,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 yearsEl.textContent = `${data.birthDate || ''} ${data.birthYear || ''} – ${data.deathDate || ''} ${data.deathYear || ''}`.trim();
             }
             if (cemeteryEl) cemeteryEl.textContent = (data.cemetery || '').split(', ')[0] || '';
+
+            // Ensure liturgy person-name is always visible
+            const liturgyPersonNameEl = document.querySelector('.person-name');
+            if (liturgyPersonNameEl && nameEl) {
+                liturgyPersonNameEl.textContent = nameEl.textContent;
+            }
 
             // ─── ACTION BTN (location) ───
             if (data?.location?.[0]) {
@@ -860,6 +951,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const bioBodyWrap = document.querySelector('.profile-bio .bio-body');
             bioBodyWrap?.querySelector('.bio-empty')?.remove();
 
+            if (fullBio.trim()) {
+                bioContentEl.textContent = fullBio;
+
+                // measure overflow
+                requestAnimationFrame(() => {
+                    const overflowing = bioContentEl.scrollHeight > bioContentEl.clientHeight + 1;
+                    if (overflowing) {
+                        // create toggle button
+                        const toggle = document.createElement('button');
+                        toggle.type = 'button';
+                        toggle.className = 'bio-toggle';
+                        toggle.textContent = '…\u00A0більше';
+
+                        toggle.addEventListener('click', () => {
+                            const expanded = bioContentEl.classList.toggle('expanded');
+                            toggle.textContent = expanded ? 'менше' : '… більше';
+                        });
+
+                        bioContentEl.appendChild(toggle);
+                    }
+                });
+            }
             if (!fullBio.trim()) {
                 if (bioContentEl) {
                     bioContentEl.textContent = '';
@@ -870,23 +983,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     empty.className = 'bio-empty';
                     empty.textContent = 'Життєпис ще не заповнено. Будь ласка, додайте інформацію';
                     bioBodyWrap.prepend(empty);
-                }
-            } else {
-                if (bioContentEl) {
-                    bioContentEl.style.display = '';
-                    bioContentEl.textContent = fullBio;
-                }
-                bioToggleEl?.remove();
-                const isOverflowing = bioContentEl && (bioContentEl.scrollHeight > bioContentEl.clientHeight);
-                if (isOverflowing && bioContentEl && bioToggleEl) {
-                    bioContentEl.appendChild(bioToggleEl);
-                    bioToggleEl.style.display = 'inline';
-                    bioToggleEl.textContent = '... більше';
-                    bioContentEl.style.paddingRight = '0.1rem';
-                    bioToggleEl.addEventListener('click', () => {
-                        const expanded = bioContentEl.classList.toggle('expanded');
-                        bioToggleEl.textContent = expanded ? 'менше' : '... більше';
-                    });
                 }
             }
 
@@ -1015,32 +1111,56 @@ document.addEventListener('DOMContentLoaded', () => {
         const today = new Date();
         const dayNames = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
-        for (let i = 0; i < 7; i++) {
-            const date = new Date(today);
-            date.setDate(today.getDate() + i);
+        // From one month before today to one month after today
+        const startDate = new Date(today);
+        startDate.setMonth(today.getMonth() - 1);
 
+        const endDate = new Date(today);
+        endDate.setMonth(today.getMonth() + 1);
+
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
             const dateItem = document.createElement('div');
-            dateItem.className = 'date-item' + (i === 0 ? ' selected' : '');
+            dateItem.className = 'date-item' +
+                (d.toDateString() === today.toDateString() ? ' selected' : '');
 
             const dateNumber = document.createElement('span');
             dateNumber.className = 'date-number';
-            dateNumber.textContent = date.getDate();
+            dateNumber.textContent = d.getDate();
 
             const dateDay = document.createElement('span');
             dateDay.className = 'date-day';
-            dateDay.textContent = dayNames[date.getDay()];
+            dateDay.textContent = dayNames[d.getDay()];
 
             dateItem.appendChild(dateNumber);
             dateItem.appendChild(dateDay);
             dateCalendar.appendChild(dateItem);
 
-            dateItem.dataset.day = String(date.getDate());
-            dateItem.dataset.month = String(date.getMonth() + 1);
-            dateItem.dataset.year = String(date.getFullYear());
+            dateItem.dataset.day = String(d.getDate());
+            dateItem.dataset.month = String(d.getMonth() + 1);
+            dateItem.dataset.year = String(d.getFullYear());
         }
 
         const todayFormatted = `${String(today.getDate()).padStart(2, '0')}.${String(today.getMonth() + 1).padStart(2, '0')}.${today.getFullYear()}`;
         selectedDateEl.textContent = todayFormatted;
+
+        // Ensure "today" is selected and shown
+        const todayItem = Array.from(dateCalendar.querySelectorAll('.date-item'))
+            .find(item =>
+                parseInt(item.dataset.day) === today.getDate() &&
+                parseInt(item.dataset.month) === today.getMonth() + 1 &&
+                parseInt(item.dataset.year) === today.getFullYear()
+            );
+
+        // Show today's chip at the LEFT edge (no page jump)
+        const scroller = dateCalendar; // the actual overflow-x container
+        if (todayItem && scroller) {
+            requestAnimationFrame(() => {
+                scroller.scrollTo({ left: todayItem.offsetLeft, behavior: 'auto' });
+            });
+        }
+
+        // Update details immediately
+        updateLiturgyDetails();
 
         setTimeout(updateLiturgyDetails, 100);
     }
@@ -1168,22 +1288,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!relativesListEl) return;
 
         const relatives = [
-            { id: 1, name: 'Кравчук Леонід Макарович', years: '1975 - 2000', relationship: 'Батько', avatarUrl: 'https://via.placeholder.com/60x60' },
-            { id: 2, name: 'Фаріон Ірина Олегівна', years: '1982 - 2012', relationship: 'Мати', avatarUrl: 'https://via.placeholder.com/60x60' },
-            { id: 3, name: 'Кенседі Валерій Петрович', years: '1982 - 2012', relationship: 'Брат', avatarUrl: 'https://via.placeholder.com/60x60' }
+            { id: 1, name: 'Кравчук Леонід Макарович', years: '1975 - 2000', relationship: 'Батько', avatarUrl: 'https://i.stopcor.org/person/2022/5/31/farion.jpeg?size=1000x1000' },
+            { id: 2, name: 'Фаріон Ірина Олегівна', years: '1982 - 2012', relationship: 'Мати', avatarUrl: 'https://i.stopcor.org/person/2022/5/31/farion.jpeg?size=1000x1000' },
+            { id: 3, name: 'Кенседі Валерій Петрович', years: '1982 - 2012', relationship: 'Брат', avatarUrl: 'https://i.stopcor.org/person/2022/5/31/farion.jpeg?size=1000x1000' }
         ];
 
         relativesListEl.innerHTML = '';
         relatives.forEach(relative => {
             const relativeEl = document.createElement('div');
             relativeEl.className = 'relative-item';
+            // inside loadRelatives() when building each relativeEl:
             relativeEl.innerHTML = `
                 <img class="relative-avatar" src="${relative.avatarUrl}" alt="${relative.name}">
                 <div class="relative-info">
-                    <h3 class="relative-name">${relative.name}</h3>
+                <h3 class="relative-name">${relative.name}</h3>
+                <div class="relative-meta">
                     <p class="relative-details">${relative.years}</p>
+                    <span class="relative-relationship">${relative.relationship}</span>
                 </div>
-                <span class="relative-relationship">${relative.relationship}</span>
+                </div>
             `;
             relativeEl.addEventListener('click', () => {
                 window.location.href = `profile.html?personId=${relative.id}`;
