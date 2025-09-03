@@ -169,6 +169,7 @@ body {
 .item-images {
   display: grid;
   grid-auto-flow: column;
+  grid-auto-columns: 160px;
   grid-template-rows: repeat(2, 198px);
   gap: 3px;
   overflow-x: auto;
@@ -200,30 +201,40 @@ body {
   z-index: 10;
 }
 
-.ritual-back-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
+.back-button {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: 12px;
+  background: transparent;
+  padding: 8px 0 8px 0;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  transition: none;
+  z-index: 20;
 }
 
-.back-icon {
-  width: 24px;
-  height: 24px;
-  fill: white;
+.back-button:hover {
+  background: transparent;
+}
+
+.back-button svg {
+  stroke: #fff;
+  stroke-width: 1.5;
+  width: 30px;
+  height: 30px;
 }
 
 .ritual-login-btn {
   background: none;
-  border: none;
-  color: white;
+  border: 0;
+  color: #fff;
   font-size: 15px;
   font-weight: 510;
   font-family: "Montserrat", sans-serif;
   cursor: pointer;
+  margin-left: auto;
+  margin-top: 14px;
 }
 
 .login-modal {
@@ -325,16 +336,12 @@ body {
 
 .close-slideshow {
   position: absolute;
-  top: 12px;
-  right: 14px;
-  font-size: 28px;
+  top: 20px;
+  right: 20px;
   color: #fff;
+  font-size: 24px;
   cursor: pointer;
-  line-height: 1;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, .15);
-  z-index: 10002;
+  z-index: 10001;
 }
 
 .slideshow-track {
@@ -418,16 +425,16 @@ body {
 }
 
 .slideshow-indicator {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, .45);
+  background: #fff;
   cursor: pointer;
   transition: transform .15s ease;
 }
 
 .slideshow-indicator.active {
-  background: #fff;
+  background: #1B8B59;
 }
 
 .slideshow-indicator:hover {

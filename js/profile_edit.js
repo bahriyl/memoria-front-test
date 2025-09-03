@@ -41,7 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Bio
     const bioContentEl = document.getElementById('bio-content'); // <p id="bio-content">
-    const bioToggleEl = document.getElementById('bio-toggle');   // <span id="bio-toggle">
     const bioEditBtn = document.getElementById('bio-edit');      // "Змінити"
     const bioAddBtn = document.getElementById('bio-add');       // "Додати" (hidden by default)
     const bioMenuBtn = document.getElementById('bio-menu-btn');  // dots
@@ -346,8 +345,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (p._pending) {
                 // White circle X
                 const close = document.createElement('button');
-                close.className = 'shared-decline-x'; // new CSS class
-                close.textContent = '✕';
+                close.className = 'shared-decline-x';
+                close.setAttribute('aria-label', 'Відхилити фото');   // a11y
+                close.innerHTML = `
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                    <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                `;
                 close.addEventListener('click', () => declinePending(visibleIdx));
 
                 // Confirm button bottom-center
@@ -962,6 +966,74 @@ document.addEventListener('DOMContentLoaded', () => {
             const bioBtnsWrap = document.querySelector('.profile-bio .bio-buttons');
             bioBodyWrap?.querySelector('.bio-empty')?.remove();
 
+            function applyBio(text) {
+                const LINES = 4;
+                const moreLabel = 'більше';
+                const lessLabel = 'менше';
+
+                bioContentEl.classList.add('manual-clamp');
+                bioContentEl.innerHTML = '';
+
+                const textSpan = document.createElement('span');
+                const nbsp = document.createTextNode('\u00A0');
+                const toggle = document.createElement('span');
+                toggle.className = 'bio-toggle';
+                toggle.setAttribute('role', 'button');
+                toggle.tabIndex = 0;
+
+                const cs = getComputedStyle(bioContentEl);
+                const line = parseFloat(cs.lineHeight) || (1.5 * parseFloat(cs.fontSize) || 21);
+                const maxH = Math.round(LINES * line);
+
+                // Quick path: fits within 4 lines → no toggle
+                textSpan.textContent = text;
+                bioContentEl.appendChild(textSpan);
+                if (bioContentEl.clientHeight <= maxH + 1) return;
+
+                // Measure height for "prefix + … + <toggle>"
+                function heightForPrefix(prefixLen) {
+                    bioContentEl.innerHTML = '';
+                    textSpan.textContent = text.slice(0, prefixLen).trimEnd() + ' …';
+                    toggle.textContent = moreLabel;
+                    bioContentEl.append(textSpan, nbsp, toggle);
+                    return bioContentEl.clientHeight;
+                }
+
+                // Binary search for the longest prefix that fits 4 lines
+                let lo = 0, hi = text.length, best = 0;
+                while (lo <= hi) {
+                    const mid = (lo + hi) >> 1;
+                    if (heightForPrefix(mid) <= maxH + 1) { best = mid; lo = mid + 1; }
+                    else { hi = mid - 1; }
+                }
+
+                // Final layout: trimmed text + toggle
+                bioContentEl.innerHTML = '';
+                textSpan.textContent = text.slice(0, best).trimEnd() + ' …';
+                toggle.textContent = moreLabel;
+                bioContentEl.append(textSpan, document.createTextNode('\u00A0'), toggle);
+
+                // Expand/Collapse handlers
+                let expanded = false;
+                const expand = () => {
+                    expanded = true;
+                    bioContentEl.innerHTML = '';
+                    textSpan.textContent = text + ' ';
+                    toggle.textContent = lessLabel;
+                    bioContentEl.append(textSpan, toggle);
+                };
+                const collapse = () => {
+                    expanded = false;
+                    applyBio(text); // recalculates to put toggle right at the end of the 4th line
+                };
+                const onToggle = () => (expanded ? collapse() : expand());
+
+                toggle.addEventListener('click', onToggle);
+                toggle.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); }
+                });
+            }
+
             if (!fullBio.trim()) {
                 // empty-state UI
                 if (bioContentEl) {
@@ -989,17 +1061,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     bioContentEl.style.display = '';
                     bioContentEl.textContent = fullBio;
                 }
-                bioToggleEl?.remove();
-                const isOverflowing = bioContentEl && (bioContentEl.scrollHeight > bioContentEl.clientHeight);
-                if (isOverflowing && bioContentEl && bioToggleEl) {
-                    bioContentEl.appendChild(bioToggleEl);
-                    bioToggleEl.style.display = 'inline';
-                    bioToggleEl.textContent = '... більше';
-                    bioContentEl.style.paddingRight = '0.1rem';
-                    bioToggleEl.addEventListener('click', () => {
-                        const expanded = bioContentEl.classList.toggle('expanded');
-                        bioToggleEl.textContent = expanded ? 'менше' : '... більше';
-                    });
+                if (bioContentEl) {
+                    bioContentEl.style.display = '';
+                    applyBio(fullBio.trim());
                 }
 
                 if (bioBtnsWrap) bioBtnsWrap.style.display = 'none';

@@ -85,11 +85,20 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
+    display: grid;
+    place-items: center;
+    /* centers the SVG */
     background: #fff;
-    border: 1px solid #ccc;
-    color: #333;
-    font-weight: bold;
+    border: 0;
     cursor: pointer;
+    color: #333;
+    /* drives SVG stroke via currentColor */
+    padding: 0;
+    /* remove text padding */
+}
+
+.shared-decline-x svg {
+    display: block;
 }
 
 .shared-accept {
@@ -108,7 +117,10 @@
     font-weight: 510;
 }
 
-/* no 3-dots; no “Увійти” header */
+.relatives-btn {
+    margin-bottom: 10px;
+}
 
-/* Keep photo selection delete visible when selecting (already in base css) */
-/* (no extra rule needed) */
+.relatives-title {
+    margin-bottom: 0;
+}

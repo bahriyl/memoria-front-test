@@ -21,7 +21,7 @@ if (!token) {
   window.location.href = `/ritual_service_profile.html?id=${ritualId}`;
 }
 
-const logoutBtn = document.querySelector(".ritual-edit-label");
+const logoutBtn = document.querySelector(".ritual-login-btn");
 if (logoutBtn) {
   logoutBtn.addEventListener("click", () => {
     localStorage.removeItem("token");
@@ -70,6 +70,73 @@ async function uploadToImgBB(file) {
   return url;
 }
 
+// === 4-line clamp with inline “… більше / менше” ===
+function clampWithToggle(pEl, fullText, { lines = 4, more = '… більше', less = 'менше' } = {}) {
+  if (!pEl) return;
+  pEl.innerHTML = '';
+  pEl.style.overflow = 'hidden';
+
+  const textSpan = document.createElement('span');
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'bio-toggle';
+  toggle.setAttribute('aria-expanded', 'false');
+
+  // обчислюємо висоту рядка
+  const cs = getComputedStyle(pEl);
+  const lineH = parseFloat(cs.lineHeight) || (1.5 * parseFloat(cs.fontSize) || 21);
+  const maxH = Math.round(lines * lineH);
+
+  // Швидка гілка: якщо все влазить — просто рендеримо без тумблера
+  textSpan.textContent = fullText;
+  pEl.appendChild(textSpan);
+  if (pEl.clientHeight <= maxH + 1) return;
+
+  // функція вимірювання висоти для префікса
+  function heightForPrefix(n) {
+    pEl.innerHTML = '';
+    textSpan.textContent = (fullText.slice(0, n).trimEnd()) + ' …';
+    toggle.textContent = more;
+    pEl.append(textSpan, document.createTextNode(' '), toggle);
+    return pEl.clientHeight;
+  }
+
+  // бінарний пошук максимально довгого префікса, що поміщається в 4 рядки разом із “… більше”
+  let lo = 0, hi = fullText.length, best = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (heightForPrefix(mid) <= maxH + 1) { best = mid; lo = mid + 1; }
+    else { hi = mid - 1; }
+  }
+
+  // фінальний рендер (згорнуто)
+  pEl.innerHTML = '';
+  textSpan.textContent = fullText.slice(0, best).trimEnd() + ' …';
+  toggle.textContent = more;
+  pEl.append(textSpan, document.createTextNode(' '), toggle);
+
+  // обробники
+  let expanded = false;
+  const expand = () => {
+    expanded = true;
+    pEl.innerHTML = '';
+    textSpan.textContent = fullText + ' ';
+    toggle.textContent = less;
+    toggle.setAttribute('aria-expanded', 'true');
+    pEl.append(textSpan, toggle);
+  };
+  const collapse = () => {
+    expanded = false;
+    toggle.setAttribute('aria-expanded', 'false');
+    clampWithToggle(pEl, fullText, { lines, more, less }); // перебудовуємо під 4 рядки
+  };
+  const onToggle = () => (expanded ? collapse() : expand());
+  toggle.addEventListener('click', onToggle);
+  toggle.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); }
+  });
+}
+
 function renderData(data) {
   document.querySelector(".ritual-banner").src = data.banner;
   document.querySelector(".ritual-name").textContent = data.name;
@@ -80,7 +147,7 @@ function renderData(data) {
 
   const p = document.querySelector(".ritual-description p.ritual-text");
   const textarea = document.querySelector(".ritual-description textarea.ritual-text");
-  p.textContent = data.description;
+  clampWithToggle(p, (data.description || '').toString(), { lines: 4, more: '… більше', less: 'менше' });
   p.style.display = "block";
   textarea.style.display = "none";
 
@@ -172,8 +239,16 @@ function renderData(data) {
         const badge = document.createElement("span");
         badge.className = "select-badge";
 
-        img.addEventListener("click", () => {
-          // repeat the album description for every image (or build per-image captions array if you have it)
+        wrap.addEventListener("click", (e) => {
+          e.preventDefault();
+
+          if (isSelecting) {
+            // select / deselect this tile
+            toggleSelect(wrap);
+            return;
+          }
+
+          // normal behavior: open slideshow
           const captions = album.photos.map(() => album.description || '');
           openSlideshow(album.photos, 0, captions);
         });
@@ -307,18 +382,6 @@ function renderData(data) {
       const progressEl = modal.querySelector(".modal-progress");
       const progressTxt = modal.querySelector(".progress-text");
 
-      // tiny helper (or use your global one if you have it)
-      async function uploadToImgBB(file) {
-        const formData = new FormData();
-        formData.append("image", file);
-        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
-        if (!res.ok) throw new Error(`IMGBB ${res.status}`);
-        const json = await res.json();
-        const url = json?.data?.url;
-        if (!url) throw new Error("IMGBB: no url in response");
-        return url;
-      }
-
       confirmBtn.onclick = async () => {
         const desc = modal.querySelector("#albumDesc").value.trim();
 
@@ -424,7 +487,7 @@ function openDescriptionEditor() {
   const textarea = section.querySelector("textarea.ritual-text");
 
   // показуємо textarea
-  textarea.value = p.textContent || "";
+  textarea.value = (ritualData?.description || "").toString();
   textarea.style.display = "block";
   p.style.display = "none";
 
@@ -443,7 +506,7 @@ function openDescriptionEditor() {
   saveBtn.textContent = "Зберегти";
 
   row.append(cancelBtn, saveBtn);
-  section.appendChild(row);
+  section.insertBefore(row, textarea);
 
   cancelBtn.addEventListener("click", () => {
     textarea.style.display = "none";
@@ -458,35 +521,11 @@ function openDescriptionEditor() {
 }
 
 async function updateDescription(newDescription) {
-  const section = document.querySelector(".ritual-description");
-  const p = section.querySelector("p.ritual-text");
-  const textarea = section.querySelector("textarea.ritual-text");
-
-  try {
-    await fetch(`${API}/ritual_services/${ritualId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ description: newDescription }),
-    });
-
-    p.textContent = newDescription;
-    p.style.display = "block";
-    textarea.style.display = "none";
-  } catch (e) {
-    alert("Помилка при оновленні опису");
-  }
-}
-
-async function updateDescription(newDescription) {
   const p = document.querySelector(".ritual-description p.ritual-text");
   const textarea = document.querySelector(".ritual-description textarea.ritual-text");
-  const button = document.querySelector(".edit-description-btn");
 
   try {
-    await fetch(`${API}/ritual_services/${ritualId}`, {
+    const res = await fetch(`${API}/ritual_services/${ritualId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -494,12 +533,17 @@ async function updateDescription(newDescription) {
       },
       body: JSON.stringify({ description: newDescription }),
     });
+    if (!res.ok) throw new Error(await res.text());
 
-    p.textContent = newDescription;
+    // оновлюємо джерело правди в пам’яті
+    ritualData.description = newDescription;
+
+    // важливо: після збереження знову малюємо 4-рядковий кламп + тумблер
+    clampWithToggle(p, newDescription, { lines: 4, more: '… більше', less: 'менше' });
     p.style.display = "block";
     textarea.style.display = "none";
-    button.textContent = "Змінити";
   } catch (e) {
+    console.error(e);
     alert("Помилка при оновленні опису");
   }
 }

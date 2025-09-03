@@ -27,26 +27,66 @@ body {
   z-index: 10;
 }
 
-.ritual-back-btn {
+.back-button {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: 12px;
+  background: transparent;
+  padding: 8px 0 8px 0;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  transition: none;
+  z-index: 20;
+}
+
+.back-button:hover {
+  background: transparent;
+}
+
+.back-button svg {
+  stroke: #fff;
+  stroke-width: 1.5;
+  width: 30px;
+  height: 30px;
+}
+
+/* Back button (same as profile) */
+.back-button {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: 12px;
+  background: transparent;
+  padding: 8px 0 8px 0;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  transition: none;
+  z-index: 20;
+}
+
+.back-button:hover {
+  background: transparent;
+}
+
+.back-button svg {
+  stroke: #fff;
+  stroke-width: 1.5;
+  width: 30px;
+  height: 30px;
+}
+
+/* Header action button (logout) — identical to profile */
+.ritual-login-btn {
   background: none;
-  border: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.back-icon {
-  width: 24px;
-  height: 24px;
-  fill: white;
-}
-
-.ritual-edit-label {
-  color: white;
-  font-weight: 500;
+  border: 0;
+  color: #fff;
   font-size: 15px;
+  font-weight: 510;
+  font-family: "Montserrat", sans-serif;
+  cursor: pointer;
+  margin-left: auto;
+  margin-top: 14px;
 }
 
 .ritual-container {
@@ -124,6 +164,7 @@ body {
   background: #ffffff;
   margin-top: 6px;
   padding: 20px;
+  padding-top: 10px;
   padding-right: 10px;
   border-top: 0.2px solid #bfbfbf;
   border-bottom: 0.2px solid #bfbfbf;
@@ -131,7 +172,7 @@ body {
 }
 
 .ritual-description h2 {
-  margin-top: 0;
+  margin-top: 8px;
   margin-bottom: 11px;
   font-family: "Montserrat", sans-serif;
   font-size: 19px;
@@ -193,7 +234,7 @@ textarea {
 }
 
 .ritual-item-section h2 {
-  margin-top: 0;
+  margin-top: 8px;
   margin-bottom: 0;
   font-family: "Montserrat", sans-serif;
   font-size: 19px;
@@ -203,12 +244,14 @@ textarea {
 .item-images {
   display: grid;
   grid-auto-flow: column;
+  grid-auto-columns: 160px;
   gap: 3px;
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 3px;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
+  margin-top: 10px;
 }
 
 /* For single image - display in one row */
@@ -303,7 +346,6 @@ textarea {
   padding: 4px;
   padding-top: 20px;
   padding-right: 14px;
-  padding-bottom: 16px;
 }
 
 .ritual-description .dots-btn {
@@ -311,7 +353,7 @@ textarea {
   border: none;
   cursor: pointer;
   padding: 4px;
-  padding-bottom: 16px;
+  padding-top: 0;
 }
 
 .popup-menu {
@@ -489,7 +531,7 @@ textarea {
 /* button row is hidden by default; appears only in selection mode */
 .ritual-btn-row {
   gap: 10px;
-  margin: 0 0 22px 0;
+  margin: 0 0 0 0;
 }
 
 .selection-mode .ritual-btn-row {
@@ -529,16 +571,12 @@ textarea {
 
 .close-slideshow {
   position: absolute;
-  top: 12px;
-  right: 14px;
-  font-size: 28px;
+  top: 20px;
+  right: 20px;
   color: #fff;
+  font-size: 24px;
   cursor: pointer;
-  line-height: 1;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, .15);
-  z-index: 10002;
+  z-index: 10001;
 }
 
 .slideshow-track {
@@ -622,16 +660,16 @@ textarea {
 }
 
 .slideshow-indicator {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, .45);
+  background: #fff;
   cursor: pointer;
   transition: transform .15s ease;
 }
 
 .slideshow-indicator.active {
-  background: #fff;
+  background: #1B8B59;
 }
 
 .slideshow-indicator:hover {
@@ -665,4 +703,18 @@ textarea {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* inline toggle like on profile */
+.ritual-description .bio-toggle {
+  display: inline;
+  margin-left: 6px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: #000;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  vertical-align: baseline;
 }

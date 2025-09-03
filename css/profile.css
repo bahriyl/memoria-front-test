@@ -131,7 +131,7 @@ body {
 .photo-btn,
 .relatives-btn,
 .template-btn {
-    padding: 0.5rem 1rem;
+    padding: 0rem 1rem;
     background-color: #F2F4F7;
     color: #1C170D;
     border: none;
@@ -143,6 +143,9 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    margin-top: 15px;
+    height: 30px;
+    line-height: 30px;
 }
 
 .photo-btn:hover,
@@ -153,6 +156,8 @@ body {
 
 .bio-content {
     font-size: 15px;
+    font-weight: 480;
+    font-family: 'Montserrat', sans-serif;
     line-height: 1.5;
     color: #000;
     overflow: hidden;
@@ -255,7 +260,7 @@ body {
 .photos-title {
     font-size: 19px;
     font-weight: 570;
-    margin: 0 0 16px;
+    margin: 0 0 0;
 }
 
 .photos-controls {
@@ -282,6 +287,7 @@ body {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
+    margin-top: 20px;
 }
 
 /* Two-row, column-flow grid */
@@ -770,30 +776,61 @@ body {
     margin: 0 0 1rem;
 }
 
+/* Comment templates container with horizontal scroll */
 .comment-templates {
-    display: grid;
-    grid-auto-flow: column;
-    grid-template-rows: repeat(2, auto);
-    grid-auto-columns: auto;
-    justify-items: start;
-    /* don’t stretch items */
-    gap: .5rem;
     overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    /* Flexbox with wrap to create two rows */
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 8px 12px;
+
+    /* Fixed height to force wrapping after 2 rows */
+    height: calc(44px * 2 + 8px);
+    /* button height * 2 + gap */
+    width: 100%;
 }
 
 .comment-templates::-webkit-scrollbar {
     display: none;
 }
 
-/* (Optional) Nicer snap while swiping */
+/* Template button styling with auto width based on content */
 .template-btn {
+    padding: 12px 16px;
+    background-color: #F2F4F7;
+    color: #1C170D;
+    border: none;
+    border-radius: 20px;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: 'Montserrat', sans-serif;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     white-space: nowrap;
-    scroll-snap-align: start;
+    height: 44px;
+    width: max-content;
+    /* Width based on content */
+    flex-shrink: 0;
+    /* Prevent shrinking */
+    transition: background-color 0.2s ease;
 }
 
-.comment-templates .template-btn {
-    justify-self: start;
-    width: auto;
+.template-btn:hover {
+    background-color: #E0E3E8;
+}
+
+.template-btn:active {
+    background-color: #D1D5DB;
 }
 
 /* ─── Relatives ─── */
@@ -1147,8 +1184,8 @@ body {
 .close-slideshow {
     position: absolute;
     top: 20px;
-    right: 30px;
-    font-size: 28px;
+    right: 20px;
+    font-size: 24px;
     color: #fff;
     cursor: pointer;
     z-index: 10000;
@@ -1165,8 +1202,8 @@ body {
 }
 
 .slideshow-indicator {
-    width: 12px;
-    height: 12px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     background: #fff;
     cursor: pointer;
@@ -1241,16 +1278,19 @@ body {
 /* ─── Shared Album ─── */
 .profile-shared {
     background: #fff;
-    border-radius: 20px;
-    padding: 1rem 1rem .5rem;
-    margin-top: 1rem;
+    border-radius: 9px;
+    padding: 1rem 1rem 6px;
+    border: 0.2px solid #BFBFBF;
+    border-left: none;
+    border-right: none;
+    margin-top: 6px;
     position: relative;
 }
 
 .shared-title {
     font-size: 1.25rem;
     font-weight: 600;
-    margin: 0 0 .75rem;
+    margin: 0 0 0;
 }
 
 .shared-controls {
@@ -1345,6 +1385,7 @@ body {
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     width: 100%;
+    margin-top: 20px;
 }
 
 /* One-row strip of thumbnails */
@@ -1355,7 +1396,7 @@ body {
     /* your card width */
     grid-template-rows: 198px;
     /* single row */
-    gap: 0.75rem;
+    gap: 3px;
     margin: 0;
     padding: 0;
     list-style: none;
