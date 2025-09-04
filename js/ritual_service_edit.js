@@ -70,67 +70,69 @@ async function uploadToImgBB(file) {
   return url;
 }
 
-// === 4-line clamp with inline “… більше / менше” ===
-function clampWithToggle(pEl, fullText, { lines = 4, more = '… більше', less = 'менше' } = {}) {
-  if (!pEl) return;
-  pEl.innerHTML = '';
-  pEl.style.overflow = 'hidden';
+function applyAbout(text) {
+  const LINES = 4;
+  const moreLabel = 'більше';
+  const lessLabel = 'менше';
+  const aboutEl = document.getElementById('ritual-text');
 
+  aboutEl.innerHTML = '';
   const textSpan = document.createElement('span');
-  const toggle = document.createElement('button');
-  toggle.type = 'button';
+  const nbsp = document.createTextNode('\u00A0');
+  const toggle = document.createElement('span');
   toggle.className = 'bio-toggle';
-  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('role', 'button');
+  toggle.tabIndex = 0;
 
-  // обчислюємо висоту рядка
-  const cs = getComputedStyle(pEl);
-  const lineH = parseFloat(cs.lineHeight) || (1.5 * parseFloat(cs.fontSize) || 21);
-  const maxH = Math.round(lines * lineH);
+  const cs = getComputedStyle(aboutEl);
+  const line = parseFloat(cs.lineHeight) || (1.5 * parseFloat(cs.fontSize) || 21);
+  const maxH = Math.round(LINES * line);
 
-  // Швидка гілка: якщо все влазить — просто рендеримо без тумблера
-  textSpan.textContent = fullText;
-  pEl.appendChild(textSpan);
-  if (pEl.clientHeight <= maxH + 1) return;
-
-  // функція вимірювання висоти для префікса
-  function heightForPrefix(n) {
-    pEl.innerHTML = '';
-    textSpan.textContent = (fullText.slice(0, n).trimEnd()) + ' …';
-    toggle.textContent = more;
-    pEl.append(textSpan, document.createTextNode(' '), toggle);
-    return pEl.clientHeight;
+  // Швидка гілка: текст вміщається — toggle не потрібен
+  textSpan.textContent = text;
+  aboutEl.appendChild(textSpan);
+  if (aboutEl.clientHeight <= maxH + 1) {
+    return;
   }
 
-  // бінарний пошук максимально довгого префікса, що поміщається в 4 рядки разом із “… більше”
-  let lo = 0, hi = fullText.length, best = 0;
+  // Вимірювач висоти для префікса
+  function heightForPrefix(prefixLen) {
+    aboutEl.innerHTML = '';
+    textSpan.textContent = text.slice(0, prefixLen).trimEnd() + ' …';
+    toggle.textContent = moreLabel;
+    aboutEl.append(textSpan, nbsp, toggle);
+    return aboutEl.clientHeight;
+  }
+
+  // Бінарний пошук максимальної довжини, що вміщається у 4 рядки (з урахуванням toggle)
+  let lo = 0, hi = text.length, best = 0;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
     if (heightForPrefix(mid) <= maxH + 1) { best = mid; lo = mid + 1; }
     else { hi = mid - 1; }
   }
 
-  // фінальний рендер (згорнуто)
-  pEl.innerHTML = '';
-  textSpan.textContent = fullText.slice(0, best).trimEnd() + ' …';
-  toggle.textContent = more;
-  pEl.append(textSpan, document.createTextNode(' '), toggle);
+  // Фінальна розмітка
+  aboutEl.innerHTML = '';
+  textSpan.textContent = text.slice(0, best).trimEnd() + ' …';
+  toggle.textContent = moreLabel;
+  aboutEl.append(textSpan, document.createTextNode('\u00A0'), toggle);
 
-  // обробники
+  // Обробники
   let expanded = false;
   const expand = () => {
     expanded = true;
-    pEl.innerHTML = '';
-    textSpan.textContent = fullText + ' ';
-    toggle.textContent = less;
-    toggle.setAttribute('aria-expanded', 'true');
-    pEl.append(textSpan, toggle);
+    aboutEl.innerHTML = '';
+    textSpan.textContent = text + ' ';
+    toggle.textContent = lessLabel;
+    aboutEl.append(textSpan, toggle);
   };
   const collapse = () => {
     expanded = false;
-    toggle.setAttribute('aria-expanded', 'false');
-    clampWithToggle(pEl, fullText, { lines, more, less }); // перебудовуємо під 4 рядки
+    applyAbout(text); // перерахунок і повернення toggle в кінець 4-го рядка
   };
   const onToggle = () => (expanded ? collapse() : expand());
+
   toggle.addEventListener('click', onToggle);
   toggle.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); }
@@ -145,11 +147,7 @@ function renderData(data) {
   document.querySelector(".ritual-link-btn").href = data.link;
   document.querySelector(".ritual-link-text").textContent = data.link;
 
-  const p = document.querySelector(".ritual-description p.ritual-text");
-  const textarea = document.querySelector(".ritual-description textarea.ritual-text");
-  clampWithToggle(p, (data.description || '').toString(), { lines: 4, more: '… більше', less: 'менше' });
-  p.style.display = "block";
-  textarea.style.display = "none";
+  applyAbout((data.description || '').trim());
 
   const container = document.querySelector(".ritual-container");
   container.querySelectorAll(".ritual-item-section").forEach((el) => el.remove());
@@ -538,8 +536,8 @@ async function updateDescription(newDescription) {
     // оновлюємо джерело правди в пам’яті
     ritualData.description = newDescription;
 
-    // важливо: після збереження знову малюємо 4-рядковий кламп + тумблер
-    clampWithToggle(p, newDescription, { lines: 4, more: '… більше', less: 'менше' });
+    applyAbout((newDescription || '').trim());
+
     p.style.display = "block";
     textarea.style.display = "none";
   } catch (e) {

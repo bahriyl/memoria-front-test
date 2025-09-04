@@ -267,43 +267,45 @@ document.addEventListener('DOMContentLoaded', () => {
         // PUBLIC PAGE: show only accepted photos + local blob previews
         const localPendingBlobs = sharedPending.filter(p => isBlob(p.url));
         const renderItems = [...localPendingBlobs, ...sharedPhotos];
-        const hasAny = renderItems.length > 0;
         sharedListEl.classList.remove('rows-1', 'rows-2');
         sharedListEl.classList.add('rows-1');
 
-        // pending first
+        // Build arrays for slideshow from ALL visible items (pending first)
+        const allUrls = renderItems.map(p => p.url);
+        const allCaptions = renderItems.map(p => p.description || '');
+
         renderItems.forEach((p, idx) => {
             const li = document.createElement('li');
             const img = document.createElement('img');
-            img.src = p.url; li.appendChild(img);
+            img.src = p.url;
+
+            // NEW: add the same selection badge element (stays hidden here unless you enable selection)
+            const badge = document.createElement('span');
+            badge.className = 'select-badge';
 
             // uploading overlay for blob previews
             if (isBlob(p.url)) {
                 li.classList.add('uploading');
                 const hint = document.createElement('div');
-                hint.className = 'uploading-hint'; hint.textContent = 'Завантаження…';
+                hint.className = 'uploading-hint';
+                hint.textContent = 'Завантаження…';
                 li.appendChild(hint);
             }
 
-            const isAccepted = !isBlob(p.url); // in public view we only render blobs (local) or accepted
-            if (isAccepted) {
-                // Accepted → open slideshow on click
-                li.addEventListener('click', () => {
-                    const images = sharedRealUrls();
-                    const captions = sharedRealPhotos().map(x => x.description || '');
-                    const start = images.indexOf(p.url);
-                    openSlideshow(
-                        images.length ? images : [p.url],
-                        images.length && start >= 0 ? start : 0,
-                        images.length ? captions : [p.description || '']
-                    );
-                });
-            }
+            // Open slideshow on ANY tile (pending local blobs or accepted)
+            li.addEventListener('click', () => {
+                const start = allUrls.indexOf(p.url);
+                openSlideshow(
+                    allUrls.length ? allUrls : [p.url],
+                    allUrls.length && start >= 0 ? start : 0,
+                    allCaptions.length ? allCaptions : [p.description || '']
+                );
+            });
 
+            li.append(img, badge);
             sharedListEl.appendChild(li);
         });
     }
-
 
     // Аплоад на ImgBB (як у фото)
     async function uploadToImgBB(file) {
@@ -522,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // clear previous list
         photosListEl.innerHTML = '';
         photosListEl.classList.remove('rows-1', 'rows-2');
-        if (photosListEl.style) photosListEl.style.display = ''; // ensure visible by default
+        if (photosListEl.style) photosListEl.style.display = ''; // ensure visible
 
         // remove old empty-state, if any
         photosScrollEl?.querySelector('.photos-empty')?.remove();
@@ -532,7 +534,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 0) Empty state
         if (!hasPhotos) {
-            // hide the UL and show the text block
             if (photosListEl.style) photosListEl.style.display = 'none';
             const empty = document.createElement('div');
             empty.className = 'photos-empty';
@@ -563,23 +564,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.appendChild(hint);
             }
 
-            const overlay = document.createElement('div');
-            overlay.className = 'photo-selection-overlay';
+            // NEW: numbered selection badge (matches Location page)
+            const badge = document.createElement('span');
+            badge.className = 'select-badge';
 
-            const circle = document.createElement('div');
-            circle.className = 'photo-selection-circle';
-            const check = document.createElement('div');
-            check.className = 'selection-check';
-            check.textContent = '✓';
-            circle.appendChild(check);
-            overlay.appendChild(circle);
-
-            // selection badge
+            // Reflect selection state + number
             const orderPos = selectedOrder.indexOf(idx);
-            if (orderPos > -1) {
-                li.classList.add('selected');
-                circle.textContent = String(orderPos + 1);
-            }
+            const isSel = orderPos > -1;
+            li.classList.toggle('is-selected', isSel);
+            li.classList.toggle('selected', isSel); // backward compatibility
+            badge.textContent = isSel ? String(orderPos + 1) : '';
 
             // click behavior (open slideshow vs select)
             li.addEventListener('click', () => {
@@ -588,7 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     // We only show real (uploaded) photos in slideshow
                     const images = realPhotoUrls();               // array of urls
-                    const captions = realPhotos().map(p => p.description || '');
+                    const captions = realPhotos().map(x => x.description || '');
                     const startIndex = images.indexOf(url);
                     const safeIndex = Math.max(0, startIndex);
                     openSlideshow(
@@ -599,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            li.append(img, overlay);
+            li.append(img, badge);
             photosListEl.appendChild(li);
         });
 
@@ -919,7 +913,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderComments?.();
 
             // ─── AVATAR / HERO ───
-            if (avatarEl) avatarEl.src = data.avatarUrl || 'https://i.ibb.co/mrQJL133/Frame-519.jpg';
+            if (avatarEl) avatarEl.src = data.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png';
             if (heroEl && data.backgroundUrl) {
                 heroEl.style.backgroundImage = `url(${data.backgroundUrl})`;
             }
@@ -1283,6 +1277,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Comments (sample), Relatives (sample) – unchanged
     // ─────────────────────────────────────────────────────────────────────────────
+    // 2-row layout for comment templates (no holes)
+    (function makeTwoRowTemplates() {
+        const wrap = document.querySelector('.comment-templates');
+        if (!wrap) return;
+
+        const btns = Array.from(wrap.querySelectorAll('.template-btn'));
+        if (btns.length < 2) return;
+
+        // Створюємо трек з двома рядами
+        const track = document.createElement('div');
+        track.className = 'templates-track';
+        const rowTop = document.createElement('div');
+        rowTop.className = 'templates-row';
+        const rowBottom = document.createElement('div');
+        rowBottom.className = 'templates-row';
+
+        // Розкладання “в змійку”: 1-ша вгорі, 2-га внизу, 3-тя вгорі, 4-та внизу…
+        btns.forEach((btn, i) => (i % 2 === 0 ? rowTop : rowBottom).appendChild(btn));
+
+        // Очищаємо контейнер і додаємо нову структуру
+        wrap.textContent = '';
+        track.append(rowTop, rowBottom);
+        wrap.appendChild(track);
+    })();
+
     // Template → enter user name → create comment → PUT
     (function hookCommentTemplates() {
         const overlay = document.getElementById('modal-overlay');

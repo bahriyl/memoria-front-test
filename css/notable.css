@@ -568,7 +568,7 @@ main.container>.search-bar {
 .search-bar {
     position: relative;
     /* for the absolute children */
-    padding: 0 var(--spacing-md);
+    padding: 0 12px;
     gap: 0;
     /* no more flex-gap */
 }
@@ -583,18 +583,19 @@ main.container>.search-bar {
 
 /* 3) Keep them at the same distance from the left/right as the original padding */
 .search-bar .search-btn {
-    left: var(--spacing-md);
+    left: 12px;
 }
 
 .search-bar .clear-btn {
-    right: var(--spacing-md);
+    right: 12px;
+    margin-left: 0;
 }
 
 /* 4) Give the input matching internal padding so text never runs under the icons */
 /*    – 1.37rem is your search-icon width; 1.9rem is your clear-icon width; var(--spacing-sm) is a tiny gap  */
 .search-bar input {
-    padding-left: calc(var(--spacing-md) + 1rem + var(--spacing-sm));
-    padding-right: calc(var(--spacing-md) + 1rem + var(--spacing-sm));
+    padding-left: 36px !important;
+    padding-right: 40px !important;
 }
 
 /* closed select shows placeholder grey */

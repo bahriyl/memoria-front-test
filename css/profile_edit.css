@@ -124,3 +124,51 @@
 .relatives-title {
     margin-bottom: 0;
 }
+
+/* === Selection badge & overlay for Shared Album (match Location) === */
+.profile-shared .shared-list li {
+    position: relative;
+}
+
+.profile-shared .select-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-family: "Montserrat", sans-serif;
+    font-weight: 550;
+    font-size: 14px;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+
+/* In selection mode show hollow ring on all accepted items */
+.profile-shared.selection-mode .shared-list li.accepted .select-badge {
+    display: flex;
+    background: rgba(255, 255, 255, 0);
+    border: 1px solid #fff;
+    color: transparent;
+    /* number hidden until selected */
+}
+
+/* Selected → green filled badge with order number */
+.profile-shared.selection-mode .shared-list li.accepted.is-selected .select-badge {
+    background: #1B8B59;
+    border: 0;
+    color: #fff;
+}
+
+/* Subtle overlay on selected tile */
+.profile-shared .shared-list li.accepted.is-selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, .1);
+    border-radius: 4px;
+    pointer-events: none;
+}

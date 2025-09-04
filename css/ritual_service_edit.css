@@ -252,6 +252,7 @@ textarea {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   margin-top: 10px;
+  overflow-y: hidden;
 }
 
 /* For single image - display in one row */
@@ -617,6 +618,7 @@ textarea {
   color: #fff;
   font-size: 14px;
   line-height: 1.45;
+  background: rgba(0, 0, 0, .65);
 }
 
 .slideshow-caption .caption-text {
@@ -632,7 +634,8 @@ textarea {
   background: none;
   border: 0;
   color: #fff;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 550;
   cursor: pointer;
 }
 
@@ -705,8 +708,8 @@ textarea {
   }
 }
 
-/* inline toggle like on profile */
-.ritual-description .bio-toggle {
+/* toggle як на профілі */
+.bio-toggle {
   display: inline;
   margin-left: 6px;
   padding: 0;

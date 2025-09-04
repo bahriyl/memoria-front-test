@@ -143,7 +143,7 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-top: 15px;
+    margin-top: 10px;
     height: 30px;
     line-height: 30px;
 }
@@ -323,7 +323,6 @@ body {
 .photo-selection-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.3);
     display: none;
     align-items: flex-start;
     justify-content: flex-end;
@@ -451,6 +450,61 @@ body {
     to {
         transform: translate(-50%, -50%) rotate(360deg);
     }
+}
+
+/* === Selection badge (match Location page) === */
+.profile-photos .photos-list li,
+.profile-shared .photos-list li {
+    position: relative;
+}
+
+.profile-photos .select-badge,
+.profile-shared .select-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-family: "Montserrat", sans-serif;
+    font-weight: 550;
+    font-size: 14px;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+    z-index: 3;
+}
+
+/* In selection mode show hollow ring on all items */
+.profile-photos.selection-mode .select-badge {
+    display: flex;
+    background: rgba(255, 255, 255, 0);
+    border: 1px solid #fff;
+    color: transparent;
+}
+
+/* Selected → green filled with order number */
+.profile-photos.selection-mode .photos-list li.is-selected .select-badge {
+    background: #1B8B59;
+    border: 0;
+    color: #fff;
+}
+
+/* Subtle overlay on selected tile */
+.profile-photos .photos-list li.is-selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, .1);
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.profile-shared .shared-list li.accepted.is-selected::after {
+    z-index: 1;
 }
 
 /* ─── 3-dots button + popup ─── */
@@ -725,7 +779,7 @@ body {
 }
 
 .comments-list {
-    margin-bottom: 30px;
+    margin-bottom: 15px;
     overflow-y: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -776,7 +830,7 @@ body {
     margin: 0 0 1rem;
 }
 
-/* Comment templates container with horizontal scroll */
+/* Контейнер: спільний горизонтальний скрол для обох рядів */
 .comment-templates {
     overflow-x: auto;
     overflow-y: hidden;
@@ -784,53 +838,42 @@ body {
     padding-bottom: 4px;
     scrollbar-width: none;
     -ms-overflow-style: none;
-
-    /* Flexbox with wrap to create two rows */
-    display: flex;
-    flex-direction: column;
-    flex-wrap: wrap;
-    align-content: flex-start;
-    gap: 8px 12px;
-
-    /* Fixed height to force wrapping after 2 rows */
-    height: calc(44px * 2 + 8px);
-    /* button height * 2 + gap */
-    width: 100%;
 }
 
 .comment-templates::-webkit-scrollbar {
     display: none;
 }
 
-/* Template button styling with auto width based on content */
-.template-btn {
-    padding: 12px 16px;
-    background-color: #F2F4F7;
-    color: #1C170D;
-    border: none;
-    border-radius: 20px;
-    font-size: 15px;
-    font-weight: 500;
-    font-family: 'Montserrat', sans-serif;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+/* Внутрішня “стрічка”, ширина = ширині найдовшого ряду */
+.comment-templates .templates-track {
+    display: inline-block;
+    /* дає природну ширину по контенту */
+}
+
+/* Два незалежні ряди з рівними відступами між кнопками */
+.comment-templates .templates-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
     white-space: nowrap;
-    height: 44px;
-    width: max-content;
-    /* Width based on content */
-    flex-shrink: 0;
-    /* Prevent shrinking */
-    transition: background-color 0.2s ease;
+    /* не переносити всередині ряду */
 }
 
-.template-btn:hover {
-    background-color: #E0E3E8;
+.comment-templates .templates-row:last-child {
+    margin-bottom: 0;
 }
 
-.template-btn:active {
-    background-color: #D1D5DB;
+/* Кнопки-шаблони: автоширина від тексту, фіксована висота під макет */
+.add-comment .template-btn {
+    box-sizing: border-box;
+    height: 32px;
+    padding: 0 16px;
+    /* вертикальний паддінг = 0, щоб влізти в 44px */
+    white-space: nowrap;
+    width: auto;
+    flex: 0 0 auto;
+    /* щоб не стискались у flex-рядку */
+    margin-top: 0 !important;
 }
 
 /* ─── Relatives ─── */
@@ -1172,6 +1215,7 @@ body {
     justify-content: center;
     scroll-snap-align: center;
     position: relative;
+    overflow-y: hidden;
 }
 
 .slideshow-img {
@@ -1279,7 +1323,7 @@ body {
 .profile-shared {
     background: #fff;
     border-radius: 9px;
-    padding: 1rem 1rem 6px;
+    padding: 1rem 1rem 22px;
     border: 0.2px solid #BFBFBF;
     border-left: none;
     border-right: none;
@@ -1385,7 +1429,6 @@ body {
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     width: 100%;
-    margin-top: 20px;
 }
 
 /* One-row strip of thumbnails */

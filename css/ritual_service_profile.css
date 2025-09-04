@@ -97,23 +97,45 @@ body {
 }
 
 .ritual-text {
-  margin: 0;
-  font-family: "Montserrat", sans-serif;
   font-size: 15px;
   font-weight: 480;
-  line-height: 23px;
+  font-family: "Montserrat", sans-serif;
+  line-height: 1.5;
+  color: #000;
+  overflow: hidden;
+
+  /* такий самий line-clamp на 4 рядки */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  max-height: none;
+}
+
+.ritual-text.expanded {
+  -webkit-line-clamp: unset;
+  /* показати все */
+  overflow: visible;
+}
+
+.bio-toggle {
+  display: inline;
+  margin-left: 6px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: #000;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+
+.text-content {
+  flex: 1 1 auto;
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.ritual-text.expanded {
-  display: block;
-}
-
-.text-content {
-  display: inline;
 }
 
 .ritual-text.collapsed .text-content {
@@ -124,28 +146,6 @@ body {
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
-}
-
-.dots {
-  display: inline;
-}
-
-.ritual-text.expanded .dots {
-  display: none;
-}
-
-.toggle-text-btn {
-  background: none;
-  border: none;
-  color: #000000;
-  font-family: "Montserrat", sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline;
-  padding: 0;
-  margin-left: 4px;
-  all: unset;
 }
 
 .ritual-item-section {
@@ -176,6 +176,7 @@ body {
   padding-bottom: 3px;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
+  overflow-y: hidden;
 }
 
 .item-images img {
@@ -382,6 +383,7 @@ body {
   color: #fff;
   font-size: 14px;
   line-height: 1.45;
+  background: rgba(0, 0, 0, .65);
 }
 
 .slideshow-caption .caption-text {
@@ -397,7 +399,8 @@ body {
   background: none;
   border: 0;
   color: #fff;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 550;
   cursor: pointer;
 }
 
@@ -439,4 +442,67 @@ body {
 
 .slideshow-indicator:hover {
   transform: scale(1.15);
+}
+
+/* === Опис (як bio на profile) === */
+.ritual-text {
+  font-size: 15px;
+  font-weight: 480;
+  font-family: "Montserrat", sans-serif;
+  line-height: 1.5;
+  color: #000;
+  overflow: hidden;
+
+  /* такий самий line-clamp на 4 рядки */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  max-height: none;
+}
+
+.ritual-text.expanded {
+  -webkit-line-clamp: unset;
+  /* показати все */
+  overflow: visible;
+}
+
+/* вимикаємо кламп на час вимірювань */
+.ritual-text.__measure {
+  display: block;
+  /* замість -webkit-box */
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+  overflow: visible;
+}
+
+/* Кнопка-перемикач (той самий стиль, що .bio-toggle на profile) */
+.bio-toggle {
+  display: inline;
+  margin-left: 6px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: #000;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+
+/* базовий стан — як зараз: кламп на 4 рядки */
+.ritual-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+}
+
+/* розгорнутий стан — кламп вимкнено */
+.ritual-text.expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+  overflow: visible;
+  max-height: none;
 }

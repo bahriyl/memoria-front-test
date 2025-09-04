@@ -36,6 +36,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const locChangeBtn = document.getElementById('loc-change');
     const landmarksChangeBtn = document.getElementById('landmarks-change');
 
+    const landmarksControls = document.getElementById('landmarks-controls');
+    const landmarksCancel = document.getElementById('landmarks-cancel');
+    const landmarksDone = document.getElementById('landmarks-done');
+
     // ===== STATE (declare early to avoid TDZ) =====
     let currentLocation = { coords: null, landmarks: '', photos: [] };
     let hadCoordsOnLoad = false;
@@ -52,7 +56,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let pendingUploads = 0; // скільки фото ще вантажаться
 
+    let openMenu = null;
+    let openMenuAnchor = null;
+
+    let isEditingLandmarks = false;
+    let prevLandmarksText = '';
+
     // ===== UTIL =====
+    function closeAllMenus() {
+        document.querySelectorAll('.popup-menu').forEach(m => m.classList.add('hidden'));
+        openMenu = null;
+        openMenuAnchor = null;
+    }
+
     const getParam = (name) =>
         new URL(window.location.href).searchParams.get(name);
 
@@ -141,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateSubmitButtonVisibility() {
         if (!btnSubmit) return;
+        const container = document.querySelector('.container');
 
         // повні дані для UI (можна показати кнопку)
         const hasCoords = Boolean(currentLocation.coords);
@@ -149,6 +166,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const showBtn = hasCoords && hasLandmarks && hasAnyPhoto && (!initialHasData || changesMade);
         btnSubmit.style.display = showBtn ? '' : 'none';
+
+        if (container) {
+            container.style.paddingBottom = showBtn ? '100px' : '16px';
+        }
 
         // повні дані для фактичного сабміту (є хоча б одне вже завантажене фото і нічого не вантажиться)
         const canReallySubmit = hasCoords && hasLandmarks && nonBlobPhotos().length > 0 && pendingUploads === 0;
@@ -172,6 +193,30 @@ document.addEventListener('DOMContentLoaded', () => {
         if (showBtn && canReallySubmit) hideErrors();
     }
 
+    function positionMenuFor(btn, menu) {
+        if (!btn || !menu) return;
+        // ensure the menu is measurable
+        const wasHidden = menu.classList.contains('hidden');
+        if (wasHidden) {
+            menu.style.visibility = 'hidden';
+            menu.classList.remove('hidden');
+            menu.style.left = '0px';
+            menu.style.right = 'auto';
+            void menu.offsetWidth; // reflow
+        }
+
+        const r = btn.getBoundingClientRect();
+        const menuWidth = Math.max(menu.offsetWidth, 160);
+        const vw = window.innerWidth;
+        const left = Math.min(vw - 12 - menuWidth, r.right - menuWidth);
+        const top = r.bottom + 8;
+
+        menu.style.left = `${Math.max(12, left)}px`;
+        menu.style.top = `${top}px`;
+        menu.style.right = 'auto';
+        menu.style.visibility = 'visible';
+    }
+
     // Hide inline "Змінити" for landmarks, we use dots menu now
     if (btnEditLandmarks) btnEditLandmarks.style.display = 'none';
 
@@ -184,45 +229,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (e.target.closest('.dots-btn')) {
             const btn = e.target.closest('.dots-btn');
-            const menu = btn.nextElementSibling; // наш <div class="popup-menu">
-
-            // Закриваємо інші
+            const menu = btn.nextElementSibling; // <div class="popup-menu">
+            // Close others first
             document.querySelectorAll('.popup-menu').forEach(m => m.classList.add('hidden'));
 
-            if (menu) {
-                // Close others first
-                document.querySelectorAll('.popup-menu').forEach(m => m.classList.add('hidden'));
+            if (!menu) return;
 
-                const wasHidden = menu.classList.contains('hidden');
-
-                // 1) Unhide invisibly so we can measure real width without flicker
-                if (wasHidden) {
-                    menu.style.visibility = 'hidden';
-                    menu.classList.remove('hidden');
-                    // reset positioning to a neutral state before measuring
-                    menu.style.left = '0px';
-                    menu.style.right = 'auto';
-                    // force reflow so offsetWidth is up-to-date
-                    void menu.offsetWidth;
-                }
-
-                // 2) Compute position (viewport coords; menu is position: fixed)
-                const r = btn.getBoundingClientRect();
-                const menuWidth = Math.max(menu.offsetWidth, 160); // min-width safeguard
-                const vw = window.innerWidth;
-
-                // right-align to the button, clamp to viewport with 12px padding
-                const left = Math.min(vw - 12 - menuWidth, r.right - menuWidth);
-                const top = r.bottom + 8;
-
-                // 3) Apply final position and reveal
-                menu.style.left = `${Math.max(12, left)}px`;
-                menu.style.top = `${top}px`;
-                menu.style.right = 'auto';
-                menu.style.visibility = 'visible';
-
-                // Toggle off if it was already open
-                if (!wasHidden) menu.classList.add('hidden');
+            const wasHidden = menu.classList.contains('hidden');
+            if (!wasHidden) {
+                // toggle off
+                menu.classList.add('hidden');
+                openMenu = null;
+                openMenuAnchor = null;
+            } else {
+                // show and position
+                positionMenuFor(btn, menu);
+                openMenu = menu;
+                openMenuAnchor = btn;
             }
             return;
         }
@@ -231,19 +254,72 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Reposition the open popup on scroll/resize/orientation changes
+    ['scroll', 'resize', 'orientationchange'].forEach(evt => {
+        window.addEventListener(evt, () => {
+            if (openMenu && openMenuAnchor && !openMenu.classList.contains('hidden')) {
+                positionMenuFor(openMenuAnchor, openMenu);
+            }
+        }, { passive: true });
+    });
+
     // Wire new dots-menu actions (guard if absent)
     if (locChangeBtn) locChangeBtn.addEventListener('click', showConfirm);
     if (landmarksChangeBtn)
         landmarksChangeBtn.addEventListener('click', () => {
             if (!landmarksEl || !landmarksDisplay) return;
-            landmarksEl.value = currentLocation.landmarks;
+
+            // remember original, show editor with original value
+            prevLandmarksText = currentLocation.landmarks || '';
+            isEditingLandmarks = true;
+
+            landmarksEl.value = prevLandmarksText;
             landmarksDisplay.style.display = 'none';
             if (btnEditLandmarks) btnEditLandmarks.style.display = 'none';
             landmarksEl.style.display = '';
+            (landmarksControls && (landmarksControls.style.display = 'flex'));
             landmarksEl.focus();
-            changesMade = true;
-            updateSubmitButtonVisibility();
         });
+
+    landmarksCancel?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!landmarksEl || !landmarksDisplay) return;
+
+        // revert UI and STATE to original
+        landmarksEl.value = prevLandmarksText;
+        currentLocation.landmarks = prevLandmarksText;
+
+        landmarksEl.style.display = 'none';
+        (landmarksControls && (landmarksControls.style.display = 'none'));
+
+        if (prevLandmarksText.trim()) {
+            landmarksDisplay.textContent = prevLandmarksText;
+            landmarksDisplay.style.display = '';
+        } else {
+            landmarksDisplay.style.display = 'none';
+        }
+
+        isEditingLandmarks = false;   // <<< important
+        // no changesMade here
+        updateSubmitButtonVisibility?.();
+    });
+
+    landmarksDone?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!landmarksEl || !landmarksDisplay) return;
+
+        const text = (landmarksEl.value || '').trim();
+        currentLocation.landmarks = text;          // commit to state only now
+        landmarksDisplay.textContent = text;
+        landmarksDisplay.style.display = text ? '' : 'none';
+
+        landmarksEl.style.display = 'none';
+        (landmarksControls && (landmarksControls.style.display = 'none'));
+
+        isEditingLandmarks = false;
+        changesMade = true;
+        updateSubmitButtonVisibility?.();
+    });
 
     // ===== LOAD EXISTING DATA =====
     // hide submit until we know initial state
@@ -300,9 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===== LANDMARKS input tracking =====
     if (landmarksEl)
         landmarksEl.addEventListener('input', () => {
-            currentLocation.landmarks = landmarksEl.value;
-            changesMade = true;
-            updateSubmitButtonVisibility();
+            if (!isEditingLandmarks) return; // don't mutate state while editing
+            // (optional) live validations/UI here if needed, but no state writes
         });
 
     // Keep old inline handler (button is hidden); harmless if clicked via DevTools

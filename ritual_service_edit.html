@@ -58,8 +58,11 @@
                 </div>
             </div>
 
-            <p class="ritual-text" style="display: none;"></p>
-            <textarea class="ritual-text" style="display: none;"></textarea>
+            <!-- ⬇️ Саме цей елемент використовує «профільну» логіку з бінарним пошуком -->
+            <p id="ritual-text" class="ritual-text"></p>
+
+            <!-- textarea лишається для режиму редагування -->
+            <textarea class="ritual-text" style="display:none;"></textarea>
         </section>
 
         <button class="add-category-btn">Додати категорію</button>

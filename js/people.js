@@ -312,7 +312,9 @@ function renderFilterControls() {
             if (!items.length) {
               suggestions.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
             } else {
-              suggestions.innerHTML = items.map(a => `<li>${a}</li>`).join('');
+              suggestions.innerHTML = items
+                .map(a => `<li class="sugg-item-area" data-area="${a.replace(/"/g, '&quot;')}">${a}</li>`)
+                .join('');
             }
             // decide whether to show or hide based on exact match
             const isExact = items.includes(areaInput.value);
@@ -336,15 +338,29 @@ function renderFilterControls() {
       });
 
       // 7. Clicking a suggestion fills the input and blurs it
-      suggestions.addEventListener('click', e => {
-        if (e.target.tagName === 'LI' && !e.target.classList.contains('no-results')) {
-          areaInput.value = e.target.textContent;
-          areaInput.dispatchEvent(new Event('input'));
-          // hide dropdown
-          suggestions.style.display = 'none';
-          // blur input so it’s considered inactive
-          areaInput.blur();
-        }
+      suggestions.addEventListener('mousedown', ev => {
+        const li = ev.target.closest('.sugg-item-area');
+        if (!li) return;
+
+        const areaNameFull = li.dataset.area || li.textContent.trim();
+
+        // встановити значення в поле area
+        areaInput.value = areaNameFull;
+
+        // оновлюємо state
+        filterState.area = areaNameFull;
+
+        // оновлюємо таб і хедер
+        const shortName = areaNameFull.split(',')[0].trim();
+        areaTab.textContent = shortName || 'Населений пункт';
+        headerEl.textContent = shortName || defaultHeader;
+
+        // показуємо clear для area
+        clearBtn.style.display = 'flex';
+
+        // сховати список і оновити результати
+        suggestions.style.display = 'none';
+        fetchAndRender();
       });
 
       // 8. Clear button resets area only
@@ -443,7 +459,12 @@ function renderFilterControls() {
 
         const items = await fetchCemeteriesForArea(area);
         suggestions.innerHTML = items.length
-          ? items.map(c => `<li>${c}</li>`).join('')
+          ? items.map(c => `
+      <li class="sugg-item" 
+          data-name="${(c.name || '').replace(/"/g, '&quot;')}"
+          data-area="${(c.area || '').replace(/"/g, '&quot;')}">
+        <span class="cem-name">${c.name}</span>
+      </li>`).join('')
           : '<li class="no-results">Нічого не знайдено</li>';
       }
 
@@ -463,78 +484,63 @@ function renderFilterControls() {
       });
 
       // 6. Debounced fetch & render
-      cemInput.addEventListener('input', () => {
-        filterState.cemetery = cemInput.value;
-        clearTimeout(suggestionTimerCem);
-        suggestionTimerCem = setTimeout(async () => {
-          // a) Refresh main list
-          fetchAndRender();
+      cemInput.addEventListener('input', async (e) => {
+        const q = cemInput.value.trim();
 
-          // b) Fetch cemetery suggestions
-          try {
-            const params = new URLSearchParams({
-              search: cemInput.value,
-              area: filterState.area || ''
-            });
-            const res = await fetch(`${CEM_API}?${params}`);
-            const items = await res.json();
+        // тягнемо підказки з новим API
+        const url = `${CEM_API}?area=${encodeURIComponent(filterState.area || '')}&search=${encodeURIComponent(q)}`;
+        const resp = await fetch(url);
+        cemResults = await resp.json(); // [{ name, area }, ...]
 
-            // c) Populate the <ul>
-            if (!items.length) {
-              suggestions.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
-            } else {
-              suggestions.innerHTML = items.map(c => `<li>${c}</li>`).join('');
-            }
-            // only show when no exact match
-            const isExact = items.includes(cemInput.value);
-            suggestions.style.display = isExact ? 'none' : 'block';
+        // згенеруй список підказок
+        suggestions.innerHTML = cemResults.map(item => `
+          <li class="sugg-item" data-name="${item.name.replace(/"/g, '&quot;')}"
+                               data-area="${(item.area || '').replace(/"/g, '&quot;')}">
+            <span class="cem-name">${item.name}</span>
+          </li>
+        `).join('');
 
-            // d) If exact match, lock it in
-            if (isExact) {
-              // split out cemeteryName & areaNameFull
-              const parts = cemInput.value.split(',').map(s => s.trim());
-              const cemeteryName = parts.shift();
-              const areaNameFull = parts.join(', ');
-
-              // update state
-              filterState.cemetery = cemeteryName;
-              filterState.area = areaNameFull;
-
-              // update tabs & header
-              cemTab.textContent = cemeteryName;
-              areaTab.textContent = parts[0] || areaTab.textContent;
-              headerEl.textContent = cemeteryName;
-              clearCem.style.display = 'flex';
-
-              headerEl.classList.add('clickable');
-              headerEl.onclick = () => {
-                window.location.href =
-                  `cemetery.html?name=${encodeURIComponent(cemeteryName)}`;
-              };
-
-              // re-render people list with new area filter
-              fetchAndRender();
-            } else {
-              cemTab.textContent = 'Кладовище';
-              clearCem.style.display = 'none';
-
-              headerEl.classList.remove('clickable');
-              headerEl.onclick = null;
-            }
-          } catch (e) {
-            console.error('Cemetery suggestions error', e);
-          }
-        }, 300);
+        // показати/сховати список
+        suggestions.style.display = cemResults.length ? 'block' : 'none';
       });
 
       // 7. Clicking a suggestion fills the input and blurs it
-      suggestions.addEventListener('click', e => {
-        if (e.target.tagName === 'LI' && !e.target.classList.contains('no-results')) {
-          cemInput.value = e.target.textContent;
-          cemInput.dispatchEvent(new Event('input'));
-          suggestions.style.display = 'none';
-          cemInput.blur();
+      suggestions.addEventListener('click', ev => {
+        const li = ev.target.closest('.sugg-item');
+        if (!li) return;
+
+        const cemeteryName = li.dataset.name;
+        const areaNameFull = li.dataset.area || '';
+
+        // встановити значення в поле
+        cemInput.value = cemeteryName;
+
+        // оновити state
+        filterState.cemetery = cemeteryName;
+
+        // якщо area ще не вибрано вручну → підставляємо з кладовища
+        const hadArea = !!(filterState.area && filterState.area.trim());
+        if (!hadArea && areaNameFull) {
+          filterState.area = areaNameFull;
+
+          const areaInputEl = document.getElementById('area');
+          const clearAreaBtn = document.getElementById('clear-area');
+          if (areaInputEl) areaInputEl.value = areaNameFull;
+          if (clearAreaBtn) clearAreaBtn.style.display = 'flex';
+          areaTab.textContent = areaNameFull.split(',')[0] || 'Населений пункт';
         }
+
+        // оновити таб/заголовок
+        cemTab.textContent = cemeteryName;
+        headerEl.textContent = cemeteryName;
+        clearCem.style.display = 'flex';
+        headerEl.classList.add('clickable');
+        headerEl.onclick = () => {
+          window.location.href = `cemetery.html?name=${encodeURIComponent(cemeteryName)}`;
+        };
+
+        suggestions.style.display = 'none';
+        fetchAndRender();
       });
 
       // 8. Clear button resets cemetery only
@@ -592,7 +598,7 @@ async function fetchAndRender() {
     listToShow.forEach(p => {
       const li = document.createElement('li');
       li.innerHTML = `
-      <img src="${p.avatarUrl || 'https://i.ibb.co/mrQJL133/Frame-519.jpg'}" alt="${p.name}" />
+      <img src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="${p.name}" />
       <div class="person-info">
         <p class="person-name">${p.name}</p>
         <p class="person-years">${p.birthYear} – ${p.deathYear || ''} 

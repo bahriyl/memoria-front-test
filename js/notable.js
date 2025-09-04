@@ -348,26 +348,43 @@ function renderFilterControls() {
                         const res = await fetch(`${LOC_API}?search=${encodeURIComponent(areaInput.value)}`);
                         const items = await res.json();
 
-                        // c) Populate the <ul>
+                        // c) рендеримо підказки (тільки рядки)
                         if (!items.length) {
                             suggestions.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
                         } else {
                             suggestions.innerHTML = items.map(a => `<li>${a}</li>`).join('');
                         }
-                        // decide whether to show or hide based on exact match
-                        const isExact = items.includes(areaInput.value);
+
+                        // d) exact-match перевіряємо по trimmed
+                        const normalized = areaInput.value.trim();
+                        const match = items.find(a => a.trim() === normalized);
+                        const isExact = Boolean(match);
+
+                        // показувати дропдаун лише коли немає точного збігу
                         suggestions.style.display = isExact ? 'none' : 'block';
 
-                        // d) If exact match, lock it in
-                        if (items.includes(areaInput.value)) {
-                            const shortName = areaInput.value.split(',')[0].trim();
+                        if (isExact) {
+                            // 1) фіксуємо state
+                            filterState.area = match;
+
+                            // 2) оновлюємо таб і заголовок короткою назвою до коми
+                            const shortName = match.split(',')[0].trim();
                             areaTab.textContent = shortName;
                             headerEl.textContent = shortName;
+
+                            // 3) вмикаємо clear для area
                             clearBtn.style.display = 'flex';
+
+                            // 4) перерендеримо список
+                            fetchAndRender();
                         } else {
-                            areaTab.textContent = 'Населений пункт';
-                            headerEl.textContent = defaultHeader;
-                            clearBtn.style.display = 'none';
+                            // коли користувач ще друкує — не збиваємо вибране,
+                            // але якщо area порожня, тримаємо дефолтний таб і ховаємо clear
+                            if (!filterState.area) {
+                                areaTab.textContent = 'Населений пункт';
+                                headerEl.textContent = defaultHeader;
+                                clearBtn.style.display = 'none';
+                            }
                         }
                     } catch (e) {
                         console.error('Area suggestions error', e);
@@ -377,14 +394,27 @@ function renderFilterControls() {
 
             // 7. Clicking a suggestion fills the input and blurs it
             suggestions.addEventListener('click', e => {
-                if (e.target.tagName === 'LI' && !e.target.classList.contains('no-results')) {
-                    areaInput.value = e.target.textContent;
-                    areaInput.dispatchEvent(new Event('input'));
-                    // hide dropdown
-                    suggestions.style.display = 'none';
-                    // blur input so it’s considered inactive
-                    areaInput.blur();
-                }
+                const li = e.target.closest('li');
+                if (!li || li.classList.contains('no-results')) return;
+
+                const value = li.textContent.trim();
+
+                // 1) фіксуємо поле та state
+                areaInput.value = value;
+                filterState.area = value;
+
+                // 2) коротка назва в таб і заголовок
+                const shortName = value.split(',')[0].trim();
+                areaTab.textContent = shortName;
+                headerEl.textContent = shortName;
+
+                // 3) показуємо clear для area
+                clearBtn.style.display = 'flex';
+
+                // 4) закриваємо дропдаун, блуримо інпут і перерендеримо список
+                suggestions.style.display = 'none';
+                areaInput.blur();
+                fetchAndRender();
             });
 
             // 8. Clear button resets area only
@@ -485,8 +515,11 @@ function renderFilterControls() {
 
                 const items = await fetchCemeteriesForArea(area);
                 suggestions.innerHTML = items.length
-                    ? items.map(c => `<li>${c}</li>`).join('')
+                    ? items.map(c =>
+                        `<li class="sugg-item" data-name="${(c.name || '').replace(/"/g, '&quot;')}" data-area="${(c.area || '').replace(/"/g, '&quot;')}"><span class="cem-name">${c.name}</span></li>`
+                    ).join('')
                     : '<li class="no-results">Нічого не знайдено</li>';
+
             }
 
             // Trigger on focus/click when the input is empty
@@ -525,22 +558,24 @@ function renderFilterControls() {
                         if (!items.length) {
                             suggestions.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
                         } else {
-                            suggestions.innerHTML = items.map(c => `<li>${c}</li>`).join('');
+                            suggestions.innerHTML = items.map(c => `<li data-area="${c.area}">${c.name}</li>`).join('');
                         }
                         // only show when no exact match
-                        const isExact = items.includes(cemInput.value);
+                        const match = items.find(c => c.name === cemInput.value);
+                        const isExact = Boolean(match);
                         suggestions.style.display = isExact ? 'none' : 'block';
 
                         // d) If exact match, lock it in
                         if (isExact) {
-                            // split out cemeteryName & areaNameFull
-                            const parts = cemInput.value.split(',').map(s => s.trim());
-                            const cemeteryName = parts.shift();
-                            const areaNameFull = parts.join(', ');
-
-                            // update state
-                            filterState.cemetery = cemeteryName;
-                            filterState.area = areaNameFull;
+                            filterState.cemetery = match.name;
+                            if (!filterState.area) {
+                                filterState.area = match.area;
+                                // ще й оновити input area, якщо він є
+                                const areaInputEl = document.getElementById('area');
+                                const clearAreaBtn = document.getElementById('clear-area');
+                                if (areaInputEl) areaInputEl.value = match.area;
+                                if (clearAreaBtn) clearAreaBtn.style.display = 'flex';
+                            }
 
                             // update tabs & header
                             cemTab.textContent = cemeteryName;
@@ -562,12 +597,31 @@ function renderFilterControls() {
 
             // 7. Clicking a suggestion fills the input and blurs it
             suggestions.addEventListener('click', e => {
-                if (e.target.tagName === 'LI' && !e.target.classList.contains('no-results')) {
-                    cemInput.value = e.target.textContent;
-                    cemInput.dispatchEvent(new Event('input'));
-                    suggestions.style.display = 'none';
-                    cemInput.blur();
+                const li = e.target.closest('li');
+                if (!li || li.classList.contains('no-results')) return;
+
+                // 1) оновити інпут і стани
+                cemInput.value = li.textContent;
+                filterState.cemetery = li.textContent;
+
+                if (!filterState.area) {
+                    filterState.area = li.dataset.area;
+                    const areaInputEl = document.getElementById('area');
+                    const clearAreaBtn = document.getElementById('clear-area');
+                    if (areaInputEl) areaInputEl.value = li.dataset.area;
+                    if (clearAreaBtn) clearAreaBtn.style.display = 'flex';
                 }
+
+                // 2) ОНОВИТИ ТАБИ та clear-кнопку негайно
+                cemTab.textContent = li.textContent;
+                areaTab.textContent = (filterState.area ? filterState.area.split(',')[0].trim() : 'Населений пункт');
+                headerEl.textContent = li.textContent;
+                clearCem.style.display = 'flex';
+
+                // 3) закрити дропдаун, зняти фокус, перерендерити список
+                suggestions.style.display = 'none';
+                cemInput.blur();
+                fetchAndRender();
             });
 
             // 8. Clear button resets cemetery only

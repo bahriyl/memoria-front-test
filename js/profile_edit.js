@@ -326,77 +326,89 @@ document.addEventListener('DOMContentLoaded', () => {
     function refreshSharedUI() {
         if (!sharedListEl) return;
         sharedListEl.innerHTML = '';
-        const all = [...sharedPending.map(p => ({ ...p, _pending: true })), ...sharedPhotos.map(p => ({ ...p, _pending: false }))];
+
+        // Merge pending (first) + accepted (second)
+        const all = [
+            ...sharedPending.map(p => ({ ...p, _pending: true })),
+            ...sharedPhotos.map(p => ({ ...p, _pending: false }))
+        ];
+
+        // Arrays for slideshow (match visible order)
+        const allUrls = all.map(p => p.url);
+        const allCaptions = all.map(p => p.description || '');
 
         sharedListEl.classList.remove('rows-1', 'rows-2');
         sharedListEl.classList.add('rows-1');
 
         all.forEach((p, visibleIdx) => {
             const li = document.createElement('li');
-            const img = document.createElement('img'); img.src = p.url; li.appendChild(img);
+            const img = document.createElement('img');
+            img.src = p.url;
 
-            // uploading overlay для blob
+            // Badge (like Location)
+            const badge = document.createElement('span');
+            badge.className = 'select-badge';
+
+            // Blob overlay (uploading)
             if (isBlob(p.url)) {
                 li.classList.add('uploading');
-                const hint = document.createElement('div'); hint.className = 'uploading-hint'; hint.textContent = 'Завантаження…';
+                const hint = document.createElement('div');
+                hint.className = 'uploading-hint';
+                hint.textContent = 'Завантаження…';
                 li.appendChild(hint);
             }
 
             if (p._pending) {
-                // White circle X
+                // Pending items are NOT selectable; show close + accept
                 const close = document.createElement('button');
                 close.className = 'shared-decline-x';
-                close.setAttribute('aria-label', 'Відхилити фото');   // a11y
+                close.setAttribute('aria-label', 'Відхилити фото');
                 close.innerHTML = `
-                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-                    <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                `;
-                close.addEventListener('click', () => declinePending(visibleIdx));
+              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>`;
+                close.addEventListener('click', (e) => { e.stopPropagation(); declinePending(visibleIdx); });
 
-                // Confirm button bottom-center
                 const acceptBtn = document.createElement('button');
                 acceptBtn.className = 'shared-accept';
                 acceptBtn.textContent = 'Підтвердити';
-                acceptBtn.addEventListener('click', () => acceptPending(visibleIdx));
+                acceptBtn.addEventListener('click', (e) => { e.stopPropagation(); acceptPending(visibleIdx); });
 
                 li.append(close, acceptBtn);
             } else {
-                // Accepted: режим вибору
+                // ACCEPTED item → can be selected in selection mode
+                li.classList.add('accepted');
+
                 if (sharedSelecting) {
-                    li.classList.add('selected');
-                    li.addEventListener('click', () => toggleSelectShared(visibleIdx - sharedPending.length, false));
-                } else {
-                    li.addEventListener('click', () => {
-                        // показ слайдшоу тільки для accepted (як у звичайних фото)
-                        const images = sharedPhotos.map(x => x.url);
-                        const idx = images.indexOf(p.url);
-                        openSlideshow(images, Math.max(0, idx));
-                    });
+                    // map visibleIdx → accepted index
+                    const acceptedIdx = visibleIdx - sharedPending.length;
+                    const pos = sharedSelectedOrder.indexOf(acceptedIdx);
+                    const isSel = pos > -1;
+
+                    li.classList.toggle('is-selected', isSel);
+                    badge.textContent = isSel ? String(pos + 1) : '';
+
+                    li.addEventListener('click', () => toggleSelectShared(acceptedIdx, false));
                 }
             }
 
-            // Controls visibility for shared section
-            const hasAnyShared = (sharedPending.length + sharedPhotos.length) > 0;
+            // Slideshow on ANY tile when not selecting
+            if (!sharedSelecting) {
+                li.addEventListener('click', () => {
+                    openSlideshow(allUrls, visibleIdx, allCaptions);
+                });
+            }
 
-            // inline buttons
-            if (sharedDeleteBtn) sharedDeleteBtn.style.display = sharedSelecting ? 'inline-block' : 'none';
-            if (sharedCancelBtn) sharedCancelBtn.style.display = sharedSelecting ? 'inline-block' : 'none';
-
-            // dots only when NOT selecting and there are items
-            if (sharedMenuBtn) sharedMenuBtn.style.display = (!sharedSelecting && hasAnyShared) ? 'inline-flex' : 'none';
-
-            // never show inline "Добавити" unless the album is empty (your requirement)
-            if (sharedAddBtn) sharedAddBtn.style.display = hasAnyShared ? 'none' : 'inline-flex';
-
+            li.append(img, badge);
             sharedListEl.appendChild(li);
         });
 
-        // керування видимістю контролів
-        const hasAny = (sharedPending.length + sharedPhotos.length) > 0;
-        // інлайнові кнопки ховаємо завжди (кнопка delete зʼявляється лише у selection-mode)
+        // Controls visibility for shared section
+        const hasAnyShared = (sharedPending.length + sharedPhotos.length) > 0;
         if (sharedDeleteBtn) sharedDeleteBtn.style.display = sharedSelecting ? 'inline-block' : 'none';
-        if (sharedMenuBtn) sharedMenuBtn.style.display = hasAny ? 'inline-flex' : 'none';
+        if (sharedCancelBtn) sharedCancelBtn.style.display = sharedSelecting ? 'inline-block' : 'none';
+        if (sharedMenuBtn) sharedMenuBtn.style.display = (!sharedSelecting && hasAnyShared) ? 'inline-flex' : 'none';
+        if (sharedAddBtn) sharedAddBtn.style.display = hasAnyShared ? 'none' : 'inline-flex';
     }
 
     // додавання від редагування (залогінений теж може “додати” як гість → летить у pending)
@@ -548,15 +560,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function refreshPhotosUI() {
         if (!photosListEl) return;
+
+        // reset container
         photosListEl.innerHTML = '';
         photosListEl.classList.remove('rows-1', 'rows-2');
         photosScrollEl?.querySelector('.photos-empty')?.remove();
 
         const hasPhotos = photos.length > 0;
 
-        // (4), (5), (6) implement visibility here:
+        // visibility of controls (your existing helper)
         setPhotosControlsVisibility_PROFILE({ isSelecting, hasPhotos });
 
+        // empty state
         if (!hasPhotos) {
             photosListEl.style.display = 'none';
             const empty = document.createElement('div');
@@ -577,7 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const img = document.createElement('img');
             img.src = p.url;
 
-            // If this is a local preview (blob:), show uploading overlay + hint
+            // uploading overlay for local previews
             if (typeof p.url === 'string' && p.url.startsWith('blob:')) {
                 li.classList.add('uploading');
                 const hint = document.createElement('div');
@@ -586,37 +601,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.appendChild(hint);
             }
 
-            const overlay = document.createElement('div');
-            overlay.className = 'photo-selection-overlay';
+            // NEW: Location-style selection badge
+            const badge = document.createElement('span');
+            badge.className = 'select-badge';
 
-            const circle = document.createElement('div');
-            circle.className = 'photo-selection-circle';
-            const check = document.createElement('div');
-            check.className = 'selection-check';
-            check.textContent = '✓';
-            circle.appendChild(check);
-            overlay.appendChild(circle);
-
-            // selection badge
+            // reflect selection state + number
             const orderPos = selectedOrder.indexOf(idx);
-            if (orderPos > -1) {
-                li.classList.add('selected');
-                circle.textContent = String(orderPos + 1);
-            }
+            const isSel = orderPos > -1;
+            li.classList.toggle('is-selected', isSel);
+            li.classList.toggle('selected', isSel); // backward compat with older CSS
+            badge.textContent = isSel ? String(orderPos + 1) : '';
 
             // click behavior (open slideshow vs select)
             li.addEventListener('click', () => {
                 if (isSelecting) {
                     toggleSelectPhoto(idx);
-                } else {
-                    const images = realPhotos().map(pp => pp.url);
-                    const captions = realPhotos().map(pp => pp.description || '');
-                    const safeIndex = Math.max(0, images.indexOf(p.url));
-                    openSlideshow(images.length ? images : [p.url], images.length ? safeIndex : 0, images.length ? captions : [p.description || '']);
+                    return;
                 }
+                // slideshow: show only real uploaded photos
+                const real = realPhotos();                              // [{url, description}, ...]
+                const images = real.map(pp => pp.url);
+                const captions = real.map(pp => pp.description || '');
+                const start = Math.max(0, images.indexOf(p.url));
+                openSlideshow(
+                    images.length ? images : [p.url],
+                    images.length ? start : 0,
+                    images.length ? captions : [p.description || '']
+                );
             });
 
-            li.append(img, overlay);
+            li.append(img, badge);
             photosListEl.appendChild(li);
         });
 
@@ -933,7 +947,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderComments();
 
             // ─── AVATAR / HERO ───
-            if (avatarEl) avatarEl.src = data.avatarUrl || 'https://i.ibb.co/mrQJL133/Frame-519.jpg';
+            if (avatarEl) avatarEl.src = data.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png';
             if (heroEl && data.backgroundUrl) {
                 heroEl.style.backgroundImage = `url(${data.backgroundUrl})`;
             }
@@ -1286,6 +1300,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Comments (sample), Relatives (sample) – unchanged
     // ─────────────────────────────────────────────────────────────────────────────
+    // 2-row layout for comment templates (no holes)
+    (function makeTwoRowTemplates() {
+        const wrap = document.querySelector('.comment-templates');
+        if (!wrap) return;
+
+        const btns = Array.from(wrap.querySelectorAll('.template-btn'));
+        if (btns.length < 2) return;
+
+        // Створюємо трек з двома рядами
+        const track = document.createElement('div');
+        track.className = 'templates-track';
+        const rowTop = document.createElement('div');
+        rowTop.className = 'templates-row';
+        const rowBottom = document.createElement('div');
+        rowBottom.className = 'templates-row';
+
+        // Розкладання “в змійку”: 1-ша вгорі, 2-га внизу, 3-тя вгорі, 4-та внизу…
+        btns.forEach((btn, i) => (i % 2 === 0 ? rowTop : rowBottom).appendChild(btn));
+
+        // Очищаємо контейнер і додаємо нову структуру
+        wrap.textContent = '';
+        track.append(rowTop, rowBottom);
+        wrap.appendChild(track);
+    })();
+
     // Template → enter user name → create comment → PUT
     (function hookCommentTemplates() {
         const overlay = document.getElementById('modal-overlay');

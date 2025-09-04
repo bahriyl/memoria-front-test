@@ -10,19 +10,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    function setupTextToggle() {
-        const textWrapper = document.querySelector(".ritual-text");
-        const toggleBtn = textWrapper?.querySelector(".toggle-text-btn");
-        const dots = textWrapper?.querySelector(".dots");
-        if (!textWrapper || !toggleBtn || !dots) return;
-
-        toggleBtn.addEventListener("click", () => {
-            const isExpanded = textWrapper.classList.toggle("expanded");
-            textWrapper.classList.toggle("collapsed", !isExpanded);
-            toggleBtn.textContent = isExpanded ? "менше" : "більше";
-        });
-    }
-
     try {
         // 1) Отримуємо дані
         const response = await fetch(`${API_BASE}/${ritualId}`);
@@ -35,35 +22,94 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.querySelector(".ritual-address").textContent = data.address;
         document.querySelector(".ritual-phone").textContent = `тел. ${data.phone}`;
 
-        // 3) Опис із "більше/менше"
-        const fullText = data.description || "";
-        const textContent = document.querySelector(".text-content");
-        textContent.textContent = fullText;
+        // 3) Опис із "більше/менше" — як на profile (bio-body)
+        const fullText = (data.description || '').trim();
+        const aboutEl = document.getElementById('ritual-text');
 
-        // — обрізаємо до 4 рядків
-        const temp = document.createElement("span");
-        Object.assign(temp.style, {
-            visibility: "hidden",
-            position: "absolute",
-            width: getComputedStyle(textContent).width,
-            font: getComputedStyle(textContent).font,
-            lineHeight: getComputedStyle(textContent).lineHeight,
-        });
-        temp.textContent = fullText;
-        document.body.appendChild(temp);
+        function applyAbout(text) {
+            const LINES = 4;
+            const moreLabel = 'більше';
+            const lessLabel = 'менше';
 
-        const lineHeight = parseFloat(getComputedStyle(temp).lineHeight);
-        const maxHeight = 4 * lineHeight;
-        let approxCharCount = fullText.length;
-        while (temp.offsetHeight > maxHeight && approxCharCount > 0) {
-            approxCharCount -= 5;
-            temp.textContent = fullText.slice(0, approxCharCount);
+            aboutEl.innerHTML = '';
+            const textSpan = document.createElement('span');
+            const nbsp = document.createTextNode('\u00A0');
+            const toggle = document.createElement('span');
+            toggle.className = 'bio-toggle';
+            toggle.setAttribute('role', 'button');
+            toggle.tabIndex = 0;
+
+            // базові метрики
+            const cs = getComputedStyle(aboutEl);
+            const line = parseFloat(cs.lineHeight) || (1.5 * parseFloat(cs.fontSize) || 21);
+            const maxH = Math.round(LINES * line);
+
+            // --- вимір повного тексту БЕЗ клампу ---
+            aboutEl.classList.add('__measure');
+            aboutEl.innerHTML = '';
+            textSpan.textContent = text;
+            aboutEl.appendChild(textSpan);
+            const fullH = aboutEl.clientHeight;
+            aboutEl.innerHTML = '';
+            aboutEl.classList.remove('__measure');
+
+            if (fullH <= maxH + 1) {
+                // все влізло → без toggle
+                aboutEl.appendChild(textSpan);
+                return;
+            }
+
+            // хелпер вимірювання префікса: теж БЕЗ клампу
+            function heightForPrefix(prefixLen) {
+                aboutEl.classList.add('__measure');
+                aboutEl.innerHTML = '';
+                textSpan.textContent = text.slice(0, prefixLen).trimEnd() + ' …';
+                toggle.textContent = moreLabel;
+                aboutEl.append(textSpan, nbsp, toggle);
+                const h = aboutEl.clientHeight;
+                aboutEl.innerHTML = '';
+                aboutEl.classList.remove('__measure');
+                return h;
+            }
+
+            // бінарний пошук максимальної довжини, що влазить у 4 рядки
+            let lo = 0, hi = text.length, best = 0;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                if (heightForPrefix(mid) <= maxH + 1) { best = mid; lo = mid + 1; }
+                else { hi = mid - 1; }
+            }
+
+            // фінальний рендер (уже З клампом, без __measure)
+            aboutEl.innerHTML = '';
+            textSpan.textContent = text.slice(0, best).trimEnd() + ' …';
+            toggle.textContent = moreLabel;
+            aboutEl.classList.remove('expanded');
+            aboutEl.append(textSpan, document.createTextNode('\u00A0'), toggle);
+
+            let expanded = false;
+            const expand = () => {
+                expanded = true;
+                aboutEl.classList.add('expanded');     // <<< важливо
+                aboutEl.innerHTML = '';
+                textSpan.textContent = text + ' ';
+                toggle.textContent = 'менше';
+                aboutEl.append(textSpan, toggle);
+            };
+
+            const collapse = () => {
+                expanded = false;
+                aboutEl.classList.remove('expanded');  // <<< важливо
+                applyAbout(text);
+            };
+            const onToggle = () => (expanded ? collapse() : expand());
+            toggle.addEventListener('click', onToggle);
+            toggle.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); }
+            });
         }
-        document.body.removeChild(temp);
 
-        const cropped = fullText.slice(0, approxCharCount - 20).trim();
-        textContent.textContent = cropped;
-        setupTextToggle();
+        applyAbout(fullText);
 
         // 4) Посилання
         const linkEl = document.querySelector(".ritual-link-btn");
