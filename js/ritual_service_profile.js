@@ -171,8 +171,27 @@ document.addEventListener("DOMContentLoaded", async () => {
                 imagesContainer.appendChild(wrapper);
             });
 
+            const totalAlbums = albums.length;
+
+            if (totalAlbums <= 5) {
+                imagesContainer.classList.add("one-row");
+                imagesContainer.classList.remove("two-rows");
+            } else {
+                imagesContainer.classList.add("two-rows");
+                imagesContainer.classList.remove("one-row");
+            }
+
             section.appendChild(heading);
-            section.appendChild(imagesContainer);
+
+            if (albums.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'photos-empty';
+                empty.textContent = 'Немає фотографій';
+                section.appendChild(empty);
+            } else {
+                section.appendChild(imagesContainer);
+            }
+
             container.appendChild(section);
         });
     } catch (err) {

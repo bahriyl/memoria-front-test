@@ -254,6 +254,16 @@ function renderData(data) {
         wrap.append(img, badge, counter);
         imagesContainer.appendChild(wrap);
       });
+
+      const totalAlbums = albums.length;
+
+      if (totalAlbums <= 5) {
+        imagesContainer.classList.add("one-row");
+        imagesContainer.classList.remove("two-rows");
+      } else {
+        imagesContainer.classList.add("two-rows");
+        imagesContainer.classList.remove("one-row");
+      }
     }
     if (hasPhotos) renderImages();
 
@@ -442,10 +452,10 @@ function renderData(data) {
     section.appendChild(fileInput);
 
     if (!hasPhotos) {
-      const emptyText = document.createElement("div");
-      emptyText.className = "no-photos-text";
-      emptyText.textContent = "Немає фотографій. Будь ласка, поділіться спогадами";
-      section.appendChild(emptyText);
+      const empty = document.createElement('div');
+      empty.className = 'photos-empty';
+      empty.textContent = 'Немає фотографій';
+      section.appendChild(empty);
     } else {
       section.appendChild(imagesContainer);
     }

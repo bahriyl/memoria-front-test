@@ -217,8 +217,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     cityInput.addEventListener('blur', () => { setTimeout(() => citySuggest.style.display = 'none', 200); });
     clearCityBtn.addEventListener('click', () => {
-        cityInput.value = ''; clearCityBtn.style.display = 'none';
-        citySuggest.innerHTML = ''; citySuggest.style.display = 'none';
+        // очистити місто
+        cityInput.value = '';
+        clearCityBtn.style.display = 'none';
+        citySuggest.innerHTML = '';
+        citySuggest.style.display = 'none';
+
+        // одночасно очистити кладовище
+        cemInput.value = '';
+        clearCemBtn.style.display = 'none';
+        cemSuggest.innerHTML = '';
+        cemSuggest.style.display = 'none';
     });
 
     // CEMETERY

@@ -10,6 +10,7 @@ body {
 .ritual-container {
   max-width: 800px;
   margin: 0 auto;
+  padding-bottom: 8px;
 }
 
 .ritual-hero {
@@ -179,6 +180,14 @@ body {
   overflow-y: hidden;
 }
 
+.item-images.one-row {
+  grid-template-rows: 198px !important;
+}
+
+.item-images.two-rows {
+  grid-template-rows: repeat(2, 198px) !important;
+}
+
 .item-images img {
   width: 160px;
   height: 198px;
@@ -186,6 +195,21 @@ body {
   border-radius: 4px;
   scroll-snap-align: start;
   flex-shrink: 0;
+}
+
+.photos-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  padding: 24px;
+  margin: 0 20px 8px 0;
+  background: #F5F5F8;
+  color: #72767D;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.4;
 }
 
 .ritual-header {

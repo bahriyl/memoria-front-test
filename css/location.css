@@ -19,14 +19,14 @@ body {
     max-width: 800px;
     margin: 0 auto;
     padding: 16px;
-    padding-bottom: 16px;
+    padding-bottom: 25px;
 }
 
 /* Header */
 .header {
     display: flex;
     align-items: center;
-    margin-bottom: 48px;
+    margin-bottom: 36px;
 }
 
 .back-btn {
@@ -162,7 +162,7 @@ h2 {
     width: 100vw;
     margin-left: -50%;
     overflow-x: visible;
-    margin-bottom: 28px;
+    margin-bottom: 18px;
 }
 
 .section-photos h2 {
@@ -280,7 +280,7 @@ textarea:focus {
     font-weight: 480;
     line-height: 23px;
     background: none;
-    margin: 8px 0 0 0;
+    margin: 0;
     padding: 0;
 }
 
@@ -588,6 +588,9 @@ textarea:focus {
     font-weight: 510;
     cursor: pointer;
     height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .ritual-btn--danger {
@@ -720,7 +723,7 @@ textarea:focus {
 .section-location .dots-btn {
     position: relative;
     right: -10px;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
 }
 
 .section-photos .dots-btn {

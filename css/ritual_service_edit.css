@@ -255,22 +255,11 @@ textarea {
   overflow-y: hidden;
 }
 
-/* For single image - display in one row */
-.item-images:has(.image-wrap:nth-child(1):last-child) {
+.item-images.one-row {
   grid-template-rows: 198px;
 }
 
-/* For 2+ images - use 2 rows */
-.item-images:has(.image-wrap:nth-child(2)) {
-  grid-template-rows: repeat(2, 198px);
-}
-
-/* Alternative approach if :has() selector is not supported in older browsers */
-.item-images.single-image {
-  grid-template-rows: 198px;
-}
-
-.item-images.multiple-images {
+.item-images.two-rows {
   grid-template-rows: repeat(2, 198px);
 }
 
@@ -314,6 +303,9 @@ textarea {
   cursor: pointer;
   height: 30px;
   transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .add-category-btn {
@@ -544,13 +536,19 @@ textarea {
   color: #fff;
 }
 
-.no-photos-text {
+.photos-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  padding: 24px;
+  margin: 0 20px 8px 0;
+  background: #F5F5F8;
+  color: #72767D;
+  border-radius: 12px;
   text-align: center;
-  font-size: 16px;
-  font-weight: 510;
-  font-family: 'Montserrat', sans-serif;
-  color: #1C170D;
-  margin: 40px 0 40px -20px;
+  font-size: 15px;
+  line-height: 1.4;
 }
 
 .single-photo {

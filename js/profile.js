@@ -553,8 +553,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 1) One row if exactly 1 photo, otherwise two rows
-        photosListEl.classList.add(photos.length === 1 ? 'rows-1' : 'rows-2');
+        // 1) One row if >= 5 photo, otherwise two rows
+        photosListEl.classList.add(photos.length <= 5 ? 'rows-1' : 'rows-2');
 
         // render items
         photos.forEach((p, idx) => {
@@ -967,6 +967,18 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 actionText.textContent = 'Додати локацію місця поховання';
                 locationBtn.href = `/location.html?personId=${personId}`;
+            }
+
+            if (locationBtn) {
+                locationBtn.addEventListener('click', (e) => {
+                    const hasLocation = !!(data?.location?.[0]);
+                    if (premiumLock && !hasLocation) {
+                        e.preventDefault();
+                        // open login modal
+                        const loginModal = document.getElementById('loginModal');
+                        if (loginModal) loginModal.style.display = 'flex';
+                    }
+                });
             }
 
             // ─── BIO ───

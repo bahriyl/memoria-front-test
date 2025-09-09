@@ -592,7 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         photosListEl.style.display = '';
-        photosListEl.classList.add(photos.length === 1 ? 'rows-1' : 'rows-2');
+        photosListEl.classList.add(photos.length <= 5 ? 'rows-1' : 'rows-2');
 
         // render items
         photos.forEach((p, idx) => {

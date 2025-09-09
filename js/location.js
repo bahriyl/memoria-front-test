@@ -80,6 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const personId = getParam('personId');
     const UPDATE_ENDPOINT = `${API_URL}/api/people/${personId}`;
 
+    const tokenKey = `people_token_${personId}`;
+    const token = localStorage.getItem(tokenKey);
+    let premiumLocked = false;
+
     if (!personId) {
         console.error('personId missing in query string');
         return;
@@ -110,13 +114,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!errorBox) return;
         errorBox.textContent = msg;
         errorBox.style.display = '';
+        const container = document.querySelector('.container');
+        if (container) container.style.paddingBottom = '80px';
     }
 
     function hideErrors() {
         if (!errorBox) return;
         errorBox.textContent = '';
         errorBox.style.display = 'none';
+        const container = document.querySelector('.container');
+        if (container) {
+            const submitVisible = btnSubmit && getComputedStyle(btnSubmit).display !== 'none';
+            container.style.paddingBottom = submitVisible ? '80px' : '25px';
+        }
     }
+
 
     function showModal() {
         if (!overlayEl || !modalEl) return;
@@ -160,6 +172,31 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSubmit.textContent = initialHasData ? 'Зберегти зміни' : 'Додати локацію';
     }
 
+    function applyPremiumLock() {
+        if (!premiumLocked) return;
+        console.log('premium lock');
+
+        // Always hide submit UI
+        if (btnSubmit) btnSubmit.style.display = 'none';
+        const container = document.querySelector('.container');
+        if (container) container.style.paddingBottom = '16px';
+
+        // If there is already any location data → hide only dots buttons (view-only)
+        const hasAny =
+            !!(currentLocation.coords ||
+                (currentLocation.landmarks || '').trim() ||
+                (currentLocation.photos || []).length);
+
+        if (hasAny) {
+            locMenuBtn && (locMenuBtn.style.display = 'none'); locMenu?.classList.add('hidden');
+            landmarksMenuBtn && (landmarksMenuBtn.style.display = 'none'); landmarksMenu?.classList.add('hidden');
+            photoMenuBtn && (photoMenuBtn.style.display = 'none'); photoMenu?.classList.add('hidden');
+        }
+
+        // close any open menus
+        closeAllMenus?.();
+    }
+
     function renderGeoPlaceholder() {
         if (!geoCard) return;
         geoCard.innerHTML = `
@@ -173,7 +210,37 @@ document.addEventListener('DOMContentLoaded', () => {
         allowBtn?.addEventListener('click', requestGeolocation);
     }
 
+    // Send current state to API (used in "existing location" mode)
+    async function pushUpdate() {
+        const payload = {
+            location: [
+                currentLocation.coords || '',
+                (currentLocation.landmarks || '').trim(),
+                nonBlobPhotos(),
+            ],
+        };
+        try {
+            const res = await fetch(UPDATE_ENDPOINT, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            hideErrors?.();
+        } catch (e) {
+            console.error('Update failed', e);
+            showErrors?.('Не вдалося оновити локацію. Спробуйте ще раз.');
+        }
+    }
+
     function updateSubmitButtonVisibility() {
+        if (premiumLocked) {
+            if (btnSubmit) btnSubmit.style.display = 'none';
+            const container = document.querySelector('.container');
+            if (container) container.style.paddingBottom = '16px';
+            return;
+        }
+
         if (!btnSubmit) return;
         const container = document.querySelector('.container');
 
@@ -188,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const showBtn = hasCoords && hasLandmarks && hasAnyPhoto && (!initialHasData || changesMade);
         btnSubmit.style.display = showBtn ? '' : 'none';
 
-        if (container) container.style.paddingBottom = showBtn ? '100px' : '16px';
+        if (container) container.style.paddingBottom = showBtn ? '80px' : '25px';
 
         // можна тиснути лише коли фото вже завантажені (без blob:) і все заповнено
         const canReallySubmit = hasCoords && hasLandmarks && nonBlobPhotos().length > 0 && pendingUploads === 0;
@@ -209,6 +276,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         if (showBtn && canReallySubmit) hideErrors();
+    }
+
+    function maybeUpdateSubmit() {
+        if (!initialHasData) updateSubmitButtonVisibility();
+        else if (btnSubmit) btnSubmit.style.display = 'none';
     }
 
     function positionMenuFor(btn, menu) {
@@ -336,8 +408,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         isEditingLandmarks = false;
         changesMade = true;
-        updateSubmitButtonVisibility?.();
+        maybeUpdateSubmit();
         if (landmarksMenuBtn) landmarksMenuBtn.style.display = currentLocation.landmarks.trim() ? '' : 'none';
+
+        if (initialHasData) pushUpdate();
     });
 
     // ===== LOAD EXISTING DATA =====
@@ -347,6 +421,9 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch(`${API_URL}/api/people/${personId}`)
         .then((r) => r.json())
         .then((data) => {
+            premiumLocked = !!data.premium && !token;
+            if (premiumLocked) applyPremiumLock();
+
             const loc = Array.isArray(data.location) ? data.location : [];
 
             // coords
@@ -381,12 +458,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 (currentLocation.landmarks || '').trim() ||
                 currentLocation.photos.length
             );
+
+            // when there is already some location data — remove submit UX
+            if (initialHasData && btnSubmit) {
+                btnSubmit.style.display = 'none';
+            }
+
             setSubmitLabel();
         })
         .catch((e) => {
             console.error('Failed to load person:', e);
         })
         .finally(() => {
+            // right after you know initialHasData (e.g., in the .finally() after fetching person)
+            if (!initialHasData) {
+                // Creation flow: no location yet → no dots-menu, no confirm/cancel, show textarea directly
+                if (landmarksMenuBtn) landmarksMenuBtn.style.display = 'none';
+                if (landmarksMenu) landmarksMenu.classList.add('hidden');
+
+                if (landmarksDisplay) landmarksDisplay.style.display = 'none';
+                if (landmarksControls) landmarksControls.style.display = 'none';
+
+                if (landmarksEl) {
+                    landmarksEl.style.display = '';          // show the textarea for immediate typing
+                    landmarksEl.placeholder = 'Важливі орієнтири…';
+                }
+            }
+
             // локація: якщо координат немає — сховати крапки, показати geo-card як на макеті
             if (!currentLocation.coords) {
                 if (locMenuBtn) locMenuBtn.style.display = 'none';
@@ -410,21 +508,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
             refreshPlaceholders();
             setSubmitLabel();
-            updateSubmitButtonVisibility();
+            maybeUpdateSubmit();
+
+            if (premiumLocked) applyPremiumLock();
         });
 
     // ===== LANDMARKS input tracking =====
     if (landmarksEl)
         landmarksEl.addEventListener('input', () => {
-            // не записуємо в state поки редагують, але вважаємо поле «заповненим»
-            changesMade = true;
-            // крапки не показуємо, поки запис не збережений – вимога: "немає орієнтирів → без крапок"
             const val = (landmarksEl.value || '').trim();
-            if (!val) {
+
+            if (!initialHasData) {
+                // CREATION: live-commit, no confirmation UI, keep dots-menu hidden
+                currentLocation.landmarks = val;
+                changesMade = true;
+
                 if (landmarksMenuBtn) landmarksMenuBtn.style.display = 'none';
                 if (landmarksMenu) landmarksMenu.classList.add('hidden');
+
+                hideErrors();
+                maybeUpdateSubmit(); // first-time button visibility logic
+            } else {
+                // EDITING: don't commit yet → require "Готово"
+                changesMade = true;
+                hideErrors();
             }
-            updateSubmitButtonVisibility();
         });
 
     // Keep old inline handler (button is hidden); harmless if clicked via DevTools
@@ -437,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
             landmarksEl.style.display = '';
             landmarksEl.focus();
             changesMade = true;
-            updateSubmitButtonVisibility();
+            maybeUpdateSubmit();
         });
 
     // ===== SLIDESHOW =====
@@ -549,9 +657,15 @@ document.addEventListener('DOMContentLoaded', () => {
             attributionControl: false,
         });
 
+        const geolocate = new mapboxgl.GeolocateControl({
+            positionOptions: { enableHighAccuracy: true },
+            trackUserLocation: true,
+            showUserHeading: true
+        });
+        map.addControl(geolocate);
+
         let ro = null;
         let onWinResize = null;
-        let originMarker = null;
 
         map.on('load', () => {
             const latNum = parseFloat(lat);
@@ -593,22 +707,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Ваш браузер не підтримує геолокацію.');
                 return;
             }
+
+            geolocate.trigger();
+
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     const origin = [pos.coords.longitude, pos.coords.latitude];
                     const destination = [parseFloat(lng), parseFloat(lat)];
-
-                    // Show your current location pin
-                    if (map.getSource('route')) {
-                        // optional: clean up previous route if user re-presses the button
-                        map.removeLayer('route');
-                        map.removeSource('route');
-                    }
-                    // keep a single origin marker (define `let originMarker;` above in renderMap scope)
-                    if (originMarker) originMarker.remove();
-                    originMarker = new mapboxgl.Marker({ color: '#12794f', anchor: 'bottom' }) // green = you
-                        .setLngLat(origin)
-                        .addTo(map);
 
                     fetch(
                         `https://api.mapbox.com/directions/v5/mapbox/driving/` +
@@ -673,10 +778,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const coordsStr = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
                 currentLocation.coords = coordsStr;
                 changesMade = true;
-                updateSubmitButtonVisibility();
 
                 if (geoCard) geoCard.style.display = 'none';
                 renderMap(pos.coords.latitude, pos.coords.longitude);
+
+                if (initialHasData) pushUpdate();
+                else maybeUpdateSubmit();
 
                 if (btnGeo) btnGeo.disabled = false;
                 if (mapChangeBtn) mapChangeBtn.disabled = false;
@@ -692,6 +799,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===== PHOTOS =====
     if (btnAdd)
         btnAdd.addEventListener('click', () => {
+            if (premiumLocked) return;
             if (photoMenu) photoMenu.classList.add('hidden'); // like other options
             if (fileInput) fileInput.click();
         });
@@ -705,11 +813,11 @@ document.addEventListener('DOMContentLoaded', () => {
             previewUrls.forEach((url) => currentLocation.photos.push(url));
             refreshPlaceholders();
             changesMade = true;
-            updateSubmitButtonVisibility();
+            maybeUpdateSubmit();
             fileInput.value = '';
 
             pendingUploads += files.length;
-            updateSubmitButtonVisibility();
+            maybeUpdateSubmit();
 
             // upload each and replace blobs with real URLs
             files.forEach(async (file, idx) => {
@@ -728,20 +836,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         currentLocation.photos[i] = realUrl;
                         URL.revokeObjectURL(previewUrl);
                         refreshPlaceholders();
-                        updateSubmitButtonVisibility(); // show submit once first upload finishes
+                        maybeUpdateSubmit();
+
+                        if (initialHasData) await pushUpdate();
                     }
                 } catch {
                     alert('Не вдалося завантажити зображення.');
                 } finally {
                     pendingUploads = Math.max(0, pendingUploads - 1);
                     refreshPlaceholders();
-                    updateSubmitButtonVisibility();
+                    maybeUpdateSubmit();
                 }
             });
         });
 
     if (btnSelect)
         btnSelect.addEventListener('click', () => {
+            if (premiumLocked) return;
             if (photoMenu) photoMenu.classList.add('hidden');
             enterSelectionMode();
         });
@@ -890,7 +1001,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ===== SUBMIT =====
     if (btnSubmit)
-        btnSubmit.addEventListener('click', async () => {
+        btnSubmit.addEventListener('click', async() => {
+            if (premiumLocked && !initialHasData) {
+                e.preventDefault();
+                showErrors('Щоб додати локацію, увійдіть у профіль.');
+                return;
+            }
+
             if (!isComplete()) {
                 const miss = missingFields();
                 showErrors(`Заповніть усі поля: ${miss.join(', ')}.`);
@@ -952,7 +1069,9 @@ document.addEventListener('DOMContentLoaded', () => {
             hideDeleteConfirm();
             exitSelectionMode();
             changesMade = true;
-            updateSubmitButtonVisibility();
+            maybeUpdateSubmit();
+
+            if (initialHasData) pushUpdate();
         });
     }
 });
