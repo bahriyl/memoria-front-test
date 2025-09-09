@@ -40,6 +40,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const landmarksCancel = document.getElementById('landmarks-cancel');
     const landmarksDone = document.getElementById('landmarks-done');
 
+    const locMenuBtn = document.getElementById('loc-menu-btn');
+    const locMenu = document.getElementById('loc-menu');
+    const landmarksMenuBtn = document.getElementById('landmarks-menu-btn');
+    const landmarksMenu = document.getElementById('landmarks-menu');
+
     // ===== STATE (declare early to avoid TDZ) =====
     let currentLocation = { coords: null, landmarks: '', photos: [] };
     let hadCoordsOnLoad = false;
@@ -155,41 +160,54 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSubmit.textContent = initialHasData ? 'Зберегти зміни' : 'Додати локацію';
     }
 
+    function renderGeoPlaceholder() {
+        if (!geoCard) return;
+        geoCard.innerHTML = `
+          <p>Стоячи перед місцем поховання, надайте дозвіл до геолокації, щоб закріпити координати</p>
+          <div style="display:flex; justify-content:center; margin-top: 14px;">
+            <button id="btn-geo" class="btn btn-primary">Дозволити</button>
+          </div>
+        `;
+        // підв'язуємо ту ж дію, що і "Змінити":
+        const allowBtn = document.getElementById('btn-geo');
+        allowBtn?.addEventListener('click', requestGeolocation);
+    }
+
     function updateSubmitButtonVisibility() {
         if (!btnSubmit) return;
         const container = document.querySelector('.container');
 
-        // повні дані для UI (можна показати кнопку)
         const hasCoords = Boolean(currentLocation.coords);
-        const hasLandmarks = Boolean((currentLocation.landmarks || '').trim());
+        // беримо «живе» значення з textarea, навіть якщо ще не натиснули "Готово"
+        const liveLandmarks = ((currentLocation.landmarks || '').trim()) ||
+            ((landmarksEl && landmarksEl.style.display !== 'none') ? (landmarksEl.value || '').trim() : '');
+        const hasLandmarks = Boolean(liveLandmarks);
         const hasAnyPhoto = currentLocation.photos.length > 0;
 
+        // показуємо Submit, коли дані заповнюються вперше або є зміни
         const showBtn = hasCoords && hasLandmarks && hasAnyPhoto && (!initialHasData || changesMade);
         btnSubmit.style.display = showBtn ? '' : 'none';
 
-        if (container) {
-            container.style.paddingBottom = showBtn ? '100px' : '16px';
-        }
+        if (container) container.style.paddingBottom = showBtn ? '100px' : '16px';
 
-        // повні дані для фактичного сабміту (є хоча б одне вже завантажене фото і нічого не вантажиться)
+        // можна тиснути лише коли фото вже завантажені (без blob:) і все заповнено
         const canReallySubmit = hasCoords && hasLandmarks && nonBlobPhotos().length > 0 && pendingUploads === 0;
         btnSubmit.disabled = !canReallySubmit;
 
-        // динамічний текст
         if (showBtn) {
             if (pendingUploads > 0) {
                 showErrors('Фото ще завантажуються. Будь ласка, дочекайтесь завершення.');
                 return;
             }
-            if (!isComplete()) {
-                const miss = missingFields();
+            if (!(hasCoords && hasLandmarks && nonBlobPhotos().length > 0)) {
+                const miss = [];
+                if (!hasCoords) miss.push('геолокація');
+                if (!hasLandmarks) miss.push('орієнтири');
+                if (nonBlobPhotos().length === 0) miss.push('фото');
                 showErrors(`Заповніть усі поля: ${miss.join(', ')}.`);
                 return;
-            } else {
-                btnSubmit.textContent = initialHasData ? 'Зберегти зміни' : 'Додати локацію';
             }
         }
-
         if (showBtn && canReallySubmit) hideErrors();
     }
 
@@ -230,19 +248,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.closest('.dots-btn')) {
             const btn = e.target.closest('.dots-btn');
             const menu = btn.nextElementSibling; // <div class="popup-menu">
-            // Close others first
-            document.querySelectorAll('.popup-menu').forEach(m => m.classList.add('hidden'));
-
             if (!menu) return;
 
-            const wasHidden = menu.classList.contains('hidden');
-            if (!wasHidden) {
-                // toggle off
-                menu.classList.add('hidden');
+            const isOpen = !menu.classList.contains('hidden');
+
+            // закриваємо всі інші
+            document.querySelectorAll('.popup-menu').forEach(m => m.classList.add('hidden'));
+
+            if (isOpen) {
+                // було відкрите → тепер закриваємо
                 openMenu = null;
                 openMenuAnchor = null;
             } else {
-                // show and position
+                // було закрите → тепер відкриваємо
                 positionMenuFor(btn, menu);
                 openMenu = menu;
                 openMenuAnchor = btn;
@@ -319,6 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isEditingLandmarks = false;
         changesMade = true;
         updateSubmitButtonVisibility?.();
+        if (landmarksMenuBtn) landmarksMenuBtn.style.display = currentLocation.landmarks.trim() ? '' : 'none';
     });
 
     // ===== LOAD EXISTING DATA =====
@@ -368,6 +387,27 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to load person:', e);
         })
         .finally(() => {
+            // локація: якщо координат немає — сховати крапки, показати geo-card як на макеті
+            if (!currentLocation.coords) {
+                if (locMenuBtn) locMenuBtn.style.display = 'none';
+                if (locMenu) locMenu.classList.add('hidden');
+                if (geoCard) {
+                    geoCard.style.display = '';
+                    renderGeoPlaceholder();
+                }
+            } else {
+                if (locMenuBtn) locMenuBtn.style.display = '';
+            }
+
+            // орієнтири: якщо порожньо — сховати крапки
+            const hasLm = Boolean((currentLocation.landmarks || '').trim());
+            if (!hasLm) {
+                if (landmarksMenuBtn) landmarksMenuBtn.style.display = 'none';
+                if (landmarksMenu) landmarksMenu.classList.add('hidden');
+            } else {
+                if (landmarksMenuBtn) landmarksMenuBtn.style.display = '';
+            }
+
             refreshPlaceholders();
             setSubmitLabel();
             updateSubmitButtonVisibility();
@@ -376,8 +416,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===== LANDMARKS input tracking =====
     if (landmarksEl)
         landmarksEl.addEventListener('input', () => {
-            if (!isEditingLandmarks) return; // don't mutate state while editing
-            // (optional) live validations/UI here if needed, but no state writes
+            // не записуємо в state поки редагують, але вважаємо поле «заповненим»
+            changesMade = true;
+            // крапки не показуємо, поки запис не збережений – вимога: "немає орієнтирів → без крапок"
+            const val = (landmarksEl.value || '').trim();
+            if (!val) {
+                if (landmarksMenuBtn) landmarksMenuBtn.style.display = 'none';
+                if (landmarksMenu) landmarksMenu.classList.add('hidden');
+            }
+            updateSubmitButtonVisibility();
         });
 
     // Keep old inline handler (button is hidden); harmless if clicked via DevTools
@@ -504,6 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let ro = null;
         let onWinResize = null;
+        let originMarker = null;
 
         map.on('load', () => {
             const latNum = parseFloat(lat);
@@ -549,6 +597,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 (pos) => {
                     const origin = [pos.coords.longitude, pos.coords.latitude];
                     const destination = [parseFloat(lng), parseFloat(lat)];
+
+                    // Show your current location pin
+                    if (map.getSource('route')) {
+                        // optional: clean up previous route if user re-presses the button
+                        map.removeLayer('route');
+                        map.removeSource('route');
+                    }
+                    // keep a single origin marker (define `let originMarker;` above in renderMap scope)
+                    if (originMarker) originMarker.remove();
+                    originMarker = new mapboxgl.Marker({ color: '#12794f', anchor: 'bottom' }) // green = you
+                        .setLngLat(origin)
+                        .addTo(map);
+
                     fetch(
                         `https://api.mapbox.com/directions/v5/mapbox/driving/` +
                         `${origin.join(',')};${destination.join(',')}?geometries=geojson` +

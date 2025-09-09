@@ -268,6 +268,12 @@ textarea::placeholder {
     color: #72767D;
 }
 
+textarea:focus {
+    outline: none;
+    box-shadow: none;
+    border-color: inherit;
+}
+
 .landmarks-text {
     font-family: 'Montserrat', sans-serif;
     font-size: 15px;
@@ -592,8 +598,8 @@ textarea::placeholder {
 /* --- Image tiles like on ritual page --- */
 .image-wrap {
     position: relative;
-    width: 157px;
-    height: 212px;
+    width: 160px;
+    height: 198px;
     border-radius: 4px;
     overflow: hidden;
     scroll-snap-align: start;

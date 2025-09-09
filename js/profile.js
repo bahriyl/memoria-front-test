@@ -10,6 +10,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
 
     const params = new URLSearchParams(window.location.search);
+
+    const from = params.get('from');
+    const backBtn = document.querySelector('.back-button');
+
+    if (from === 'premium') {
+        backBtn.setAttribute('href', 'premium_qr_person.html');
+    } else {
+        backBtn.setAttribute('href', 'index.html');
+    }
+
     const personId = params.get('personId');
     if (!personId) return;
 
@@ -17,8 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem(tokenKey);
 
     if (token) {
-        window.location.replace(`/profile_edit.html?personId=${encodeURIComponent(personId)}`);
-        return; // важливо: далі скрипт profile.js не виконуємо
+        const suffix = from ? `&from=${encodeURIComponent(from)}` : '';
+        window.location.replace(`/profile_edit.html?personId=${encodeURIComponent(personId)}${suffix}`);
+        return;
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -760,6 +771,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
+    // Robust parser for "DD.MM.YYYY" (e.g., "01.09.2025")
+    function parseUaDate(d) {
+        if (!d || typeof d !== 'string') return null;
+        const m = d.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+        if (!m) return null;
+        const dd = Number(m[1]), mm = Number(m[2]), yyyy = Number(m[3]);
+        // basic bounds check
+        if (!yyyy || mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+        return new Date(yyyy, mm - 1, dd);
+    }
+
     function renderComments() {
         if (!commentsListEl) return;
 
@@ -778,22 +800,29 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 2) Items
-        comments.forEach(c => {
-            const item = document.createElement('div');
-            item.className = 'comment-item';
-            const author = c.author ?? '';
-            const date = c.date ?? '';
-            const text = c.text ?? '';
-            item.innerHTML = `
-            <div class="comment-header">
-              <span class="comment-author">${author}</span>
-              <span class="comment-date">${date}</span>
-            </div>
-            <p class="comment-text">${text}</p>
-          `;
-            commentsListEl.appendChild(item);
-        });
+        // 2) Items — sort newest → oldest
+        comments
+            .slice()
+            .sort((a, b) => {
+                const da = parseUaDate(a?.date);
+                const db = parseUaDate(b?.date);
+                if (da && db) return db - da;          // newest → oldest
+                if (db && !da) return 1;               // put valid dates first
+                if (da && !db) return -1;
+                return 0;                              // both invalid → keep relative order
+            })
+            .forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'comment-item';
+                item.innerHTML = `
+                <div class="comment-header">
+                    <span class="comment-author">${c.author ?? ''}</span>
+                    <span class="comment-date">${c.date ?? ''}</span>
+                </div>
+                <p class="comment-text">${c.text ?? ''}</p>
+                `;
+                commentsListEl.appendChild(item);
+            });
 
         // 3) Clamp to 4 items (scroll if more)
         const items = commentsListEl.querySelectorAll('.comment-item');

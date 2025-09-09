@@ -616,13 +616,20 @@ body {
     display: flex;
     gap: 8px;
     overflow-x: auto;
-    /* <- horizontal scroller */
     scroll-snap-type: x proximity;
-    /* optional, nicer feel */
     padding-bottom: 6px;
-    /* avoid scrollbar overlap on some OSes */
     white-space: nowrap;
-    /* ensures no wrapping if you’re not using flex */
+
+    /* Hide scrollbar cross-browser */
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
+}
+
+.date-calendar::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari/Opera */
 }
 
 .date-item {

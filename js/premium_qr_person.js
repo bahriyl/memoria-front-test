@@ -10,6 +10,13 @@ function debounce(fn, ms) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const backBtn = document.getElementById('backBtn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            window.location.href = 'premium_qr.html';
+        });
+    }
+
     const searchNameInput = document.getElementById('searchName');
     const searchNameError = document.getElementById('searchNameError');
 
@@ -411,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const li = e.target.closest('li[data-id]');
             if (!li) return;
             const id = li.dataset.id;
-            if (id) window.location.href = `/profile.html?personId=${encodeURIComponent(id)}`;
+            if (id) window.location.href = `/profile.html?personId=${encodeURIComponent(id)}&from=premium`;
         });
 
         // Доступність з клавіатури (Enter/Space)
@@ -422,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!li) return;
             e.preventDefault();
             const id = li.dataset.id;
-            if (id) window.location.href = `/profile.html?personId=${encodeURIComponent(id)}`;
+            if (id) window.location.href = `/profile.html?personId=${encodeURIComponent(id)}&from=premium`;
         });
 
         foundList._profileDelegation = true;

@@ -158,16 +158,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let cityTimer, cemTimer;
 
+    // додамо невеличкий escape, щоб уникнути XSS у розмітці
+    function esc(s) {
+        return String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
     async function fetchCemeteries(search = '') {
-        const params = new URLSearchParams({ search, area: cityInput.value || '' });
+        const params = new URLSearchParams({
+            search,
+            // якщо бек досі підтримує фільтр area — залишаємо; інакше бек проігнорує
+            area: cityInput.value || ''
+        });
+
         try {
             const res = await fetch(`${API_URL}/api/cemeteries?${params}`);
-            const list = await res.json();
-            cemSuggest.innerHTML = list.length
-                ? list.map(c => `<li>${c}</li>`).join('')
+            const list = await res.json(); // тепер це [{ area, name }, ...]
+            cemSuggest.innerHTML = (Array.isArray(list) && list.length)
+                ? list.map(c => {
+                    const name = esc(c.name);
+                    const area = esc(c.area);
+                    return `<li data-name="${name}" data-area="${area}">${name}</li>`;
+                }).join('')
                 : `<li class="no-results">Збігів не знайдено</li>`;
             cemSuggest.style.display = 'block';
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
     }
 
     // CITY
@@ -221,10 +240,21 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchCemeteries('');
     });
     cemSuggest.addEventListener('click', e => {
-        if (e.target.tagName === 'LI' && !e.target.classList.contains('no-results')) {
-            cemInput.value = e.target.textContent;
-            cemSuggest.style.display = 'none';
-            clearCemBtn.style.display = 'flex';
+        const li = e.target.closest('li');
+        if (!li || li.classList.contains('no-results')) return;
+
+        const name = li.getAttribute('data-name') || li.textContent.trim();
+        const area = li.getAttribute('data-area') || '';
+
+        // Заповнюємо поле "Кладовище"
+        cemInput.value = name;
+        cemSuggest.style.display = 'none';
+        clearCemBtn.style.display = 'flex';
+
+        // Якщо населений пункт ще порожній — підставляємо area з підказки
+        if (!cityInput.value && area) {
+            cityInput.value = area;
+            clearCityBtn.style.display = 'flex';
         }
     });
     cemInput.addEventListener('blur', () => { setTimeout(() => cemSuggest.style.display = 'none', 200); });
@@ -247,6 +277,125 @@ document.addEventListener('DOMContentLoaded', () => {
             activitySelect.dispatchEvent(new Event('change', { bubbles: true }));
         });
     }
+
+    // ——— ActivityArea: custom suggestions-style dropdown ———
+    (function initActivityAreaDropdown() {
+        const select = document.getElementById('activityArea');
+        const clearBtn = document.getElementById('clear-activity');
+        if (!select || !clearBtn) return;
+
+        // 1) Build a display input (readonly) that triggers the list
+        const pill = select.closest('.year-pill') || select.parentElement;
+        const display = document.createElement('input');
+        display.classList.add('input-with-chevron');
+        display.type = 'text';
+        display.id = 'activityDisplay';
+        display.placeholder = select.options[0]?.text || 'Сфера діяльності';
+        display.readOnly = true;
+
+        // style: reuse your input styles (same as other text inputs)
+        display.setAttribute('autocomplete', 'off');
+        display.style.width = '100%';
+        display.style.height = '49px';
+        display.style.padding = '12px 12px 12px 22px';
+        display.style.border = 'none';
+        display.style.borderRadius = '12px';
+        // display.style.background = '#EFF2F5';
+        display.style.fontFamily = 'Montserrat, sans-serif';
+        display.style.fontSize = '16px';
+        display.style.fontWeight = '460';
+        display.style.color = '#222';
+        display.style.cursor = 'pointer';
+
+        // insert the display input before the (now hidden) select
+        pill.insertBefore(display, select);
+
+        // hide the native select (keep it for value/validation)
+        select.style.display = 'none';
+
+        // 2) Suggestions list (styled like city/cemetery suggestions)
+        const list = document.createElement('ul');
+        list.className = 'suggestions-list';
+        list.id = 'activity-suggestions';
+        pill.appendChild(list);
+
+        // helper: fill list from <select> options (skip placeholder)
+        function populate() {
+            const items = [];
+            for (let i = 0; i < select.options.length; i++) {
+                const opt = select.options[i];
+                if (!opt.value) continue; // skip placeholder
+                items.push(`<li data-value="${opt.value}">${opt.text}</li>`);
+            }
+            list.innerHTML = items.join('') || `<li class="no-results">Немає опцій</li>`;
+        }
+
+        // open/close
+        function openList() {
+            populate();
+            list.style.display = 'block';
+            display.classList.add('open');
+        }
+        function closeList() {
+            list.style.display = 'none';
+            display.classList.remove('open');
+        }
+
+        // interactions
+        display.addEventListener('click', (e) => {
+            e.stopPropagation();
+            (list.style.display === 'block') ? closeList() : openList();
+        });
+
+        list.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (!li || li.classList.contains('no-results')) return;
+
+            const val = li.getAttribute('data-value');
+            const txt = li.textContent;
+
+            // set both UI + underlying select
+            select.value = val;
+            display.value = txt;
+
+            // dispatch change so any listeners/validation update
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+
+            // show clear
+            clearBtn.style.display = 'flex';
+
+            closeList();
+        });
+
+        // outside click / esc
+        document.addEventListener('click', (e) => {
+            if (!pill.contains(e.target)) closeList();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeList();
+        });
+
+        // keep display in sync if something sets select.value elsewhere
+        select.addEventListener('change', () => {
+            const opt = select.options[select.selectedIndex];
+            if (opt && opt.value) {
+                display.value = opt.text;
+                clearBtn.style.display = 'flex';
+                display.classList.add('has-value');   // <— add this
+            } else {
+                display.value = '';
+                display.placeholder = select.options[0]?.text || 'Сфера діяльності';
+                clearBtn.style.display = 'none';
+                display.classList.remove('has-value'); // <— remove when empty
+            }
+        });
+
+        // clear behavior
+        clearBtn.addEventListener('click', () => {
+            select.selectedIndex = 0; // back to placeholder
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    })();
 
     // ——— Notable toggle ———
     const notableCheckbox = document.getElementById('notablePerson');
