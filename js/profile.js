@@ -270,6 +270,16 @@ document.addEventListener('DOMContentLoaded', () => {
         (sharedPhotos || []).filter(p => p && typeof p.url === 'string' && !isBlob(p.url));
     const sharedRealUrls = () => sharedRealPhotos().map(p => p.url);
 
+    if (cemeteryEl) {
+        cemeteryEl.classList.add('clickable');
+        cemeteryEl.addEventListener('click', () => {
+            const name = cemeteryEl.textContent?.trim();
+            if (name) {
+                window.location.href = `cemetery.html?name=${encodeURIComponent(name)}`;
+            }
+        });
+    }
+
     // Рендер
     function refreshSharedUI() {
         if (!sharedListEl) return;

@@ -961,6 +961,16 @@ document.addEventListener('DOMContentLoaded', () => {
         relDots && (relDots.style.display = 'inline-flex');
     }
 
+    if (cemeteryEl) {
+        cemeteryEl.classList.add('clickable');
+        cemeteryEl.addEventListener('click', () => {
+            const name = cemeteryEl.textContent?.trim();
+            if (name) {
+                window.location.href = `cemetery.html?name=${encodeURIComponent(name)}`;
+            }
+        });
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────
     // Load person
     // ─────────────────────────────────────────────────────────────────────────────
