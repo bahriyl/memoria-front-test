@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Memoria — Профіль</title>
 
+    <link rel="stylesheet" href="css/premium_qr_person.css">
     <link rel="stylesheet" href="css/profile.css">
 </head>
 
@@ -215,6 +216,8 @@
             <div class="relatives-controls">
                 <button class="btn relatives-btn" id="add-relative-btn">Добавити</button>
                 <button class="btn relatives-btn" id="choose-relative-btn">Вибрати</button>
+                <button class="btn relatives-btn" id="rel-cancel-btn" style="display:none;">Скасувати</button>
+                <button class="btn relatives-btn" id="rel-delete-btn" style="display:none;">Видалити</button>
             </div>
 
             <div class="relatives-list">
@@ -300,6 +303,88 @@
         <div class="modal-actions">
             <button id="donation-cancel" class="modal-cancel">Скасувати</button>
             <button id="donation-ok" class="modal-ok">Підтвердити</button>
+        </div>
+    </div>
+
+    <!-- Add Relative (modal) -->
+    <div id="relativesModal" class="modal-overlay" hidden>
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relModalTitle">
+            <button class="modal-close" id="relModalClose" type="button" aria-label="Закрити">×</button>
+            <h2 class="modal-title" id="relModalTitle" style="text-align:center;margin:6px 0 30px">Додати родича</h2>
+
+            <!-- 1) ПІБ -->
+            <div class="form-group">
+                <input type="text" id="relName" placeholder="Введіть ПІБ…" autocomplete="off" />
+                <div id="relNameError" class="error-message" hidden></div>
+            </div>
+
+            <!-- 2) Роки життя (пілюля з панеллю вибору) -->
+            <div class="form-group">
+                <div class="year-pill" id="relYearsPill">
+                    <div class="year-display" id="relYearsDisplay">Рік народження та смерті</div>
+
+                    <button type="button" id="relClearYears" class="icon-btn clear-btn" aria-label="Очистити" hidden>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+
+                    <div class="years-panel hidden" id="relYearsPanel">
+                        <div class="years-header">
+                            <div class="col">Рік народження</div>
+                            <div class="col">Рік смерті</div>
+                        </div>
+                        <div class="years-body">
+                            <ul class="year-list" id="relBirthYears"></ul>
+                            <ul class="year-list" id="relDeathYears"></ul>
+                        </div>
+                        <button type="button" class="done-btn" id="relYearsDone">Готово</button>
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" id="relBirthYear">
+            <input type="hidden" id="relDeathYear">
+
+            <!-- 3) Населений пункт -->
+            <div class="form-group">
+                <div class="suggestions-container">
+                    <input type="text" id="relArea" placeholder="Введіть назву населеного пункту…" autocomplete="off" />
+                    <button class="icon-btn clear-btn" id="relAreaClear" aria-label="Очистити">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                    <ul class="suggestions-list" id="relAreaSuggestions"></ul>
+                </div>
+            </div>
+
+            <!-- 4) Кладовище -->
+            <div class="form-group suggestions-container">
+                <input type="text" id="relCemetery" placeholder="Введіть назву кладовища…" autocomplete="off" />
+                <button class="icon-btn clear-btn" id="relCemClear" aria-label="Очистити">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+                <ul class="suggestions-list" id="relCemeterySuggestions"></ul>
+            </div>
+
+
+            <!-- Обрані / Знайдені -->
+            <div class="modal-subtitle" style="text-align:left">Вибрано (<span id="relSelectedCount">0</span>) :</div>
+            <ul id="relSelectedList" class="people-list"></ul>
+
+            <div class="modal-subtitle" style="text-align:left">Знайдено (<span id="relFoundCount">0</span>) :</div>
+            <ul id="relFoundList" class="people-list" tabindex="0"></ul>
+
+            <!-- Submit -->
+            <button id="relSubmit" class="modal-submit-btn" style="margin-top:14px">Додати родича</button>
         </div>
     </div>
 

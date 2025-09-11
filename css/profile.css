@@ -943,6 +943,9 @@ body {
     font-size: 15px;
     font-weight: 550;
     color: #202124;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .relative-meta {
@@ -1476,7 +1479,7 @@ body {
     left: 16px;
     right: 16px;
     margin: 0;
-    z-index: 150;
+    z-index: 310;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1508,4 +1511,342 @@ body {
     -webkit-line-clamp: unset !important;
     -webkit-box-orient: initial !important;
     overflow: visible;
+}
+
+/* modal panel: allow scrolling inside */
+.modal-content {
+    min-height: 65vh;
+    max-height: 90vh;
+    /* keep it on screen */
+    overflow-y: auto;
+    /* inner scroll */
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Cemetery select → такий самий вигляд, як activityArea на add_person */
+#relCemetery {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 49px;
+    padding: 12px 8px 12px 22px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 460;
+    font-family: 'Montserrat', sans-serif;
+    color: #222222;
+}
+
+#relCemetery:required:valid {
+    background-image: none;
+    color: #222;
+}
+
+/* кнопка "очистити" справа */
+#clear-relCemetery {
+    display: none;
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: #666;
+}
+
+#relCemetery:valid+#clear-relCemetery {
+    display: flex;
+}
+
+/* Suggestions UI (match add_person) */
+.suggestions-container {
+    position: relative;
+}
+
+.suggestions-list {
+    position: absolute;
+    z-index: 20;
+    left: 0;
+    right: 0;
+    top: calc(100% + 6px);
+    list-style: none;
+    margin: 0;
+    padding: 6px 0;
+    background: #fff;
+    border: 0.5px solid #DCDCDC;
+    border-radius: 12px;
+    max-height: 260px;
+    overflow-y: auto;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .08);
+    display: none;
+}
+
+.suggestions-list.show {
+    display: block;
+}
+
+.suggestions-list li {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    color: #1C170D;
+}
+
+.suggestions-list li:hover {
+    background: #F2F4F7;
+}
+
+.suggestions-list .no-results {
+    color: #72767D;
+    cursor: default;
+}
+
+#relCemClear {
+    display: none;
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: #666;
+}
+
+#relCemetery:not(:placeholder-shown)~#relCemClear {
+    display: inline-flex;
+}
+
+/* Селектор «Хто це» біля років у модальному списку */
+/* Years + compact role pill */
+#relSelectedList li .meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+
+#relSelectedList li .years {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+}
+
+/* Wrapper so the dropdown anchors to the pill */
+.rel-role {
+    position: relative;
+}
+
+/* Small pill button */
+.rel-role-btn {
+    background: #F2F4F7 !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    height: 21px !important;
+    width: auto !important;
+    /* smaller */
+    padding: 0 6px;
+    /* tighter */
+    font-family: 'Montserrat', sans-serif;
+    font-size: 10px;
+    /* smaller */
+    font-weight: 510;
+    color: #1C170D !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px;
+}
+
+/* tiny chevron */
+.rel-role-btn .chev {
+    font-size: 12px;
+    line-height: 1;
+    opacity: .7;
+}
+
+/* Use your existing suggestions-list look, just anchor + width */
+.rel-role-list {
+    min-width: 160px;
+    top: calc(100% + 6px);
+    /* drop under the pill */
+}
+
+/* Optional: highlight current value in the list */
+.rel-role-list li.is-active {
+    background: #F2F4F7;
+}
+
+/* Truncate long relative names with ellipsis */
+#relSelectedList li .info .name,
+#relFoundList li .info .name {
+    max-width: 210px;
+    /* можна підлаштувати під свій макет */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+/* ─── Relatives selection mode (mirror Photos) ─── */
+.profile-relatives {
+    position: relative;
+}
+
+.relatives-controls {
+    display: flex;
+    gap: .75rem;
+    margin-bottom: .75rem;
+    align-items: center;
+}
+
+#rel-delete-btn {
+    display: none;
+    background-color: #DC3545;
+    color: #fff;
+    transition: background-color .2s ease;
+}
+
+#rel-delete-btn:hover {
+    background-color: #C82333;
+}
+
+/* Each relative tile can host a badge */
+.relatives-list .relative-item {
+    position: relative;
+    /* for absolute badge */
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    cursor: pointer;
+    padding: 6px 2px;
+    border-bottom: 0.5px solid #DCDCDC;
+}
+
+.relatives-list .relative-item:last-child {
+    border-bottom: none;
+}
+
+.relatives-list .select-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-family: "Montserrat", sans-serif;
+    font-weight: 550;
+    font-size: 14px;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+    z-index: 2;
+}
+
+/* While selecting, show hollow rings on all */
+.profile-relatives.selection-mode .select-badge {
+    display: flex;
+    background: rgba(255, 255, 255, 0);
+    border: 1px solid #888;
+    color: transparent;
+}
+
+/* Selected → green with order number */
+.profile-relatives.selection-mode .relative-item.is-selected .select-badge {
+    background: #1B8B59;
+    border: 0;
+    color: #fff;
+}
+
+/* Dim selected tile a bit */
+.profile-relatives.selection-mode .relative-item.is-selected {
+    opacity: .82;
+}
+
+/* Hide dots menu while selecting */
+.profile-relatives.selection-mode #rel-menu-btn {
+    visibility: hidden;
+}
+
+/* Name must ellipsize (already added earlier; ensure min-width on info) */
+.relative-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.relative-name {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Grey cancel button for relatives edit mode */
+#rel-cancel-btn {
+    display: none;
+    background-color: #F2F4F7;
+    color: #1C170D;
+    transition: background-color .2s ease;
+}
+
+#rel-cancel-btn:hover {
+    background-color: #e0e3e8;
+}
+
+/* When selecting relatives → show Cancel, hide the old Choose */
+.profile-relatives.selection-mode #rel-cancel-btn {
+    display: inline-block;
+}
+
+.profile-relatives.selection-mode #choose-relative-btn {
+    display: none !important;
+}
+
+/* Make modal-submit-btn float over content */
+#relativesModal .modal-content {
+    position: relative;
+    /* anchor for absolute child */
+}
+
+#relativesModal .modal-submit-btn {
+    position: fixed;
+    /* always fixed to viewport */
+    bottom: 48px;
+    /* завжди однаковий відступ */
+    left: 50%;
+    transform: translateX(-50%);
+    /* центр по горизонталі */
+    z-index: 1000;
+    /* вище за списки та інше */
+    width: 85%;
+    /* відступи зліва/справа */
+    max-width: 480px;
+    /* щоб не була надто широкою */
+    margin: 0 !important;
+}
+
+/* Optional: avoid clipping if any parent had overflow hidden */
+#relativesModal {
+    overflow: visible;
+    position: fixed;
+}
+
+/* (Опційно для iOS) трішки підняти над safe-area, якщо потрібно */
+@supports (padding: max(0px)) {
+    #relativesModal .modal-submit-btn {
+        bottom: max(48px, env(safe-area-inset-bottom));
+    }
 }

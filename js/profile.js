@@ -12,16 +12,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
 
     const from = params.get('from');
+    const backTo = params.get('backTo');   // NEW
     const backBtn = document.querySelector('.back-button');
 
-    if (from === 'premium') {
-        backBtn.setAttribute('href', 'premium_qr_person.html');
-    } else {
-        backBtn.setAttribute('href', 'index.html');
+    if (backBtn) {
+        if (from === 'premium') {
+            backBtn.setAttribute('href', 'premium_qr_person.html');
+        } else if (from === 'profile' && backTo) {
+            backBtn.setAttribute('href', `profile.html?personId=${encodeURIComponent(backTo)}`);
+        } else {
+            backBtn.setAttribute('href', 'index.html');
+        }
     }
 
     const personId = params.get('personId');
     if (!personId) return;
+
+    // Scoped sessionStorage key for modal return state
+    function relReturnKey(id) {
+        return `relModalReturn:${id}`;
+    }
 
     const tokenKey = `people_token_${personId}`;
     const token = localStorage.getItem(tokenKey);
@@ -59,6 +69,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const deletePhotoBtn = document.getElementById('delete-photo-btn');
     const fileInput = document.getElementById('photo-input'); // hidden <input type="file" multiple>, may be absent in older HTML
     const photosScrollEl = document.querySelector('.profile-photos .photos-scroll');
+
+    // ─── Relatives state ───
+    const relListEl = document.querySelector('.relatives-list');
+    const relMenuBtn = document.getElementById('rel-menu-btn');
+    const relMenu = document.getElementById('rel-menu');
+    const addRelBtn = document.getElementById('add-relative-btn');
+    const chooseRelBtn = document.getElementById('choose-relative-btn');
+    const deleteRelBtn = document.getElementById('rel-delete-btn');
+    const cancelRelBtn = document.getElementById('rel-cancel-btn');
+
+    let relLinks = [];          // [{ personId, role }]
+    let relatives = [];         // [{ id, name, years, relationship, avatarUrl }]
+    let relSelecting = false;   // selection mode
+    let relSelectedOrder = [];  // indexes in render order
 
     // ─── Shared album elements ───
     const sharedMenuBtn = document.getElementById('shared-menu-btn');
@@ -278,6 +302,134 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.location.href = `cemetery.html?name=${encodeURIComponent(name)}`;
             }
         });
+    }
+
+    function setRelativesControlsVisibility() {
+        if (!relListEl) return;
+
+        const has = Array.isArray(relatives) && relatives.length > 0;
+
+        // If no relatives: show add/choose, hide delete & dots
+        if (!has) {
+            addRelBtn && (addRelBtn.style.display = '');
+            chooseRelBtn && (chooseRelBtn.style.display = 'none');
+            deleteRelBtn && (deleteRelBtn.style.display = 'none');
+            cancelRelBtn && (cancelRelBtn.style.display = 'none');
+            return;
+        }
+
+        if (relSelecting) {
+            addRelBtn && (addRelBtn.style.display = 'none');
+            chooseRelBtn && (chooseRelBtn.style.display = 'none'); // hide old Choose
+            deleteRelBtn && (deleteRelBtn.style.display = 'inline-block');
+            cancelRelBtn && (cancelRelBtn.style.display = 'inline-block'); // NEW
+            return;
+        }
+
+        // Normal (not selecting) → only dots
+        addRelBtn && (addRelBtn.style.display = 'none');
+        chooseRelBtn && (chooseRelBtn.style.display = 'none');
+        deleteRelBtn && (deleteRelBtn.style.display = 'none');
+        cancelRelBtn && (cancelRelBtn.style.display = 'none');
+        relMenuBtn && (relMenuBtn.style.display = 'inline-flex');
+    }
+
+    function updateRelDeleteButtonLabel() {
+        if (!deleteRelBtn) return;
+        deleteRelBtn.textContent = `Видалити (${relSelectedOrder.length})`;
+    }
+
+    function exitRelSelectionMode() {
+        relSelecting = false;
+        relSelectedOrder = [];
+        document.querySelector('.profile-relatives')?.classList.remove('selection-mode');
+        if (chooseRelBtn) chooseRelBtn.textContent = 'Вибрати';
+        refreshRelativesUI();
+        setRelativesControlsVisibility();
+    }
+
+    function enterRelSelectionMode() {
+        if (relSelecting || !relatives.length) return;
+        relSelecting = true;
+        document.querySelector('.profile-relatives')?.classList.add('selection-mode');
+        updateRelDeleteButtonLabel();
+        refreshRelativesUI();
+        setRelativesControlsVisibility();
+    }
+
+    function toggleSelectRelative(index) {
+        const pos = relSelectedOrder.indexOf(index);
+        if (pos > -1) relSelectedOrder.splice(pos, 1);
+        else relSelectedOrder.push(index);
+        refreshRelativesUI();
+        updateRelDeleteButtonLabel();
+    }
+
+    async function saveRelatives() {
+        // Persist relLinks (pruned) to backend
+        try {
+            const body = JSON.stringify({ relatives: relLinks.map(r => ({ personId: r.personId, role: r.role })) });
+            const res = await fetch(`${API_BASE}/${personId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body
+            });
+            if (!res.ok) throw new Error(res.statusText);
+        } catch (e) {
+            console.error('Failed to save relatives:', e);
+            alert('Не вдалося зберегти зміни у розділі Родичі.');
+        }
+    }
+
+    function refreshRelativesUI() {
+        if (!relListEl) return;
+
+        relListEl.innerHTML = '';
+
+        if (!Array.isArray(relatives) || relatives.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'comments-empty';
+            empty.textContent = 'Родичів поки немає';
+            relListEl.appendChild(empty);
+            return;
+        }
+
+        relatives.forEach((relative, idx) => {
+            const el = document.createElement('div');
+            el.className = 'relative-item';
+            el.dataset.index = String(idx);
+
+            el.innerHTML = `
+            <img class="relative-avatar" src="${relative.avatarUrl || '/img/default-avatar.png'}" alt="">
+            <div class="relative-info">
+              <h3 class="relative-name" title="${relative.name || ''}">${relative.name || ''}</h3>
+              <div class="relative-meta">
+                <p class="relative-details">${relative.years || ''}</p>
+                <span class="relative-relationship">${relative.relationship || ''}</span>
+              </div>
+            </div>
+            <span class="select-badge"></span>
+          `;
+
+            // Selection decorations
+            const orderPos = relSelectedOrder.indexOf(idx);
+            const isSel = orderPos > -1;
+            if (isSel) el.classList.add('is-selected');
+            el.querySelector('.select-badge').textContent = isSel ? String(orderPos + 1) : '';
+
+            // Click behavior
+            el.addEventListener('click', () => {
+                if (relSelecting) {
+                    toggleSelectRelative(idx);
+                } else {
+                    window.location.href = `profile.html?personId=${encodeURIComponent(relative.id)}`;
+                }
+            });
+
+            relListEl.appendChild(el);
+        });
+
+        setRelativesControlsVisibility();
     }
 
     // Рендер
@@ -1406,43 +1558,52 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     })();
 
-    function loadRelatives() {
-        const relativesListEl = document.querySelector('.relatives-list');
-        if (!relativesListEl) return;
+    async function loadRelatives() {
+        if (!relListEl || !personId) return;
 
-        const relatives = [
-            { id: 1, name: 'Кравчук Леонід Макарович', years: '1975 - 2000', relationship: 'Батько', avatarUrl: 'https://i.stopcor.org/person/2022/5/31/farion.jpeg?size=1000x1000' },
-            { id: 2, name: 'Фаріон Ірина Олегівна', years: '1982 - 2012', relationship: 'Мати', avatarUrl: 'https://i.stopcor.org/person/2022/5/31/farion.jpeg?size=1000x1000' },
-            { id: 3, name: 'Кенседі Валерій Петрович', years: '1982 - 2012', relationship: 'Брат', avatarUrl: 'https://i.stopcor.org/person/2022/5/31/farion.jpeg?size=1000x1000' }
-        ];
+        // 1) Load this person → array of links [{personId, role}]
+        try {
+            const res = await fetch(`${API_BASE}/${encodeURIComponent(personId)}`);
+            if (!res.ok) throw new Error('Failed to load person');
+            const me = await res.json();
+            relLinks = Array.isArray(me.relatives) ? me.relatives.slice() : [];
+        } catch (e) {
+            console.error(e);
+            relListEl.innerHTML = '<div class="relatives-empty">Не вдалося завантажити родичів</div>';
+            return;
+        }
 
-        relativesListEl.innerHTML = '';
-        relatives.forEach(relative => {
-            const relativeEl = document.createElement('div');
-            relativeEl.className = 'relative-item';
-            // inside loadRelatives() when building each relativeEl:
-            relativeEl.innerHTML = `
-                <img class="relative-avatar" src="${relative.avatarUrl}" alt="${relative.name}">
-                <div class="relative-info">
-                <h3 class="relative-name">${relative.name}</h3>
-                <div class="relative-meta">
-                    <p class="relative-details">${relative.years}</p>
-                    <span class="relative-relationship">${relative.relationship}</span>
-                </div>
-                </div>
-            `;
-            relativeEl.addEventListener('click', () => {
-                window.location.href = `profile.html?personId=${relative.id}`;
-            });
-            relativesListEl.appendChild(relativeEl);
-        });
+        if (!relLinks.length) {
+            relatives = [];
+            refreshRelativesUI();
+            return;
+        }
 
-        document.getElementById('add-relative-btn')?.addEventListener('click', () => {
-            window.location.href = `add-relative.html?personId=${personId}`;
-        });
-        document.getElementById('choose-relative-btn')?.addEventListener('click', () => {
-            window.location.href = `choose-relative.html?personId=${personId}`;
-        });
+        // 2) Fetch details for each linked person
+        const details = await Promise.all(relLinks.map(async ({ personId: rid, role }) => {
+            try {
+                const r = await fetch(`${API_BASE}/${encodeURIComponent(rid)}`);
+                if (!r.ok) throw 0;
+                const p = await r.json();
+
+                const y1 = p.birthYear ?? (p.birthDate ? new Date(p.birthDate).getFullYear() : undefined);
+                const y2 = p.deathYear ?? (p.deathDate ? new Date(p.deathDate).getFullYear() : undefined);
+                const years = (!y1 && !y2) ? '' : `${y1 ?? '—'} - ${y2 ?? '—'}`;
+
+                return {
+                    id: p.id,
+                    name: p.name || 'Без імені',
+                    years,
+                    relationship: role,
+                    avatarUrl: p.avatarUrl || '/img/default-avatar.png'
+                };
+            } catch {
+                return null;
+            }
+        }));
+
+        relatives = details.filter(Boolean);
+        refreshRelativesUI();
     }
 
     // Handle click "Увійти" – same UX as ritual_service pages
@@ -1469,5 +1630,711 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Dots → Relatives “Добавити / Вибрати”
+    document.getElementById('rel-add-option')?.addEventListener('click', () => addRelBtn?.click());
+    document.getElementById('rel-choose-option')?.addEventListener('click', () => chooseRelBtn?.click());
+
+    // Choose → toggle selection mode
+    chooseRelBtn?.addEventListener('click', () => {
+        if (relSelecting) {
+            exitRelSelectionMode();
+            chooseRelBtn.textContent = 'Вибрати';
+        } else {
+            enterRelSelectionMode();
+            chooseRelBtn.textContent = 'Скасувати';
+        }
+    });
+
+    cancelRelBtn?.addEventListener('click', () => {
+        exitRelSelectionMode();
+        if (chooseRelBtn) chooseRelBtn.textContent = 'Вибрати'; // reset label for next time
+    });
+
+    // Delete → confirm & persist
+    if (deleteRelBtn) {
+        const overlay = document.getElementById('modal-overlay');
+        const dlg = document.getElementById('confirm-delete-modal');
+        const closeX = document.getElementById('confirm-delete-close');
+        const cancelBtn = document.getElementById('confirm-delete-cancel');
+        const okBtn = document.getElementById('confirm-delete-ok');
+        const textEl = dlg?.querySelector('.modal-text');
+        const originalText = textEl?.textContent || '';
+
+        const openConfirm = () => {
+            if (!relSelecting || relSelectedOrder.length === 0) { exitRelSelectionMode(); return; }
+            if (textEl) textEl.textContent = 'Видалити вибраних родичів?';
+            overlay.hidden = false; dlg.hidden = false;
+        };
+        const closeConfirm = () => {
+            overlay.hidden = true; dlg.hidden = true;
+            if (textEl) textEl.textContent = originalText; // restore for photos flow
+        };
+
+        deleteRelBtn.addEventListener('click', openConfirm);
+        [closeX, cancelBtn, overlay].forEach(el => el && el.addEventListener('click', closeConfirm));
+
+        okBtn?.addEventListener('click', async () => {
+            // Remove selected relatives (by index) from both arrays
+            const toDelete = [...relSelectedOrder].sort((a, b) => b - a);
+            toDelete.forEach(i => {
+                if (i >= 0 && i < relatives.length) {
+                    relatives.splice(i, 1);
+                    relLinks.splice(i, 1);
+                }
+            });
+            relSelectedOrder = [];
+
+            await saveRelatives();
+            closeConfirm();
+            exitRelSelectionMode();
+        });
+    }
+
     loadRelatives();
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Relatives Add (modal) — та ж логіка, що на premium_qr_person
+    // ─────────────────────────────────────────────────────────────────────────────
+    (function setupRelativesModal() {
+        const openers = [
+            document.getElementById('rel-add-option'),
+            document.getElementById('add-relative-btn')
+        ].filter(Boolean);
+
+        const overlay = document.getElementById('relativesModal');
+        if (!overlay || !openers.length) return;
+
+        const closeBtn = document.getElementById('relModalClose');
+        const submitBtn = document.getElementById('relSubmit');
+
+        // Inputs
+        const nameInput = document.getElementById('relName');
+        const birthInput = document.getElementById('relBirthYear');
+        const deathInput = document.getElementById('relDeathYear');
+        const areaInput = document.getElementById('relArea');
+
+        // Area clear button (support either id)
+        const areaClear = document.getElementById('clear-relArea') || document.getElementById('relAreaClear');
+
+        // Cemetery is an INPUT with suggestions (not <select>)
+        const cemInput = document.getElementById('relCemetery');
+        // Cemetery clear button (support both historical ids)
+        const cemClear = document.getElementById('relCemClear') || document.getElementById('clear-relCemetery');
+        const cemSugList = document.getElementById('relCemeterySuggestions');
+
+        // Years pill
+        const pill = document.getElementById('relYearsPill');
+        const panel = document.getElementById('relYearsPanel');
+        const display = document.getElementById('relYearsDisplay');
+        const clearYears = document.getElementById('relClearYears');
+        const birthList = document.getElementById('relBirthYears');
+        const deathList = document.getElementById('relDeathYears');
+        const yearsDone = document.getElementById('relYearsDone');
+
+        // Lists
+        const foundList = document.getElementById('relFoundList');
+        const selectedList = document.getElementById('relSelectedList');
+        const foundCountEl = document.getElementById('relFoundCount');
+        const selCountEl = document.getElementById('relSelectedCount');
+
+        // We'll toggle the whole "Selected (N)" row visibility
+        const selectedCountRow =
+            (selCountEl && selCountEl.closest('.modal-subtitle')) || (selCountEl && selCountEl.parentElement);
+
+        const debounce = (fn, ms = 300) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+        let selected = [];         // [{id, name, birthYear, deathYear, avatarUrl}]
+        let selectedBirth, selectedDeath;
+
+        // ───────────────── Years (DON'T close panel on item click)
+        function fillYears(el, from, to, current) {
+            el.innerHTML = '';
+            for (let y = to; y >= from; y--) {
+                const li = document.createElement('li');
+                li.textContent = y;
+                if (current && Number(current) === y) li.classList.add('selected');
+                // Only mark selection — do NOT close panel here
+                li.addEventListener('click', () => {
+                    el.querySelectorAll('.selected').forEach(s => s.classList.remove('selected'));
+                    li.classList.add('selected');
+                    // DO NOT CLOSE PANEL - removed panel.classList.toggle('hidden');
+                });
+                el.appendChild(li);
+            }
+        }
+        fillYears(birthList, 1850, new Date().getFullYear(), null);
+        fillYears(deathList, 1850, new Date().getFullYear(), null);
+
+        // Toggle panel on pill click
+        pill.addEventListener('click', (e) => {
+            // Prevent event bubbling that might close the panel
+            e.stopPropagation();
+            panel.classList.toggle('hidden');
+        });
+
+        // ONLY close panel when "Done" button is clicked
+        yearsDone.addEventListener('click', () => {
+            const b = birthList.querySelector('.selected')?.textContent;
+            const d = deathList.querySelector('.selected')?.textContent;
+
+            if (b && d && Number(d) < Number(b)) {
+                alert('Рік смерті не може бути раніше року народження.');
+                return;
+            }
+
+            selectedBirth = b; selectedDeath = d;
+            birthInput.value = b || '';
+            deathInput.value = d || '';
+            display.textContent = (b || d) ? `${b || ''}${(b && d) ? ' – ' : ''}${d || ''}` : 'Рік народження та смерті';
+            display.classList.toggle('has-value', !!(b || d));
+            clearYears.hidden = !(b || d);
+
+            // CLOSE ONLY on Done button click
+            panel.classList.add('hidden');
+            triggerFetch();
+        });
+
+        clearYears.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectedBirth = selectedDeath = undefined;
+            birthInput.value = deathInput.value = '';
+            display.textContent = 'Рік народження та смерті';
+            display.classList.remove('has-value');
+            clearYears.hidden = true;
+            birthList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+            deathList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+            triggerFetch();
+        });
+
+        // Prevent closing panel when clicking inside it
+        panel.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Close panel if clicking outside of it
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#relYearsPill')) {
+                panel.classList.add('hidden');
+            }
+        });
+
+        // ───────────────── Area suggestions (keep as before) + clear button visibility
+        const areaSug = document.getElementById('relAreaSuggestions');
+
+        function updateAreaClearBtn() {
+            if (!areaClear) return;
+            const show = !!areaInput.value.trim();
+            areaClear.style.display = show ? 'inline-flex' : 'none';
+        }
+
+        (function setupAreaSuggestions() {
+            const run = debounce(async () => {
+                const q = areaInput.value.trim();
+                if (!q) { areaSug.innerHTML = ''; areaSug.style.display = 'none'; updateAreaClearBtn(); return; }
+                const res = await fetch(`${API_URL}/api/locations?search=${encodeURIComponent(q)}`);
+                const arr = await res.json();
+                areaSug.innerHTML = arr.length ? arr.map(x => `<li>${x}</li>`).join('') :
+                    '<li class="no-results">Збігів не знайдено</li>';
+                areaSug.style.display = 'block';
+                updateAreaClearBtn();
+            }, 300);
+
+            areaInput.addEventListener('input', () => { run(); /* do not fetch people yet */ updateAreaClearBtn(); });
+
+            areaSug.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'LI') return;
+                areaInput.value = e.target.textContent;
+                areaSug.style.display = 'none';
+                updateAreaClearBtn();
+
+                // Area changed → clear cemetery to avoid mismatch
+                cemInput.value = '';
+                cemSugList?.classList?.remove('show');
+
+                triggerFetch(); // area is a real filter now
+            });
+        })();
+
+        // Area CLEAR → also clears cemetery (Fix #1 & #2)
+        areaClear?.addEventListener('click', (e) => {
+            e.preventDefault();
+            areaInput.value = '';
+            areaSug.style.display = 'none';
+            updateAreaClearBtn();
+
+            cemInput.value = '';
+            cemSugList.classList.remove('show');
+
+            triggerFetch();
+        });
+
+        // ───────────────── Cemetery suggestions
+        const fetchRelCemeteries = async () => {
+            const q = cemInput.value.trim();
+            const area = areaInput.value.trim();
+
+            const params = new URLSearchParams();
+            if (q) params.set('search', q);
+            if (area) params.set('area', area);
+
+            try {
+                const res = await fetch(`${API_URL}/api/cemeteries?${params.toString()}`);
+                const arr = await res.json();
+                const names = Array.isArray(arr) ? arr.map(x => (typeof x === 'string' ? x : (x?.name || ''))).filter(Boolean) : [];
+                cemSugList.innerHTML = names.length
+                    ? names.map(n => `<li>${n}</li>`).join('')
+                    : '<li class="no-results">Збігів не знайдено</li>';
+                cemSugList.classList.add('show');
+            } catch {
+                cemSugList.innerHTML = '<li class="no-results">Помилка завантаження</li>';
+                cemSugList.classList.add('show');
+            }
+        };
+
+        // Show list immediately on focus (no typing required)
+        cemInput.addEventListener('focus', fetchRelCemeteries);
+        // Filter while typing
+        cemInput.addEventListener('input', fetchRelCemeteries);
+
+        // Pick cemetery from list
+        cemSugList.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (!li || li.classList.contains('no-results')) return;
+            cemInput.value = li.textContent.trim();
+            cemSugList.classList.remove('show');
+            triggerFetch(); // cemetery filter applied
+        });
+
+        // Cemetery CLEAR (Fix #3)
+        cemClear?.addEventListener('click', (e) => {
+            e.preventDefault();
+            cemInput.value = '';
+            cemSugList.classList.remove('show');
+            triggerFetch();
+        });
+
+        // Clicking outside suggestions → close them
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.suggestions-container')) {
+                cemSugList.classList.remove('show');
+                if (areaSug) areaSug.style.display = 'none';
+            }
+        });
+
+        const triggerFetch = debounce(fetchPeople, 300);
+
+        // ───────────────── Fetch people (only when any filter is set)
+        async function fetchPeople() {
+            const foundLabel = document.getElementById('foundLabel');
+            const noResults = document.getElementById('noResults');
+
+            const hasFilter =
+                (nameInput.value || '').trim() ||
+                (birthInput.value || '').trim() ||
+                (deathInput.value || '').trim() ||
+                (areaInput.value || '').trim() ||
+                (cemInput.value || '').trim();
+
+            // No filters → clear list & counters, hide labels
+            if (!hasFilter) {
+                foundList.innerHTML = '';
+                foundCountEl.textContent = '0';
+                if (foundLabel) foundLabel.hidden = true;
+                if (noResults) noResults.hidden = true;
+                return;
+            }
+
+            // Build query
+            const p = new URLSearchParams();
+            const nm = (nameInput.value || '').trim();
+            const ar = (areaInput.value || '').trim();
+            const cm = (cemInput.value || '').trim();
+            const by = (birthInput.value || '').trim();
+            const dy = (deathInput.value || '').trim();
+
+            if (nm) p.set('search', nm);
+            if (ar) p.set('area', ar);
+            if (cm) p.set('cemetery', cm);
+            if (by) p.set('birthYear', by);
+            if (dy) p.set('deathYear', dy);
+
+            // Fetch
+            const res = await fetch(`${API_URL}/api/people?${p.toString()}`);
+            const data = await res.json().catch(() => ({ people: [] }));
+            const raw = Array.isArray(data.people) ? data.people : [];
+
+            // Exclude already selected and (optionally) the current person
+            const list = raw
+                .filter(x => !selected.some(s => s.id === x.id))
+                .filter(x => String(x.id) !== String(personId));
+
+            // Render
+            foundList.innerHTML = list.map(p => `
+              <li data-id="${p.id}" tabindex="0">
+                <img class="avatar" src="${p.avatarUrl || '/img/default-avatar.png'}" alt="">
+                <div class="info">
+                  <div class="name">${p.name || ''}</div>
+                  <div class="years">${(p.birthYear || '')} – ${(p.deathYear || '')}</div>
+                </div>
+                <button class="select-btn" type="button" aria-label="Додати">+</button>
+              </li>`).join('');
+
+            // Counters + empty state labels
+            foundCountEl.textContent = String(list.length);
+            if (foundLabel) foundLabel.hidden = list.length === 0;
+            if (noResults) noResults.hidden = list.length !== 0;
+
+            // (+) add to selected
+            foundList.querySelectorAll('li button.select-btn').forEach(btn => {
+                btn.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    const li = btn.closest('li[data-id]');
+                    if (!li) return;
+                    const id = li.dataset.id;
+                    const person = list.find(x => x.id === id);
+                    if (!person) return;
+                    selected.push(person);
+                    renderSelected();
+                    triggerFetch();
+                });
+            });
+
+            const relReturnKey = (id) => `relModalReturn:${id}`;
+
+            // Row click → open profile (do NOT auto-open modal on the new profile)
+            // Save modal state *scoped to current person* and include backTo=<current>
+            const saveModalState = () => {
+                const state = {
+                    reopen: true,
+                    filters: {
+                        search: (nameInput.value || '').trim(),
+                        area: (areaInput.value || '').trim(),
+                        cemetery: (cemInput.value || '').trim(),
+                        birthYear: (birthInput.value || '').trim(),
+                        deathYear: (deathInput.value || '').trim(),
+                    },
+                    selected: (selected || []).map(p => ({
+                        id: p.id, name: p.name, avatarUrl: p.avatarUrl,
+                        birthYear: p.birthYear, deathYear: p.deathYear,
+                        relationship: p.relationship || ''
+                    }))
+                };
+                sessionStorage.setItem(relReturnKey(personId), JSON.stringify(state));
+                console.log('sessionStorage saved');
+            };
+
+            foundList.addEventListener('click', (e) => {
+                if (e.target.closest('button.select-btn')) return; // ignore (+)
+                const li = e.target.closest('li[data-id]');
+                if (!li) return;
+                const id = li.dataset.id;
+
+                saveModalState();
+                window.location.href =
+                    `/profile.html?personId=${encodeURIComponent(id)}&from=profile&backTo=${encodeURIComponent(personId)}`;
+            }, { once: true });
+        }
+
+        // ───────────────── Render "Selected" (Fix #4: hide count row when 0)
+        function renderSelected() {
+            submitBtn.style.display = selected.length > 0 ? 'block' : 'none';
+
+            selectedList.innerHTML = selected.map(p => {
+                const rel = p.relationship || '';
+                const label = rel || 'Вибрати';
+                return `
+                <li data-id="${p.id}">
+                  <img class="avatar" src="${p.avatarUrl || '/img/default-avatar.png'}" alt="">
+                  <div class="info">
+                    <div class="name">${p.name}</div>
+                    <div class="meta">
+                      <div class="years">${(p.birthYear || '')} – ${(p.deathYear || '')}</div>
+          
+                      <div class="rel-role">
+                        <button class="rel-role-btn" type="button">
+                          <span class="label">${label}</span>
+                          <span class="chev">▾</span>
+                        </button>
+          
+                        <!-- reuse the same look as your search suggestions -->
+                        <ul class="suggestions-list rel-role-list">
+                          <li data-val="Батько">Батько</li>
+                          <li data-val="Мати">Мати</li>
+                          <li data-val="Брат">Брат</li>
+                          <li data-val="Сестра">Сестра</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  <button class="select-btn" type="button" aria-label="Прибрати">−</button>
+                </li>`;
+            }).join('');
+
+            selCountEl.textContent = selected.length;
+            if (selectedCountRow) selectedCountRow.style.display = selected.length ? '' : 'none';
+
+            // Remove item
+            selectedList.querySelectorAll('li button.select-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.closest('li').dataset.id;
+                    selected = selected.filter(x => x.id !== id);
+                    renderSelected();
+                    triggerFetch();
+                });
+            });
+
+            // Dropdown logic (open/close + pick)
+            const closeAllRelRoleLists = () => {
+                selectedList.querySelectorAll('.rel-role-list.show').forEach(u => u.classList.remove('show'));
+            };
+
+            // Open
+            selectedList.querySelectorAll('.rel-role-btn').forEach(btn => {
+                const wrap = btn.closest('.rel-role');
+                const ul = wrap.querySelector('.rel-role-list');
+
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    closeAllRelRoleLists();
+                    ul.classList.toggle('show');
+                });
+
+                // Pick
+                ul.querySelectorAll('li[data-val]').forEach(li => {
+                    li.addEventListener('click', () => {
+                        const value = li.getAttribute('data-val');
+                        const row = btn.closest('li[data-id]');
+                        const id = row?.dataset.id;
+                        const item = selected.find(x => x.id === id);
+                        if (item) item.relationship = value;
+
+                        // Update UI
+                        ul.querySelectorAll('li').forEach(n => n.classList.remove('is-active'));
+                        li.classList.add('is-active');
+                        btn.querySelector('.label').textContent = value;
+                        ul.classList.remove('show');
+                    });
+                });
+            });
+
+            // Close on outside click (bind once per modal)
+            if (!overlay.__relRoleOutsideBound) {
+                document.addEventListener('click', closeAllRelRoleLists);
+                overlay.__relRoleOutsideBound = true;
+            }
+        }
+
+        selectedList.addEventListener('click', (e) => {
+            if (e.target.closest('button') || e.target.closest('.rel-role')) return; // ignore role picker/remove
+
+            const li = e.target.closest('li[data-id]');
+            if (!li) return;
+
+            sessionStorage.setItem(relReturnKey(personId), JSON.stringify(collectRelModalState()));
+
+            const nextId = li.dataset.id;
+            window.location.href = `profile.html?personId=${encodeURIComponent(nextId)}&from=profile&backTo=${encodeURIComponent(personId)}`;
+        });
+
+        // Restore relatives modal state only when landing on the original person
+        if (params.get('from') !== 'profile') {
+            try {
+                const raw = sessionStorage.getItem(`relModalReturn:${personId}`);
+                if (raw) {
+                    const saved = JSON.parse(raw);
+                    sessionStorage.removeItem(`relModalReturn:${personId}`);
+
+                    // Fill filters
+                    if (nameInput) nameInput.value = saved.filters?.search || '';
+                    if (areaInput) areaInput.value = saved.filters?.area || '';
+                    if (cemInput) cemInput.value = saved.filters?.cemetery || '';
+                    if (birthInput) birthInput.value = saved.filters?.birthYear || '';
+                    if (deathInput) deathInput.value = saved.filters?.deathYear || '';
+
+                    // Restore selection, re-render, and re-fetch
+                    selected = Array.isArray(saved.selected) ? saved.selected.slice() : [];
+                    renderSelected?.();
+                    openModal?.();         // re-open the relatives modal
+                    triggerFetch?.();      // run search with restored filters
+                }
+            } catch { }
+        }
+
+        // Обробка вибору ролі
+        selectedList.querySelectorAll('.rel-role-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const menu = btn.nextElementSibling;
+                menu.classList.toggle('hidden');
+            });
+        });
+
+        selectedList.querySelectorAll('.rel-role-menu li').forEach(li => {
+            li.addEventListener('click', (e) => {
+                const val = li.dataset.val;
+                const liWrap = li.closest('li[data-id]');
+                const id = liWrap?.dataset.id;
+                const item = selected.find(x => x.id === id);
+                if (item) item.relationship = val;
+
+                // оновити текст кнопки
+                liWrap.querySelector('.rel-role-btn').textContent = val;
+
+                // закрити меню
+                li.parentElement.classList.add('hidden');
+            });
+        });
+
+        // Клік поза меню → закриває
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.rel-role')) {
+                selectedList.querySelectorAll('.rel-role-menu').forEach(m => m.classList.add('hidden'));
+            }
+        });
+
+        function collectRelModalState() {
+            return {
+                reopen: true,
+                filters: {
+                    search: nameInput?.value?.trim() || '',
+                    area: areaInput?.value?.trim() || '',
+                    cemetery: cemInput?.value?.trim() || '',
+                    birthYear: birthInput?.value?.trim() || '',
+                    deathYear: deathInput?.value?.trim() || ''
+                },
+                selected: (selected || []).map(p => ({
+                    id: p.id, name: p.name, avatarUrl: p.avatarUrl,
+                    birthYear: p.birthYear, deathYear: p.deathYear,
+                    relationship: p.relationship || ''
+                }))
+            };
+        }
+
+        foundList.addEventListener('click', (e) => {
+            if (e.target.closest('button.select-btn')) return; // ignore select/remove buttons
+
+            const li = e.target.closest('li[data-id]');
+            if (!li) return;
+
+            // Save modal state keyed to the CURRENT person
+            sessionStorage.setItem(relReturnKey(personId), JSON.stringify(collectRelModalState()));
+
+            // Go to the clicked profile; pass where we came from and who to go back to
+            const nextId = li.dataset.id;
+            window.location.href = `profile.html?personId=${encodeURIComponent(nextId)}&from=profile&backTo=${encodeURIComponent(personId)}`;
+        });
+
+        // Only restore when we are back to the original person (not when viewing a child profile)
+        if (params.get('from') !== 'profile') {
+            try {
+                const raw = sessionStorage.getItem(relReturnKey(personId));
+                if (raw) {
+                    const saved = JSON.parse(raw);
+                    sessionStorage.removeItem(relReturnKey(personId));
+
+                    if (saved?.reopen) {
+                        // 1) Open first (openModal resets inputs)
+                        openModal();
+
+                        // 2) Now restore filters (they will stick)
+                        if (nameInput) nameInput.value = saved.filters?.search ?? '';
+                        if (areaInput) areaInput.value = saved.filters?.area ?? '';
+                        if (cemInput) cemInput.value = saved.filters?.cemetery ?? '';
+                        if (birthInput) birthInput.value = saved.filters?.birthYear ?? '';
+                        if (deathInput) deathInput.value = saved.filters?.deathYear ?? '';
+
+                        // 3) Restore selection and UI
+                        selected = Array.isArray(saved.selected) ? saved.selected.slice() : [];
+                        renderSelected?.();
+
+                        // 4) Re-run search with restored filters
+                        triggerFetch?.();
+                    }
+                }
+            } catch { }
+        }
+
+        // ───────────────── Open / Close
+        function openModal() {
+            // reset fields
+            nameInput.value = '';
+            areaInput.value = '';
+            cemInput.value = '';
+            cemSugList.classList.remove('show');
+
+            birthInput.value = deathInput.value = '';
+            display.textContent = 'Рік народження та смерті';
+            display.classList.remove('has-value');
+            clearYears.hidden = true;
+
+            // Make sure years panel is closed when opening modal
+            panel.classList.add('hidden');
+
+            // hide Area clear initially
+            if (areaClear) areaClear.style.display = 'none';
+
+            selected = [];
+            renderSelected(); // will also hide selectedCountRow when empty
+
+            foundList.innerHTML = '';
+            foundCountEl.textContent = '0';
+
+            overlay.hidden = false;
+
+            // Do NOT fetch on open — wait for filters
+        }
+
+        openers.forEach(el => el.addEventListener('click', (e) => { e.preventDefault(); openModal(); }));
+        closeBtn.addEventListener('click', () => overlay.hidden = true);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.hidden = true; });
+
+        // Allowed roles
+        const ROLE_OPTIONS = ['Батько', 'Мати', 'Брат', 'Сестра'];
+
+        // Submit (append to existing relatives instead of overriding)
+        submitBtn.addEventListener('click', async () => {
+            // 1) Build additions [{personId, role}] from this modal selection
+            const additions = (selected || []).map(p => ({
+                personId: p.id,
+                role: p.relationship ? p.relationship : " "
+            }));
+
+            // 2) Merge with existing relLinks (append/update, no duplicates by personId)
+            //    If same person already linked, new role from additions wins.
+            const map = new Map(
+                (Array.isArray(relLinks) ? relLinks : [])
+                    .map(r => [String(r.personId), { personId: r.personId, role: r.role }])
+            );
+            additions.forEach(a => {
+                if (String(a.personId) === String(personId)) return; // safety: не лінкуємо себе до себе
+                map.set(String(a.personId), a);
+            });
+
+            const merged = Array.from(map.values());
+
+            // 4) Persist and then reload
+            try {
+                const res = await fetch(`${API_BASE}/${personId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ relatives: merged })
+                });
+                if (!res.ok) {
+                    const msg = await res.text().catch(() => res.statusText);
+                    throw new Error(msg);
+                }
+                // Close modal then reload the page to reflect changes
+                overlay.hidden = true;
+                window.location.reload();
+            } catch (e) {
+                console.error('Failed to save relatives:', e);
+                alert('Не вдалося зберегти родичів.');
+            }
+        });
+
+        // Fields that can trigger fetch (after being applied/confirmed)
+        nameInput.addEventListener('input', debounce(() => triggerFetch(), 300));
+        // years → handled in yearsDone
+        // area → on suggestion click
+        // cemetery → on suggestion click
+    })();
 });
