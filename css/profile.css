@@ -243,6 +243,7 @@ body {
     border-radius: 12px;
     text-align: center;
     font-size: 15px;
+    font-weight: 500;
     line-height: 1.4;
 }
 
@@ -397,6 +398,7 @@ body {
     border-radius: 12px;
     text-align: center;
     font-size: 15px;
+    font-weight: 500;
     line-height: 1.4;
 }
 
@@ -609,7 +611,9 @@ body {
 }
 
 .selected-date {
-    color: #666;
+    color: #000000;
+    font-size: 15px;
+    font-weight: 460;
 }
 
 .date-calendar {
@@ -640,7 +644,7 @@ body {
     min-width: 60px;
     height: 70px;
     border-radius: 16px;
-    background-color: #F5F5F5;
+    background-color: #F2F4F7;
     cursor: pointer;
     transition: all .2s;
     scroll-snap-align: start;
@@ -682,12 +686,13 @@ body {
 
 .church-btn {
     padding: .75rem 1.25rem;
-    background-color: #F5F5F5;
-    color: #666;
+    background-color: #F2F4F7;
+    color: #1C170D;
     border: none;
     border-radius: 20px;
     font-size: .875rem;
     font-weight: 500;
+    font-family: 'Montserrat', sans-serif;
     cursor: pointer;
     transition: all .2s;
     white-space: nowrap;
@@ -699,7 +704,7 @@ body {
 }
 
 .liturgy-details {
-    background-color: #F8F9FA;
+    background-color: #F2F4F7;
     border-radius: 16px;
     padding: 1rem;
     margin-bottom: 1.5rem;
@@ -729,23 +734,32 @@ body {
 }
 
 .donation-options {
-    display: flex;
-    gap: .75rem;
-    flex-wrap: wrap;
-}
-
-.donation-btn {
-    padding: .75rem 1.25rem;
-    background-color: #F5F5F5;
-    color: #666;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+  
+  .donation-btn {
+    background-color: #F2F4F7;
+    color: #1C170D;
     border: none;
     border-radius: 16px;
     font-size: .875rem;
     font-weight: 500;
-    min-width: 70px;
+    font-family: 'Montserrat', sans-serif;
     cursor: pointer;
     transition: all .2s;
-}
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    padding: 0 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
 
 .donation-btn.selected {
     background-color: #1B8B59;
@@ -761,6 +775,7 @@ body {
     border-radius: 16px;
     font-size: 1rem;
     font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
     cursor: pointer;
     transition: background-color .2s;
 }
@@ -1078,6 +1093,7 @@ body {
     border-radius: 12px;
     text-align: center;
     font-size: 15px;
+    font-weight: 500;
     line-height: 1.4;
 }
 
@@ -1666,11 +1682,12 @@ body {
 }
 
 /* tiny chevron */
-.rel-role-btn .chev {
-    font-size: 12px;
-    line-height: 1;
-    opacity: .7;
-}
+.chev-icon {
+    width: 16px;
+    height: 16px;
+    stroke: #666666 !important; /* або currentColor */
+    vertical-align: middle;
+  }  
 
 /* Use your existing suggestions-list look, just anchor + width */
 .rel-role-list {
@@ -1726,7 +1743,7 @@ body {
     gap: 12px;
     align-items: center;
     cursor: pointer;
-    padding: 6px 2px;
+    padding: 10px 0;
     border-bottom: 0.5px solid #DCDCDC;
 }
 
@@ -1736,7 +1753,7 @@ body {
 
 .relatives-list .select-badge {
     position: absolute;
-    top: 6px;
+    top: 20px;
     right: 6px;
     width: 28px;
     height: 28px;
@@ -1787,8 +1804,9 @@ body {
 
 .relative-name {
     margin: 0;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1849,4 +1867,11 @@ body {
     #relativesModal .modal-submit-btn {
         bottom: max(48px, env(safe-area-inset-bottom));
     }
+}
+
+.modal-subtitle {
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'Montserrat', sans-serif;
+    color: #222222;
 }

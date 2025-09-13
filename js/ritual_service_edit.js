@@ -32,14 +32,16 @@ if (logoutBtn) {
 function normalizeItems(struct) {
   if (!Array.isArray(struct?.items)) return struct;
   struct.items = struct.items.map(([title, arr]) => {
-    const albums = Array.isArray(arr) ? arr.map((x) => {
-      if (typeof x === "string") return { photos: [x], description: "" };
-      if (Array.isArray(x)) return { photos: x, description: "" };
-      return {
-        photos: Array.isArray(x?.photos) ? x.photos : [],
-        description: (x?.description || "").toString(),
-      };
-    }) : [];
+    const albums = Array.isArray(arr)
+      ? arr.map((x) => {
+          if (typeof x === "string") return { photos: [x], description: "" };
+          if (Array.isArray(x)) return { photos: x, description: "" };
+          return {
+            photos: Array.isArray(x?.photos) ? x.photos : [],
+            description: (x?.description || "").toString(),
+          };
+        })
+      : [];
     return [title, albums];
   });
   return struct;
@@ -59,10 +61,13 @@ async function fetchRitualService() {
 async function uploadToImgBB(file) {
   const formData = new FormData();
   formData.append("image", file);
-  const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-    method: "POST",
-    body: formData
-  });
+  const res = await fetch(
+    `https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
   if (!res.ok) throw new Error(`IMGBB ${res.status}`);
   const json = await res.json();
   const url = json?.data?.url;
@@ -72,20 +77,29 @@ async function uploadToImgBB(file) {
 
 function applyAbout(text) {
   const LINES = 4;
-  const moreLabel = 'більше';
-  const lessLabel = 'менше';
-  const aboutEl = document.getElementById('ritual-text');
+  const moreLabel = "більше";
+  const lessLabel = "менше";
+  const aboutEl = document.getElementById("ritual-text");
 
-  aboutEl.innerHTML = '';
-  const textSpan = document.createElement('span');
-  const nbsp = document.createTextNode('\u00A0');
-  const toggle = document.createElement('span');
-  toggle.className = 'bio-toggle';
-  toggle.setAttribute('role', 'button');
+  aboutEl.innerHTML = "";
+
+  if (!text) {
+    const empty = document.createElement("div");
+    empty.className = "description-empty";
+    empty.textContent = "Немає опису";
+    aboutEl.replaceWith(empty);
+    return;
+  }
+
+  const textSpan = document.createElement("span");
+  const nbsp = document.createTextNode("\u00A0");
+  const toggle = document.createElement("span");
+  toggle.className = "bio-toggle";
+  toggle.setAttribute("role", "button");
   toggle.tabIndex = 0;
 
   const cs = getComputedStyle(aboutEl);
-  const line = parseFloat(cs.lineHeight) || (1.5 * parseFloat(cs.fontSize) || 21);
+  const line = parseFloat(cs.lineHeight) || 1.5 * parseFloat(cs.fontSize) || 21;
   const maxH = Math.round(LINES * line);
 
   // Швидка гілка: текст вміщається — toggle не потрібен
@@ -97,33 +111,39 @@ function applyAbout(text) {
 
   // Вимірювач висоти для префікса
   function heightForPrefix(prefixLen) {
-    aboutEl.innerHTML = '';
-    textSpan.textContent = text.slice(0, prefixLen).trimEnd() + ' …';
+    aboutEl.innerHTML = "";
+    textSpan.textContent = text.slice(0, prefixLen).trimEnd() + " …";
     toggle.textContent = moreLabel;
     aboutEl.append(textSpan, nbsp, toggle);
     return aboutEl.clientHeight;
   }
 
   // Бінарний пошук максимальної довжини, що вміщається у 4 рядки (з урахуванням toggle)
-  let lo = 0, hi = text.length, best = 0;
+  let lo = 0,
+    hi = text.length,
+    best = 0;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
-    if (heightForPrefix(mid) <= maxH + 1) { best = mid; lo = mid + 1; }
-    else { hi = mid - 1; }
+    if (heightForPrefix(mid) <= maxH + 1) {
+      best = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
   }
 
   // Фінальна розмітка
-  aboutEl.innerHTML = '';
-  textSpan.textContent = text.slice(0, best).trimEnd() + ' …';
+  aboutEl.innerHTML = "";
+  textSpan.textContent = text.slice(0, best).trimEnd() + " …";
   toggle.textContent = moreLabel;
-  aboutEl.append(textSpan, document.createTextNode('\u00A0'), toggle);
+  aboutEl.append(textSpan, document.createTextNode("\u00A0"), toggle);
 
   // Обробники
   let expanded = false;
   const expand = () => {
     expanded = true;
-    aboutEl.innerHTML = '';
-    textSpan.textContent = text + ' ';
+    aboutEl.innerHTML = "";
+    textSpan.textContent = text + " ";
     toggle.textContent = lessLabel;
     aboutEl.append(textSpan, toggle);
   };
@@ -133,9 +153,12 @@ function applyAbout(text) {
   };
   const onToggle = () => (expanded ? collapse() : expand());
 
-  toggle.addEventListener('click', onToggle);
-  toggle.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); }
+  toggle.addEventListener("click", onToggle);
+  toggle.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onToggle();
+    }
   });
 }
 
@@ -147,10 +170,12 @@ function renderData(data) {
   document.querySelector(".ritual-link-btn").href = data.link;
   document.querySelector(".ritual-link-text").textContent = data.link;
 
-  applyAbout((data.description || '').trim());
+  applyAbout((data.description || "").trim());
 
   const container = document.querySelector(".ritual-container");
-  container.querySelectorAll(".ritual-item-section").forEach((el) => el.remove());
+  container
+    .querySelectorAll(".ritual-item-section")
+    .forEach((el) => el.remove());
 
   data.items.forEach(([title, images], index) => {
     const section = document.createElement("section");
@@ -181,7 +206,7 @@ function renderData(data) {
     popupMenu.className = "popup-menu hidden";
     popupMenu.innerHTML = `
     <div class="popup-option add-photo">Добавити фото</div>
-    ${hasPhotos ? '<div class="popup-option choose-photos">Вибрати</div>' : ''}
+    ${hasPhotos ? '<div class="popup-option choose-photos">Вибрати</div>' : ""}
     <div class="popup-option rename">Змінити назву</div>
     <div class="popup-option delete">Видалити категорію</div>
   `;
@@ -247,7 +272,7 @@ function renderData(data) {
           }
 
           // normal behavior: open slideshow
-          const captions = album.photos.map(() => album.description || '');
+          const captions = album.photos.map(() => album.description || "");
           openSlideshow(album.photos, 0, captions);
         });
 
@@ -314,12 +339,19 @@ function renderData(data) {
 
       cancelBtn.addEventListener("click", exitSelectionMode);
       deleteBtn.addEventListener("click", async () => {
-        if (selectedOrder.length === 0) { exitSelectionMode(); return; }
-        const toRemove = new Set(selectedOrder.map(w => w.querySelector("img").src));
-        ritualData.items[index][1] = ritualData.items[index][1].filter((album) => {
-          const cover = album?.photos?.[0];
-          return !toRemove.has(cover);
-        });
+        if (selectedOrder.length === 0) {
+          exitSelectionMode();
+          return;
+        }
+        const toRemove = new Set(
+          selectedOrder.map((w) => w.querySelector("img").src)
+        );
+        ritualData.items[index][1] = ritualData.items[index][1].filter(
+          (album) => {
+            const cover = album?.photos?.[0];
+            return !toRemove.has(cover);
+          }
+        );
         await updateItems(ritualData.items);
       });
 
@@ -381,9 +413,13 @@ function renderData(data) {
         </div>`;
       modal.style.display = "flex";
 
-      const close = () => { modal.style.display = "none"; };
+      const close = () => {
+        modal.style.display = "none";
+      };
       modal.querySelector(".cancel-btn").onclick = close;
-      modal.addEventListener("click", (ev) => { if (ev.target === modal) close(); });
+      modal.addEventListener("click", (ev) => {
+        if (ev.target === modal) close();
+      });
 
       const confirmBtn = modal.querySelector(".confirm-btn");
       const cancelBtn = modal.querySelector(".cancel-btn");
@@ -402,10 +438,16 @@ function renderData(data) {
         try {
           // Upload in parallel; update N/M as each finishes
           let done = 0;
-          const tick = () => { done += 1; progressTxt.textContent = `Завантаження… ${done}/${files.length}`; };
+          const tick = () => {
+            done += 1;
+            progressTxt.textContent = `Завантаження… ${done}/${files.length}`;
+          };
 
           const tasks = files.map(async (f) => {
-            if (!f.type.startsWith("image/")) { tick(); return null; }
+            if (!f.type.startsWith("image/")) {
+              tick();
+              return null;
+            }
             try {
               const url = await uploadToImgBB(f);
               tick();
@@ -418,7 +460,9 @@ function renderData(data) {
           });
 
           const settled = await Promise.allSettled(tasks);
-          const urls = settled.map(r => (r.status === "fulfilled" ? r.value : null)).filter(Boolean);
+          const urls = settled
+            .map((r) => (r.status === "fulfilled" ? r.value : null))
+            .filter(Boolean);
 
           if (!urls.length) {
             alert("Не вдалося завантажити фото.");
@@ -429,7 +473,8 @@ function renderData(data) {
           }
 
           // Push as a single ALBUM (photos[] + description)
-          if (!Array.isArray(ritualData.items[index][1])) ritualData.items[index][1] = [];
+          if (!Array.isArray(ritualData.items[index][1]))
+            ritualData.items[index][1] = [];
           ritualData.items[index][1].push({ photos: urls, description: desc });
 
           close();
@@ -452,15 +497,18 @@ function renderData(data) {
     section.appendChild(fileInput);
 
     if (!hasPhotos) {
-      const empty = document.createElement('div');
-      empty.className = 'photos-empty';
-      empty.textContent = 'Немає фотографій';
+      const empty = document.createElement("div");
+      empty.className = "photos-empty";
+      empty.textContent = "Немає фотографій";
       section.appendChild(empty);
     } else {
       section.appendChild(imagesContainer);
     }
 
-    container.insertBefore(section, document.querySelector(".add-category-btn"));
+    container.insertBefore(
+      section,
+      document.querySelector(".add-category-btn")
+    );
   });
 
   const addCategoryBtn = document.querySelector(".add-category-btn");
@@ -530,7 +578,9 @@ function openDescriptionEditor() {
 
 async function updateDescription(newDescription) {
   const p = document.querySelector(".ritual-description p.ritual-text");
-  const textarea = document.querySelector(".ritual-description textarea.ritual-text");
+  const textarea = document.querySelector(
+    ".ritual-description textarea.ritual-text"
+  );
 
   try {
     const res = await fetch(`${API}/ritual_services/${ritualId}`, {
@@ -546,7 +596,7 @@ async function updateDescription(newDescription) {
     // оновлюємо джерело правди в пам’яті
     ritualData.description = newDescription;
 
-    applyAbout((newDescription || '').trim());
+    applyAbout((newDescription || "").trim());
 
     p.style.display = "block";
     textarea.style.display = "none";
@@ -579,7 +629,9 @@ document.addEventListener("click", (e) => {
 
   // Clicked outside any popup → close all
   if (!e.target.closest(".popup-menu")) {
-    document.querySelectorAll(".popup-menu").forEach((m) => m.classList.add("hidden"));
+    document
+      .querySelectorAll(".popup-menu")
+      .forEach((m) => m.classList.add("hidden"));
   }
 
   // Rename category (handled globally so we can reuse modal)
@@ -656,63 +708,73 @@ function openAddCategoryModal() {
   const input = modal.querySelector("#newCatInput");
   input.focus();
 
-  const close = () => { modal.style.display = "none"; };
+  const close = () => {
+    modal.style.display = "none";
+  };
 
   // Close handlers
   modal.querySelector(".cancel-btn").onclick = close;
-  modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) close();
+  });
   document.addEventListener("keydown", function escClose(ev) {
-    if (ev.key === "Escape") { close(); document.removeEventListener("keydown", escClose); }
+    if (ev.key === "Escape") {
+      close();
+      document.removeEventListener("keydown", escClose);
+    }
   });
 
   // Create category
   modal.querySelector(".confirm-btn").onclick = async () => {
     const title = (input.value || "").trim();
-    if (!title) { input.focus(); return; }
-    ritualData.items.push([title, []]);      // add empty category with the given name
+    if (!title) {
+      input.focus();
+      return;
+    }
+    ritualData.items.push([title, []]); // add empty category with the given name
     close();
-    await updateItems(ritualData.items);     // saves and reloads
+    await updateItems(ritualData.items); // saves and reloads
   };
 }
 
 function openSlideshow(images, startIndex = 0, captions = []) {
-  const modal = document.createElement('div');
-  modal.className = 'slideshow-modal';
+  const modal = document.createElement("div");
+  modal.className = "slideshow-modal";
 
-  const closeBtnX = document.createElement('span');
-  closeBtnX.textContent = '✕';
-  closeBtnX.className = 'close-slideshow';
+  const closeBtnX = document.createElement("span");
+  closeBtnX.textContent = "✕";
+  closeBtnX.className = "close-slideshow";
   closeBtnX.onclick = () => {
-    document.body.style.overflow = ''; // restore scroll
+    document.body.style.overflow = ""; // restore scroll
     document.body.removeChild(modal);
   };
 
-  const track = document.createElement('div');
-  track.className = 'slideshow-track';
+  const track = document.createElement("div");
+  track.className = "slideshow-track";
 
   images.forEach((url, i) => {
-    const slide = document.createElement('div');
-    slide.className = 'slideshow-slide';
+    const slide = document.createElement("div");
+    slide.className = "slideshow-slide";
 
-    const img = document.createElement('img');
+    const img = document.createElement("img");
     img.src = url;
-    img.className = 'slideshow-img';
+    img.className = "slideshow-img";
     slide.appendChild(img);
 
     // Optional caption
-    const text = Array.isArray(captions) ? (captions[i] || '') : (captions || '');
+    const text = Array.isArray(captions) ? captions[i] || "" : captions || "";
     if (text && text.trim()) {
-      const cap = document.createElement('div');
-      cap.className = 'slideshow-caption';
+      const cap = document.createElement("div");
+      cap.className = "slideshow-caption";
 
-      const span = document.createElement('span');
-      span.className = 'caption-text';
+      const span = document.createElement("span");
+      span.className = "caption-text";
       span.textContent = text;
 
-      const toggle = document.createElement('button');
-      toggle.type = 'button';
-      toggle.className = 'caption-toggle';
-      toggle.textContent = '… більше';
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "caption-toggle";
+      toggle.textContent = "… більше";
 
       cap.append(span, toggle);
       slide.appendChild(cap);
@@ -721,10 +783,10 @@ function openSlideshow(images, startIndex = 0, captions = []) {
       requestAnimationFrame(() => {
         const overflowing = span.scrollHeight > span.clientHeight + 1;
         if (overflowing) {
-          cap.classList.add('has-toggle');
-          toggle.addEventListener('click', () => {
-            const expanded = cap.classList.toggle('expanded');
-            toggle.textContent = expanded ? 'менше' : '… більше';
+          cap.classList.add("has-toggle");
+          toggle.addEventListener("click", () => {
+            const expanded = cap.classList.toggle("expanded");
+            toggle.textContent = expanded ? "менше" : "… більше";
           });
         } else {
           toggle.remove();
@@ -736,27 +798,27 @@ function openSlideshow(images, startIndex = 0, captions = []) {
   });
 
   // Dots
-  const indicator = document.createElement('div');
-  indicator.className = 'slideshow-indicators';
+  const indicator = document.createElement("div");
+  indicator.className = "slideshow-indicators";
   images.forEach((_, idx) => {
-    const dot = document.createElement('span');
-    dot.className = 'slideshow-indicator';
-    dot.addEventListener('click', () => changeSlide(idx));
+    const dot = document.createElement("span");
+    dot.className = "slideshow-indicator";
+    dot.addEventListener("click", () => changeSlide(idx));
     indicator.appendChild(dot);
   });
 
   function updateIndicators(index) {
-    indicator.querySelectorAll('.slideshow-indicator').forEach((dot, i) =>
-      dot.classList.toggle('active', i === index)
-    );
+    indicator
+      .querySelectorAll(".slideshow-indicator")
+      .forEach((dot, i) => dot.classList.toggle("active", i === index));
   }
   function changeSlide(newIndex) {
-    const slides = track.querySelectorAll('.slideshow-slide');
+    const slides = track.querySelectorAll(".slideshow-slide");
     if (slides[newIndex]) {
-      slides[newIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+      slides[newIndex].scrollIntoView({ behavior: "smooth", inline: "center" });
     }
   }
-  track.addEventListener('scroll', () => {
+  track.addEventListener("scroll", () => {
     const slideWidth = track.clientWidth;
     const index = Math.round(track.scrollLeft / slideWidth);
     updateIndicators(index);
@@ -764,7 +826,7 @@ function openSlideshow(images, startIndex = 0, captions = []) {
 
   modal.append(closeBtnX, track, indicator);
   document.body.appendChild(modal);
-  document.body.style.overflow = 'hidden'; // prevent background scroll
+  document.body.style.overflow = "hidden"; // prevent background scroll
 
   requestAnimationFrame(() => {
     changeSlide(startIndex);

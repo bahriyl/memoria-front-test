@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
             el.dataset.index = String(idx);
 
             el.innerHTML = `
-            <img class="relative-avatar" src="${relative.avatarUrl || '/img/default-avatar.png'}" alt="">
+            <img class="relative-avatar" src="${relative.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="">
             <div class="relative-info">
               <h3 class="relative-name" title="${relative.name || ''}">${relative.name || ''}</h3>
               <div class="relative-meta">
@@ -1439,16 +1439,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const profileNameEl = document.querySelector('.profile-name');
         const selectedChurchEl = document.querySelector('.church-btn.selected');
         const selectedDateEl = document.querySelector('.selected-date');
-
+    
         if (personNameEl && profileNameEl) {
             personNameEl.textContent = profileNameEl.textContent;
         }
-        if (serviceInfoEl && selectedChurchEl && selectedDateEl) {
-            const churchName = selectedChurchEl.textContent;
+    
+        if (serviceInfoEl && selectedDateEl) {
             const selectedDate = selectedDateEl.textContent;
-            serviceInfoEl.textContent = `Божественна Літургія за упокій відбудеться у ${churchName}, ${selectedDate} р.`;
+    
+            if (selectedChurchEl) {
+                const churchName = selectedChurchEl.textContent;
+                serviceInfoEl.textContent =
+                    `Божественна Літургія за упокій відбудеться у ${churchName}, ${selectedDate} р.`;
+            } else {
+                serviceInfoEl.innerHTML = `Божественна Літургія за упокій відбудеться у <span style="font-weight:500;">Оберіть церкву</span>, ${selectedDate} р.`;
+            }
         }
-    }
+    }    
 
     const churchBtns = document.querySelectorAll('.church-btn');
     churchBtns.forEach(btn => {
@@ -1595,7 +1602,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     name: p.name || 'Без імені',
                     years,
                     relationship: role,
-                    avatarUrl: p.avatarUrl || '/img/default-avatar.png'
+                    avatarUrl: p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'
                 };
             } catch {
                 return null;
@@ -1971,7 +1978,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Render
             foundList.innerHTML = list.map(p => `
               <li data-id="${p.id}" tabindex="0">
-                <img class="avatar" src="${p.avatarUrl || '/img/default-avatar.png'}" alt="">
+                <img class="avatar" src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="">
                 <div class="info">
                   <div class="name">${p.name || ''}</div>
                   <div class="years">${(p.birthYear || '')} – ${(p.deathYear || '')}</div>
@@ -2044,7 +2051,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const label = rel || 'Вибрати';
                 return `
                 <li data-id="${p.id}">
-                  <img class="avatar" src="${p.avatarUrl || '/img/default-avatar.png'}" alt="">
+                  <img class="avatar" src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="">
                   <div class="info">
                     <div class="name">${p.name}</div>
                     <div class="meta">
@@ -2053,7 +2060,11 @@ document.addEventListener('DOMContentLoaded', () => {
                       <div class="rel-role">
                         <button class="rel-role-btn" type="button">
                           <span class="label">${label}</span>
-                          <span class="chev">▾</span>
+                          <svg class="chev-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" 
+                                viewBox="0 0 24 24" fill="none" stroke="#666666" stroke-width="2" 
+                                stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
                         </button>
           
                         <!-- reuse the same look as your search suggestions -->

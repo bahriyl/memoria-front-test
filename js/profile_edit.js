@@ -1297,14 +1297,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const profileNameEl = document.querySelector('.profile-name');
         const selectedChurchEl = document.querySelector('.church-btn.selected');
         const selectedDateEl = document.querySelector('.selected-date');
-
+    
         if (personNameEl && profileNameEl) {
             personNameEl.textContent = profileNameEl.textContent;
         }
-        if (serviceInfoEl && selectedChurchEl && selectedDateEl) {
-            const churchName = selectedChurchEl.textContent;
+    
+        if (serviceInfoEl && selectedDateEl) {
             const selectedDate = selectedDateEl.textContent;
-            serviceInfoEl.textContent = `Божественна Літургія за упокій відбудеться у ${churchName}, ${selectedDate} р.`;
+    
+            if (selectedChurchEl) {
+                const churchName = selectedChurchEl.textContent;
+                serviceInfoEl.textContent =
+                    `Божественна Літургія за упокій відбудеться у ${churchName}, ${selectedDate} р.`;
+            } else {
+                serviceInfoEl.innerHTML = `Божественна Літургія за упокій відбудеться у <span style="font-weight:500;">Оберіть церкву</span>, ${selectedDate} р.`;
+            }
         }
     }
 
