@@ -1567,14 +1567,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const profileNameEl = document.querySelector('.profile-name');
         const selectedChurchEl = document.querySelector('.church-btn.selected');
         const selectedDateEl = document.querySelector('.selected-date');
-    
+
         if (personNameEl && profileNameEl) {
             personNameEl.textContent = profileNameEl.textContent;
         }
-    
+
         if (serviceInfoEl && selectedDateEl) {
             const selectedDate = selectedDateEl.textContent;
-    
+
             if (selectedChurchEl) {
                 const churchName = selectedChurchEl.textContent;
                 serviceInfoEl.textContent =
@@ -1583,7 +1583,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 serviceInfoEl.innerHTML = `Божественна Літургія за упокій відбудеться у <span style="font-weight:500;">Оберіть церкву</span>, ${selectedDate} р.`;
             }
         }
-    }    
+    }
 
     const churchBtns = document.querySelectorAll('.church-btn');
     churchBtns.forEach(btn => {
@@ -2153,7 +2153,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   <div class="name">${p.name || ''}</div>
                   <div class="years">${(p.birthYear || '')} – ${(p.deathYear || '')}</div>
                 </div>
-                <button class="select-btn" type="button" aria-label="Додати">+</button>
+                <button class="select-btn" type="button" aria-label="Додати"><img src="/img/plus-icon.png" alt="Додати" class="plus-icon" width="24" height="24"></button>
               </li>`).join('');
 
             // Counters + empty state labels
@@ -2230,7 +2230,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       </div>
                     </div>
                   </div>
-                  <button class="select-btn" type="button" aria-label="Прибрати">−</button>
+                  <button class="select-btn" type="button" aria-label="Прибрати"><img src="/img/minus-icon.png" alt="Видалити" class="minus-icon" width="24" height="24"></button>
                 </li>`;
             }).join('');
 

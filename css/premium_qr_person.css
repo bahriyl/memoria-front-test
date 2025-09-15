@@ -71,7 +71,7 @@ input[type="text"] {
     width: 100%;
     height: 50px;
     padding: 12px 12px;
-    padding-left: 22px;
+    padding-left: 18px;
     border: none;
     border-radius: var(--radius-md);
     background: #EFF2F5;
@@ -154,7 +154,7 @@ input[type="text"]::placeholder {
     width: 100%;
     height: 49px;
     padding: 12px 12px;
-    padding-left: 22px;
+    padding-left: 18px;
     border: none;
     border-radius: var(--radius-md);
     background: #EFF2F5;
@@ -709,7 +709,7 @@ input[type="text"]::placeholder {
     align-items: center;
     flex: 1;
     height: 49px;
-    padding: 0 22px;
+    padding: 0 18px;
     padding-right: 44px;
     border-radius: var(--radius-md);
     background: #EFF2F5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 16px center;
