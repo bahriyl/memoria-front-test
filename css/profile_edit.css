@@ -177,6 +177,11 @@
   pointer-events: none;
 }
 
+.avatar-spinner {
+    width: 149px;
+    height: 149px;
+}
+
 .modal-subtitle {
   font-size: 13px;
   font-weight: 500;

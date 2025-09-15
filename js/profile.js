@@ -207,6 +207,134 @@ document.addEventListener('DOMContentLoaded', () => {
     // Comments
     const commentsListEl = document.querySelector('.comments-list');
 
+    const avatarMenu = document.getElementById('avatar-menu');
+    const avatarAddBtn = document.getElementById('avatar-add');
+    const avatarChangeBtn = document.getElementById('avatar-change');
+    const avatarDeleteBtn = document.getElementById('avatar-delete');
+    const avatarSpinner = document.getElementById('avatar-spinner');
+
+    function showAvatarSpinner() {
+        avatarSpinner?.classList.add('show');
+    }
+    function hideAvatarSpinner() {
+        avatarSpinner?.classList.remove('show');
+    }
+
+    // Відкрити меню
+    function openAvatarMenu() {
+        if (!avatarEl || !avatarMenu) return;
+
+        const hasAvatar = avatarEl.src && !avatarEl.src.includes('https://i.ibb.co/ycrfZ29f/Frame-542.png');
+
+        // показ кнопок за станом
+        avatarAddBtn.style.display = hasAvatar ? 'none' : '';
+        avatarChangeBtn.style.display = hasAvatar ? '' : 'none';
+        avatarDeleteBtn.style.display = hasAvatar ? '' : 'none';
+
+        avatarMenu.hidden = false;
+        document.body.classList.add('no-scroll');   // блокуємо скрол
+    }
+
+    // Закрити меню
+    function closeAvatarMenu() {
+        if (!avatarMenu) return;
+        avatarMenu.hidden = true;
+        document.body.classList.remove('no-scroll'); // повертаємо скрол
+    }
+
+    // Відкриття по кліку на аватар (як і було)
+    avatarEl?.addEventListener('click', () => {
+        if (premiumLock && !token) return;  // лише для дозволених
+        openAvatarMenu();
+    });
+
+    // ❶ Закрити по кліку поза вмістом меню (по бекдропу)
+    avatarMenu?.addEventListener('click', (e) => {
+        if (!e.target.closest('.bottom-popup-content')) {
+            closeAvatarMenu();
+        }
+    });
+
+    // ❷ Закривати по Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !avatarMenu.hidden) {
+            closeAvatarMenu();
+        }
+    });
+
+    // Elements
+    const avatarInput = document.createElement('input');
+    avatarInput.type = 'file';
+    avatarInput.accept = 'image/*';
+    avatarInput.hidden = true;
+    document.body.appendChild(avatarInput);
+
+    async function uploadAvatarToImgBB(file) {
+        const form = new FormData();
+        form.append('image', file);
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+            method: 'POST',
+            body: form
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error('Upload failed');
+        return json.data.url;
+    }
+
+    async function updateAvatar(url) {
+        try {
+            const res = await fetch(`${API_BASE}/${personId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ avatarUrl: url })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const updated = await res.json();
+
+            avatarEl.src = updated.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png';
+            showToast('Фото профілю оновлено');
+        } catch (err) {
+            console.error('Update avatar failed', err);
+            alert('Не вдалося оновити фото профілю');
+        }
+    }
+
+    // Add new avatar
+    avatarAddBtn?.addEventListener('click', () => {
+        avatarInput.click();
+    });
+
+    avatarChangeBtn?.addEventListener('click', () => {
+        avatarInput.click();
+    });
+
+    // Upload handler
+    avatarInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        showAvatarSpinner();
+        try {
+            const hostedUrl = await uploadAvatarToImgBB(file);
+            await updateAvatar(hostedUrl);
+        } catch (err) {
+            alert('Не вдалося завантажити фото');
+        } finally {
+            avatarInput.value = ''; // reset
+            hideAvatarSpinner();
+            closeAvatarMenu();
+        }
+    });
+
+    // Delete avatar
+    avatarDeleteBtn?.addEventListener('click', async () => {
+        showAvatarSpinner();
+        // без confirm — одразу видаляємо
+        await updateAvatar(null); // send null to remove
+        hideAvatarSpinner();
+        closeAvatarMenu();
+    });
+
     // ─────────────────────────────────────────────────────────────────────────────
     // Global click delegation for dots menus
     // ─────────────────────────────────────────────────────────────────────────────
@@ -1750,6 +1878,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const debounce = (fn, ms = 300) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
+        const relReturnKey = (id) => `relModalReturn:${id}`;
+
         let selected = [];         // [{id, name, birthYear, deathYear, avatarUrl}]
         let selectedBirth, selectedDeath;
 
@@ -1930,6 +2060,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const triggerFetch = debounce(fetchPeople, 300);
 
+        // ───────────────── Collect modal state (FIXED)
+        function collectRelModalState() {
+            return {
+                reopen: true,
+                filters: {
+                    search: nameInput?.value?.trim() || '',
+                    area: areaInput?.value?.trim() || '',
+                    cemetery: cemInput?.value?.trim() || '',
+                    birthYear: birthInput?.value?.trim() || '',
+                    deathYear: deathInput?.value?.trim() || ''
+                },
+                selected: (selected || []).map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    avatarUrl: p.avatarUrl,
+                    birthYear: p.birthYear,
+                    deathYear: p.deathYear,
+                    relationship: p.relationship || ''
+                })),
+                // Also save the years display state
+                yearsState: {
+                    selectedBirth,
+                    selectedDeath,
+                    displayText: display?.textContent || 'Рік народження та смерті',
+                    hasValue: display?.classList?.contains('has-value') || false
+                }
+            };
+        }
+
+        // ───────────────── Save modal state (FIXED)
+        function saveModalState() {
+            const state = collectRelModalState();
+            try {
+                sessionStorage.setItem(relReturnKey(personId), JSON.stringify(state));
+                console.log('Modal state saved:', state);
+            } catch (error) {
+                console.error('Failed to save modal state:', error);
+            }
+        }
+
         // ───────────────── Fetch people (only when any filter is set)
         async function fetchPeople() {
             const foundLabel = document.getElementById('foundLabel');
@@ -2006,41 +2176,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            const relReturnKey = (id) => `relModalReturn:${id}`;
-
-            // Row click → open profile (do NOT auto-open modal on the new profile)
-            // Save modal state *scoped to current person* and include backTo=<current>
-            const saveModalState = () => {
-                const state = {
-                    reopen: true,
-                    filters: {
-                        search: (nameInput.value || '').trim(),
-                        area: (areaInput.value || '').trim(),
-                        cemetery: (cemInput.value || '').trim(),
-                        birthYear: (birthInput.value || '').trim(),
-                        deathYear: (deathInput.value || '').trim(),
-                    },
-                    selected: (selected || []).map(p => ({
-                        id: p.id, name: p.name, avatarUrl: p.avatarUrl,
-                        birthYear: p.birthYear, deathYear: p.deathYear,
-                        relationship: p.relationship || ''
-                    }))
-                };
-                sessionStorage.setItem(relReturnKey(personId), JSON.stringify(state));
-                console.log('sessionStorage saved');
-            };
-
-            foundList.addEventListener('click', (e) => {
-                if (e.target.closest('button.select-btn')) return; // ignore (+)
-                const li = e.target.closest('li[data-id]');
-                if (!li) return;
-                const id = li.dataset.id;
-
-                saveModalState();
-                window.location.href =
-                    `/profile.html?personId=${encodeURIComponent(id)}&from=profile&backTo=${encodeURIComponent(personId)}`;
-            }, { once: true });
+            // Row click → open profile (FIXED: moved outside fetchPeople)
         }
+
+        // ───────────────── Handle clicks on found list items (FIXED: moved outside fetchPeople)
+        foundList.addEventListener('click', (e) => {
+            if (e.target.closest('button.select-btn')) return; // ignore (+)
+
+            const li = e.target.closest('li[data-id]');
+            if (!li) return;
+
+            const id = li.dataset.id;
+
+            // Save state before navigation
+            saveModalState();
+
+            // Navigate to profile with back reference
+            window.location.href = `/profile.html?personId=${encodeURIComponent(id)}&from=profile&backTo=${encodeURIComponent(personId)}`;
+        });
 
         // ───────────────── Render "Selected" (Fix #4: hide count row when 0)
         function renderSelected() {
@@ -2135,147 +2288,127 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Handle clicks on selected list items (FIXED)
         selectedList.addEventListener('click', (e) => {
             if (e.target.closest('button') || e.target.closest('.rel-role')) return; // ignore role picker/remove
 
             const li = e.target.closest('li[data-id]');
             if (!li) return;
 
-            sessionStorage.setItem(relReturnKey(personId), JSON.stringify(collectRelModalState()));
+            // Save state before navigation
+            saveModalState();
 
             const nextId = li.dataset.id;
             window.location.href = `profile.html?personId=${encodeURIComponent(nextId)}&from=profile&backTo=${encodeURIComponent(personId)}`;
         });
 
-        // Restore relatives modal state only when landing on the original person
-        if (params.get('from') !== 'profile') {
-            try {
-                const raw = sessionStorage.getItem(`relModalReturn:${personId}`);
-                if (raw) {
-                    const saved = JSON.parse(raw);
-                    sessionStorage.removeItem(`relModalReturn:${personId}`);
-
-                    // Fill filters
-                    if (nameInput) nameInput.value = saved.filters?.search || '';
-                    if (areaInput) areaInput.value = saved.filters?.area || '';
-                    if (cemInput) cemInput.value = saved.filters?.cemetery || '';
-                    if (birthInput) birthInput.value = saved.filters?.birthYear || '';
-                    if (deathInput) deathInput.value = saved.filters?.deathYear || '';
-
-                    // Restore selection, re-render, and re-fetch
-                    selected = Array.isArray(saved.selected) ? saved.selected.slice() : [];
-                    renderSelected?.();
-                    openModal?.();         // re-open the relatives modal
-                    triggerFetch?.();      // run search with restored filters
-                }
-            } catch { }
-        }
-
-        // Обробка вибору ролі
-        selectedList.querySelectorAll('.rel-role-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const menu = btn.nextElementSibling;
-                menu.classList.toggle('hidden');
-            });
-        });
-
-        selectedList.querySelectorAll('.rel-role-menu li').forEach(li => {
-            li.addEventListener('click', (e) => {
-                const val = li.dataset.val;
-                const liWrap = li.closest('li[data-id]');
-                const id = liWrap?.dataset.id;
-                const item = selected.find(x => x.id === id);
-                if (item) item.relationship = val;
-
-                // оновити текст кнопки
-                liWrap.querySelector('.rel-role-btn').textContent = val;
-
-                // закрити меню
-                li.parentElement.classList.add('hidden');
-            });
-        });
-
-        // Клік поза меню → закриває
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.rel-role')) {
-                selectedList.querySelectorAll('.rel-role-menu').forEach(m => m.classList.add('hidden'));
+        // ───────────────── Restore modal state (FIXED)
+        function restoreModalState() {
+            // Only restore when we are NOT navigating from another profile
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('from') === 'profile') {
+                console.log('Navigation from profile detected, skipping restore');
+                return;
             }
-        });
 
-        function collectRelModalState() {
-            return {
-                reopen: true,
-                filters: {
-                    search: nameInput?.value?.trim() || '',
-                    area: areaInput?.value?.trim() || '',
-                    cemetery: cemInput?.value?.trim() || '',
-                    birthYear: birthInput?.value?.trim() || '',
-                    deathYear: deathInput?.value?.trim() || ''
-                },
-                selected: (selected || []).map(p => ({
-                    id: p.id, name: p.name, avatarUrl: p.avatarUrl,
-                    birthYear: p.birthYear, deathYear: p.deathYear,
-                    relationship: p.relationship || ''
-                }))
-            };
-        }
-
-        foundList.addEventListener('click', (e) => {
-            if (e.target.closest('button.select-btn')) return; // ignore select/remove buttons
-
-            const li = e.target.closest('li[data-id]');
-            if (!li) return;
-
-            // Save modal state keyed to the CURRENT person
-            sessionStorage.setItem(relReturnKey(personId), JSON.stringify(collectRelModalState()));
-
-            // Go to the clicked profile; pass where we came from and who to go back to
-            const nextId = li.dataset.id;
-            window.location.href = `profile.html?personId=${encodeURIComponent(nextId)}&from=profile&backTo=${encodeURIComponent(personId)}`;
-        });
-
-        // Only restore when we are back to the original person (not when viewing a child profile)
-        if (params.get('from') !== 'profile') {
             try {
                 const raw = sessionStorage.getItem(relReturnKey(personId));
-                if (raw) {
-                    const saved = JSON.parse(raw);
-                    sessionStorage.removeItem(relReturnKey(personId));
+                if (!raw) {
+                    console.log('No saved modal state found');
+                    return;
+                }
 
-                    if (saved?.reopen) {
-                        // 1) Open first (openModal resets inputs)
-                        openModal();
+                const saved = JSON.parse(raw);
+                console.log('Restoring modal state:', saved);
 
-                        // 2) Now restore filters (they will stick)
-                        if (nameInput) nameInput.value = saved.filters?.search ?? '';
-                        if (areaInput) areaInput.value = saved.filters?.area ?? '';
-                        if (cemInput) cemInput.value = saved.filters?.cemetery ?? '';
-                        if (birthInput) birthInput.value = saved.filters?.birthYear ?? '';
-                        if (deathInput) deathInput.value = saved.filters?.deathYear ?? '';
+                // Remove from session storage to prevent repeated restoration
+                sessionStorage.removeItem(relReturnKey(personId));
 
-                        // 3) Restore selection and UI
-                        selected = Array.isArray(saved.selected) ? saved.selected.slice() : [];
-                        renderSelected?.();
+                if (!saved?.reopen) return;
 
-                        // 4) Re-run search with restored filters
-                        triggerFetch?.();
+                // 1) Open modal first (this might reset some fields, but we'll restore them)
+                openModal();
+
+                // 2) Restore filters
+                if (nameInput && saved.filters?.search) nameInput.value = saved.filters.search;
+                if (areaInput && saved.filters?.area) areaInput.value = saved.filters.area;
+                if (cemInput && saved.filters?.cemetery) cemInput.value = saved.filters.cemetery;
+                if (birthInput && saved.filters?.birthYear) birthInput.value = saved.filters.birthYear;
+                if (deathInput && saved.filters?.deathYear) deathInput.value = saved.filters.deathYear;
+
+                // 3) Restore years display state
+                if (saved.yearsState) {
+                    selectedBirth = saved.yearsState.selectedBirth;
+                    selectedDeath = saved.yearsState.selectedDeath;
+
+                    if (display) {
+                        display.textContent = saved.yearsState.displayText || 'Рік народження та смерті';
+                        if (saved.yearsState.hasValue) {
+                            display.classList.add('has-value');
+                        } else {
+                            display.classList.remove('has-value');
+                        }
+                    }
+
+                    if (clearYears) {
+                        clearYears.hidden = !saved.yearsState.hasValue;
+                    }
+
+                    // Restore year selections in the lists
+                    if (selectedBirth && birthList) {
+                        const birthItem = Array.from(birthList.children).find(li => li.textContent === selectedBirth);
+                        if (birthItem) birthItem.classList.add('selected');
+                    }
+
+                    if (selectedDeath && deathList) {
+                        const deathItem = Array.from(deathList.children).find(li => li.textContent === selectedDeath);
+                        if (deathItem) deathItem.classList.add('selected');
                     }
                 }
-            } catch { }
+
+                // 4) Restore selected people
+                selected = Array.isArray(saved.selected) ? saved.selected.slice() : [];
+                renderSelected();
+
+                // 5) Update UI elements
+                updateAreaClearBtn?.();
+
+                // 6) Trigger search with restored filters
+                triggerFetch();
+
+            } catch (error) {
+                console.error('Failed to restore modal state:', error);
+            }
         }
 
         // ───────────────── Open / Close
         function openModal() {
-            // reset fields
-            nameInput.value = '';
-            areaInput.value = '';
-            cemInput.value = '';
-            cemSugList.classList.remove('show');
+            // Only reset if we're not restoring state
+            const isRestoring = sessionStorage.getItem(relReturnKey(personId));
 
-            birthInput.value = deathInput.value = '';
-            display.textContent = 'Рік народження та смерті';
-            display.classList.remove('has-value');
-            clearYears.hidden = true;
+            if (!isRestoring) {
+                // reset fields
+                nameInput.value = '';
+                areaInput.value = '';
+                cemInput.value = '';
+                cemSugList.classList.remove('show');
+
+                birthInput.value = deathInput.value = '';
+                display.textContent = 'Рік народження та смерті';
+                display.classList.remove('has-value');
+                clearYears.hidden = true;
+
+                // Reset years state
+                selectedBirth = selectedDeath = undefined;
+                birthList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+                deathList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+
+                selected = [];
+                renderSelected(); // will also hide selectedCountRow when empty
+
+                foundList.innerHTML = '';
+                foundCountEl.textContent = '0';
+            }
 
             // Make sure years panel is closed when opening modal
             panel.classList.add('hidden');
@@ -2283,18 +2416,14 @@ document.addEventListener('DOMContentLoaded', () => {
             // hide Area clear initially
             if (areaClear) areaClear.style.display = 'none';
 
-            selected = [];
-            renderSelected(); // will also hide selectedCountRow when empty
-
-            foundList.innerHTML = '';
-            foundCountEl.textContent = '0';
-
             overlay.hidden = false;
-
-            // Do NOT fetch on open — wait for filters
         }
 
-        openers.forEach(el => el.addEventListener('click', (e) => { e.preventDefault(); openModal(); }));
+        openers.forEach(el => el.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal();
+        }));
+
         closeBtn.addEventListener('click', () => overlay.hidden = true);
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.hidden = true; });
 
@@ -2347,5 +2476,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // years → handled in yearsDone
         // area → on suggestion click
         // cemetery → on suggestion click
+
+        // ───────────────── Initialize - Try to restore state on page load
+        // Use a small delay to ensure all DOM elements are ready
+        setTimeout(() => {
+            restoreModalState();
+        }, 100);
+
     })();
 });

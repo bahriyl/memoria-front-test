@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title>Memoria — Профіль</title>
 
     <link rel="stylesheet" href="css/profile_edit.css">
@@ -22,7 +22,10 @@
 
             <button id="logout-btn" class="logout-btn">Вийти</button>
 
-            <img class="profile-avatar" src="" alt="Фото особи" />
+            <div class="profile-avatar-wrapper">
+                <img class="profile-avatar" src="" alt="Фото особи" />
+                <div class="avatar-spinner" id="avatar-spinner"></div>
+            </div>
         </header>
 
         <section class="profile-info">
@@ -30,21 +33,14 @@
             <p class="profile-years"></p>
             <p class="profile-cemetery"></p>
             <a id="location-btn" href="#" class="location-button">
-                <svg class="location-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"
+                <svg class="location-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 16" width="14" height="16"
                     fill="none">
-
-                    <!-- Outer pin outline -->
-                    <path d="M12 2
-       C8.13 2 5 5.13 5 9
-       c0 5.25 7 13 7 13
-       s7 -7.75 7 -13
-       c0 -3.87 -3.13 -7 -7 -7z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                        stroke-linejoin="round" />
-
-                    <!-- Inner circle -->
-                    <circle cx="12" cy="9" r="2.5" fill="currentColor" />
+                    <path
+                        d="M13 6.83333C13 10.8328 8.2 15 7 15C5.8 15 1 10.8328 1 6.83333C1 3.61167 3.68629 1 7 1C10.3137 1 13 3.61167 13 6.83333Z"
+                        stroke="white" stroke-width="1.6" />
+                    <circle cx="2" cy="2" r="2" transform="matrix(-1 0 0 1 9 5)" fill="white" stroke="white"
+                        stroke-width="0.8" />
                 </svg>
-
 
                 <span id="action-btn">Локація місця поховання</span>
             </a>
@@ -223,6 +219,15 @@
                 <!-- Relatives will be populated by JavaScript -->
             </div>
         </section>
+
+        <!-- Avatar popup -->
+        <div id="avatar-menu" class="bottom-popup" hidden>
+            <div class="bottom-popup-content">
+                <button id="avatar-add" class="popup-action">Додати фото профілю</button>
+                <button id="avatar-change" class="popup-action">Змінити фото профілю</button>
+                <button id="avatar-delete" class="popup-action">Видалити фото профілю</button>
+            </div>
+        </div>
 
     </main>
 

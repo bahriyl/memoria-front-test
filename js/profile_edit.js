@@ -100,6 +100,21 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshSharedUI();
     });
 
+    // Toast wiring
+    const toastEl = document.getElementById('toast');
+    const toastTextEl = document.getElementById('toast-text');
+    const toastCloseEl = document.getElementById('toast-close');
+    function showToast(msg) {
+        if (!toastEl || !toastTextEl) return;
+        toastTextEl.textContent = msg;
+        toastEl.hidden = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    toastCloseEl?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (toastEl) toastEl.hidden = true;
+    });
+
     // ─── Liturgy: custom donation (“Інше”) ───
     const donationOptions = document.querySelector('.donation-options');
     const overlayEl = document.getElementById('modal-overlay');         // already exists in your HTML
@@ -209,6 +224,133 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Comments
     const commentsListEl = document.querySelector('.comments-list');
+
+    const avatarMenu = document.getElementById('avatar-menu');
+    const avatarAddBtn = document.getElementById('avatar-add');
+    const avatarChangeBtn = document.getElementById('avatar-change');
+    const avatarDeleteBtn = document.getElementById('avatar-delete');
+    const avatarSpinner = document.getElementById('avatar-spinner');
+
+    function showAvatarSpinner() {
+        avatarSpinner?.classList.add('show');
+    }
+    function hideAvatarSpinner() {
+        avatarSpinner?.classList.remove('show');
+    }
+
+    // Відкрити меню
+    function openAvatarMenu() {
+        if (!avatarEl || !avatarMenu) return;
+
+        const hasAvatar = avatarEl.src && !avatarEl.src.includes('https://i.ibb.co/ycrfZ29f/Frame-542.png');
+
+        // показ кнопок за станом
+        avatarAddBtn.style.display = hasAvatar ? 'none' : '';
+        avatarChangeBtn.style.display = hasAvatar ? '' : 'none';
+        avatarDeleteBtn.style.display = hasAvatar ? '' : 'none';
+
+        avatarMenu.hidden = false;
+        document.body.classList.add('no-scroll');   // блокуємо скрол
+    }
+
+    // Закрити меню
+    function closeAvatarMenu() {
+        if (!avatarMenu) return;
+        avatarMenu.hidden = true;
+        document.body.classList.remove('no-scroll'); // повертаємо скрол
+    }
+
+    // Відкриття по кліку на аватар (як і було)
+    avatarEl?.addEventListener('click', () => {
+        openAvatarMenu();
+    });
+
+    // ❶ Закрити по кліку поза вмістом меню (по бекдропу)
+    avatarMenu?.addEventListener('click', (e) => {
+        if (!e.target.closest('.bottom-popup-content')) {
+            closeAvatarMenu();
+        }
+    });
+
+    // ❷ Закривати по Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !avatarMenu.hidden) {
+            closeAvatarMenu();
+        }
+    });
+
+    // Elements
+    const avatarInput = document.createElement('input');
+    avatarInput.type = 'file';
+    avatarInput.accept = 'image/*';
+    avatarInput.hidden = true;
+    document.body.appendChild(avatarInput);
+
+    async function uploadAvatarToImgBB(file) {
+        const form = new FormData();
+        form.append('image', file);
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+            method: 'POST',
+            body: form
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error('Upload failed');
+        return json.data.url;
+    }
+
+    async function updateAvatar(url) {
+        try {
+            const res = await fetch(`${API_BASE}/${personId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ avatarUrl: url })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const updated = await res.json();
+
+            avatarEl.src = updated.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png';
+            showToast('Фото профілю оновлено');
+        } catch (err) {
+            console.error('Update avatar failed', err);
+            alert('Не вдалося оновити фото профілю');
+        }
+    }
+
+    // Add new avatar
+    avatarAddBtn?.addEventListener('click', () => {
+        avatarInput.click();
+    });
+
+    avatarChangeBtn?.addEventListener('click', () => {
+        avatarInput.click();
+    });
+
+    // Upload handler
+    avatarInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        showAvatarSpinner();
+        try {
+            const hostedUrl = await uploadAvatarToImgBB(file);
+            await updateAvatar(hostedUrl);
+        } catch (err) {
+            alert('Не вдалося завантажити фото');
+        } finally {
+            avatarInput.value = ''; // reset
+            hideAvatarSpinner();
+            closeAvatarMenu();
+        }
+    });
+
+    // Delete avatar
+    avatarDeleteBtn?.addEventListener('click', async () => {
+        showAvatarSpinner();
+        // без confirm — одразу видаляємо
+        await updateAvatar(null); // send null to remove
+        hideAvatarSpinner();
+        closeAvatarMenu();
+    });
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Global click delegation for dots menus

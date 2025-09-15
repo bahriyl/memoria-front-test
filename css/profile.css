@@ -32,10 +32,10 @@ body {
 }
 
 .profile-avatar {
-    position: absolute;
-    bottom: -40px;
-    left: 23%;
-    transform: translateX(-50%);
+    position: static !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
     width: 149px;
     height: 149px;
     border: 3px solid #fff;
@@ -267,7 +267,6 @@ body {
 .photos-controls {
     display: flex;
     gap: 0.75rem;
-    margin-bottom: 0.75rem;
     align-items: center;
 }
 
@@ -288,7 +287,7 @@ body {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    margin-top: 20px;
+    margin-top: 10px;
 }
 
 /* Two-row, column-flow grid */
@@ -1491,7 +1490,7 @@ body {
 /* Success toast (copied from add_person) */
 .toast {
     position: absolute;
-    top: 0;
+    top: 16px;
     left: 16px;
     right: 16px;
     margin: 0;
@@ -1553,9 +1552,11 @@ body {
     font-weight: 460;
     font-family: 'Montserrat', sans-serif;
     color: #222222;
+    background: #EFF2F5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 16px center;
+    background-size: 20px 20px;
 }
 
-#relCemetery:required:valid {
+#relCemetery:not(:placeholder-shown) {
     background-image: none;
     color: #222;
 }
@@ -1674,7 +1675,7 @@ body {
     font-size: 10px;
     /* smaller */
     font-weight: 510;
-    color: #1C170D !important;
+    color: #797777 !important;
     cursor: pointer !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -1866,6 +1867,127 @@ body {
 @supports (padding: max(0px)) {
     #relativesModal .modal-submit-btn {
         bottom: max(48px, env(safe-area-inset-bottom));
+    }
+}
+
+.bottom-popup {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 2000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.bottom-popup[hidden] {
+    display: none;
+}
+
+.bottom-popup-content {
+    background: #fff;
+    padding: 12px 0;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.bottom-popup .bottom-popup-content {
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    padding: 8px 0;
+}
+
+body.no-scroll {
+    overflow: hidden;
+    touch-action: none;
+}
+
+.popup-action {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    padding-left: 28px;
+    text-align: left;
+    background: none;
+    border: none;
+    font-size: 16px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
+    color: #202124;
+    cursor: pointer;
+}
+
+.popup-action+.popup-action {
+    position: relative;
+}
+
+.popup-action+.popup-action::before {
+    content: "";
+    position: absolute;
+    left: 5%;
+    /* відступи зліва/справа — можна змінити */
+    right: 5%;
+    bottom: 0;
+    border-bottom: 0.5px solid rgba(220, 220, 220, 1);
+}
+
+/* останній елемент без лінії */
+.popup-action:last-child::before {
+    content: none;
+}
+
+.profile-avatar-wrapper {
+    position: absolute;
+    bottom: -40px;
+    left: 23%;
+    transform: translateX(-50%);
+    width: 149px;
+    height: 149px;
+}
+
+.profile-avatar-wrapper .profile-avatar {
+    width: 100%;
+    height: 100%;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #eee;
+    display: block;
+}
+
+.avatar-spinner {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    border: 3px solid #fff;
+}
+
+.avatar-spinner::after {
+    content: "";
+    width: 34px;
+    height: 34px;
+    border: 3px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: memoria-spin 0.9s linear infinite;
+}
+
+.avatar-spinner.show {
+    opacity: 1;
+}
+
+@keyframes memoria-spin {
+    to {
+        transform: rotate(360deg);
     }
 }
 
