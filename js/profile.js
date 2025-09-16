@@ -437,29 +437,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const has = Array.isArray(relatives) && relatives.length > 0;
 
-        // If no relatives: show add/choose, hide delete & dots
-        if (!has) {
-            addRelBtn && (addRelBtn.style.display = '');
+        // Якщо преміум заблокований – завжди ховаємо меню родичів
+        if (premiumLock) {
+            addRelBtn && (addRelBtn.style.display = 'none');
+            relMenuBtn && (relMenuBtn.style.display = 'none');
             chooseRelBtn && (chooseRelBtn.style.display = 'none');
             deleteRelBtn && (deleteRelBtn.style.display = 'none');
             cancelRelBtn && (cancelRelBtn.style.display = 'none');
             return;
         }
 
-        if (relSelecting) {
-            addRelBtn && (addRelBtn.style.display = 'none');
-            chooseRelBtn && (chooseRelBtn.style.display = 'none'); // hide old Choose
-            deleteRelBtn && (deleteRelBtn.style.display = 'inline-block');
-            cancelRelBtn && (cancelRelBtn.style.display = 'inline-block'); // NEW
+        // Якщо родичів немає
+        if (!has) {
+            addRelBtn && (addRelBtn.style.display = 'inline-flex');
+            relMenuBtn && (relMenuBtn.style.display = 'none');   // ← важливо
+            chooseRelBtn && (chooseRelBtn.style.display = 'none');
+            deleteRelBtn && (deleteRelBtn.style.display = 'none');
+            cancelRelBtn && (cancelRelBtn.style.display = 'none');
             return;
         }
 
-        // Normal (not selecting) → only dots
+        // Якщо активний режим вибору
+        if (relSelecting) {
+            addRelBtn && (addRelBtn.style.display = 'none');
+            relMenuBtn && (relMenuBtn.style.display = 'none');   // ← щоб не плутати
+            chooseRelBtn && (chooseRelBtn.style.display = 'none');
+            deleteRelBtn && (deleteRelBtn.style.display = 'inline-block');
+            cancelRelBtn && (cancelRelBtn.style.display = 'inline-block');
+            return;
+        }
+
+        // Звичайний режим → тільки меню
         addRelBtn && (addRelBtn.style.display = 'none');
+        relMenuBtn && (relMenuBtn.style.display = 'inline-flex');
         chooseRelBtn && (chooseRelBtn.style.display = 'none');
         deleteRelBtn && (deleteRelBtn.style.display = 'none');
         cancelRelBtn && (cancelRelBtn.style.display = 'none');
-        relMenuBtn && (relMenuBtn.style.display = 'inline-flex');
     }
 
     function updateRelDeleteButtonLabel() {
@@ -1372,7 +1385,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     bioMenuBtn && (bioMenuBtn.style.display = 'none');
                 } else {
                     bioAddBtn && (bioAddBtn.style.display = 'none');
-                    bioEditBtn && (bioEditBtn.style.display = 'inline-block');
+                    bioEditBtn && (bioEditBtn.style.display = 'none');
                     bioMenuBtn && (bioMenuBtn.style.display = 'inline-flex');
                 }
             }
@@ -1826,6 +1839,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     loadRelatives();
+    refreshRelativesUI();
+    setRelativesControlsVisibility();
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Relatives Add (modal) — та ж логіка, що на premium_qr_person

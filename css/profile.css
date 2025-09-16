@@ -570,11 +570,8 @@ body {
     content: none;
 }
 
-/* Hide old inline profile buttons we never use */
-#bio-edit,
-#add-relative-btn,
 #choose-relative-btn {
-    display: none !important;
+    display: none;
 }
 
 /* ─── Liturgy Section ─── */
@@ -738,9 +735,9 @@ body {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 8px;
     width: 100%;
-  }
-  
-  .donation-btn {
+}
+
+.donation-btn {
     background-color: #F2F4F7;
     color: #1C170D;
     border: none;
@@ -750,7 +747,7 @@ body {
     font-family: 'Montserrat', sans-serif;
     cursor: pointer;
     transition: all .2s;
-  
+
     display: flex;
     align-items: center;
     justify-content: center;
@@ -758,8 +755,8 @@ body {
     padding: 0 12px;
     width: 100%;
     box-sizing: border-box;
-  }
-  
+}
+
 
 .donation-btn.selected {
     background-color: #1B8B59;
@@ -1687,9 +1684,10 @@ body {
 .chev-icon {
     width: 16px;
     height: 16px;
-    stroke: #666666 !important; /* або currentColor */
+    stroke: #666666 !important;
+    /* або currentColor */
     vertical-align: middle;
-  }  
+}
 
 /* Use your existing suggestions-list look, just anchor + width */
 .rel-role-list {
