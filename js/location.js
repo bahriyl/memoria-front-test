@@ -129,6 +129,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateLandmarksMargin() {
+        const menuBtn = document.getElementById('landmarks-menu-btn');
+        const textEl = document.querySelector('.landmarks-text');
+        if (!menuBtn || !textEl) return;
+
+        const isHidden = menuBtn.style.display === 'none' ||
+            getComputedStyle(menuBtn).display === 'none';
+        textEl.classList.toggle('without-menu', isHidden);
+    }
 
     function showModal() {
         if (!overlayEl || !modalEl) return;
@@ -191,6 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
             locMenuBtn && (locMenuBtn.style.display = 'none'); locMenu?.classList.add('hidden');
             landmarksMenuBtn && (landmarksMenuBtn.style.display = 'none'); landmarksMenu?.classList.add('hidden');
             photoMenuBtn && (photoMenuBtn.style.display = 'none'); photoMenu?.classList.add('hidden');
+            updateLandmarksMargin();
         }
 
         // close any open menus
@@ -389,6 +399,10 @@ document.addEventListener('DOMContentLoaded', () => {
             landmarksDisplay.style.display = 'none';
         }
 
+        const hasText = prevLandmarksText.trim().length > 0;
+        if (landmarksMenuBtn) landmarksMenuBtn.style.display = hasText ? '' : 'none';
+        updateLandmarksMargin();
+
         isEditingLandmarks = false;   // <<< important
         // no changesMade here
         updateSubmitButtonVisibility?.();
@@ -410,6 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
         changesMade = true;
         maybeUpdateSubmit();
         if (landmarksMenuBtn) landmarksMenuBtn.style.display = currentLocation.landmarks.trim() ? '' : 'none';
+        updateLandmarksMargin();
 
         if (initialHasData) pushUpdate();
     });
@@ -474,6 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!initialHasData) {
                 // Creation flow: no location yet → no dots-menu, no confirm/cancel, show textarea directly
                 if (landmarksMenuBtn) landmarksMenuBtn.style.display = 'none';
+                updateLandmarksMargin();
                 if (landmarksMenu) landmarksMenu.classList.add('hidden');
 
                 if (landmarksDisplay) landmarksDisplay.style.display = 'none';
@@ -501,9 +517,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const hasLm = Boolean((currentLocation.landmarks || '').trim());
             if (!hasLm) {
                 if (landmarksMenuBtn) landmarksMenuBtn.style.display = 'none';
+                updateLandmarksMargin();
                 if (landmarksMenu) landmarksMenu.classList.add('hidden');
             } else {
                 if (landmarksMenuBtn) landmarksMenuBtn.style.display = '';
+                updateLandmarksMargin();
             }
 
             refreshPlaceholders();
@@ -524,6 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 changesMade = true;
 
                 if (landmarksMenuBtn) landmarksMenuBtn.style.display = 'none';
+                updateLandmarksMargin();
                 if (landmarksMenu) landmarksMenu.classList.add('hidden');
 
                 hideErrors();
@@ -747,13 +766,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             const latNum = parseFloat(lat);
                             const lngNum = parseFloat(lng);
-                            map.once('moveend', () => {
-                                map.easeTo({
-                                    center: [lngNum, latNum],
-                                    padding: 0,
-                                    duration: 0,
-                                });
-                            });
                         });
                 },
                 (err) => {
@@ -1001,7 +1013,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ===== SUBMIT =====
     if (btnSubmit)
-        btnSubmit.addEventListener('click', async() => {
+        btnSubmit.addEventListener('click', async () => {
             if (premiumLocked && !initialHasData) {
                 e.preventDefault();
                 showErrors('Щоб додати локацію, увійдіть у профіль.');

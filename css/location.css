@@ -284,6 +284,10 @@ textarea:focus {
     padding: 0;
 }
 
+.landmarks-text.without-menu {
+    margin-top: 10px;
+}
+
 .map-container {
     border-radius: 4px;
     overflow: hidden;

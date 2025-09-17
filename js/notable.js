@@ -43,24 +43,25 @@ function initPhotoSlider() {
             const people = Array.isArray(json.people) ? json.people : [];
             if (!people.length) return;
 
-            const notablePeople = people.filter(p => p.id && p.notable);
+            const notablePeople = people.filter(p => p.id && p.notable && p.avatarUrl);
 
             // Якщо таких менше ніж 1, нічого не показуємо
             if (!notablePeople.length) return;
 
             // 2) Перемішуємо й беремо перших 6
             const randomSix = notablePeople
-                .filter(p => p.id)                      // на всякий випадок лишаємо тих, в кого є id
                 .sort(() => 0.5 - Math.random())
                 .slice(0, 6);
 
             // 3) Рендеримо кожного
             randomSix.forEach(person => {
+                if (!person.avatarUrl) return; // перестраховка
+
                 const slide = document.createElement('div');
                 slide.className = 'photo-slide';
 
                 const img = document.createElement('img');
-                img.src = person.avatarUrl || 'img/default-avatar.png';
+                img.src = person.avatarUrl;
                 img.alt = person.name || '';
                 slide.append(img);
 

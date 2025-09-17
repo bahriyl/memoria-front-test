@@ -377,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
             foundLabel.hidden = false;
             foundList.innerHTML = toShow.map(p => `
   <li data-id="${p.id}">
-    <img src="${p.avatarUrl || '/img/default-avatar.png'}" alt="" />
+    <img src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="" />
     <div class="info">
       <div class="name">${p.name}</div>
       <div class="years">${p.birthYear} – ${p.deathYear}</div>
@@ -497,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // re-render the list
         selectedList.innerHTML = selectedPersons.map(p => `
   <li data-id="${p.id}">
-    <img src="${p.avatarUrl || '/img/default-avatar.png'}" alt="">
+    <img src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="">
     <div class="info">
       <div class="name">${p.name}</div>
       <div class="years">${p.birthYear} – ${p.deathYear}</div>

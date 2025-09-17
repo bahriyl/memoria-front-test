@@ -620,3 +620,15 @@ textarea {
 .done-btn:hover {
     background: #E0E2E5;
 }
+
+#foundList .plus-icon {
+    width: 13px;
+    height: 13px;
+    margin: 0 !important;
+}
+
+#selectedList .minus-icon {
+    width: 12px;
+    height: 12px;
+    margin: 0 !important;
+}

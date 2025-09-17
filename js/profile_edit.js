@@ -1689,7 +1689,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 serviceInfoEl.textContent =
                     `Божественна Літургія за упокій відбудеться у ${churchName}, ${selectedDate} р.`;
             } else {
-                serviceInfoEl.innerHTML = `Божественна Літургія за упокій відбудеться у <span style="font-weight:500;">Оберіть церкву</span>, ${selectedDate} р.`;
+                serviceInfoEl.innerHTML = `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву</span>, ${selectedDate} р.`;
             }
         }
     }
@@ -1712,13 +1712,74 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const liturgySubmitBtn = document.querySelector('.liturgy-submit');
-    liturgySubmitBtn?.addEventListener('click', () => {
-        const selectedDate = document.querySelector('.selected-date')?.textContent || '';
-        const selectedChurch = document.querySelector('.church-btn.selected')?.textContent || '';
-        const selectedDonation = document.querySelector('.donation-btn.selected')?.textContent || '';
+    liturgySubmitBtn?.addEventListener('click', async () => {
+        const btn = liturgySubmitBtn;
 
-        console.log('Liturgy request:', { personId, date: selectedDate, church: selectedChurch, donation: selectedDonation });
-        alert('Записка надіслана до церкви!');
+        // UI selections
+        const selectedDateText = document.querySelector('.selected-date')?.textContent?.trim() || '';
+        const selectedChurchEl = document.querySelector('.church-btn.selected');
+        const selectedDonationBtn = document.querySelector('.donation-btn.selected');
+
+        // Basic validation
+        if (!selectedDateText) return alert('Оберіть дату');
+        if (!selectedChurchEl) return alert('Оберіть церкву');
+        if (!selectedDonationBtn) return alert('Оберіть суму пожертви');
+        if (!personId) return alert('Не знайдено профіль (personId)');
+
+        // Parse date "DD.MM.YYYY" -> "YYYY-MM-DD" (or fallback)
+        let dateISO = '';
+        const m = selectedDateText.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+        if (m) {
+            const [, dd, mm, yyyy] = m;
+            dateISO = `${yyyy}-${mm}-${dd}`;
+        } else {
+            const d = new Date(selectedDateText);
+            if (!isNaN(d)) dateISO = d.toISOString().slice(0, 10);
+        }
+        if (!dateISO) return alert('Невірний формат дати');
+
+        // churchName
+        const churchName = selectedChurchEl.textContent.trim();
+
+        // price: prefer data-amount (для "Інше"), інакше парсимо з тексту ("200 грн")
+        let price = 0;
+        if (selectedDonationBtn.dataset.amount) {
+            price = parseInt(selectedDonationBtn.dataset.amount, 10) || 0;
+        } else {
+            price = parseInt((selectedDonationBtn.textContent || '').replace(/[^\d]/g, ''), 10) || 0;
+        }
+        if (price <= 0) return alert('Введіть коректну суму пожертви');
+
+        // Build payload for new endpoint
+        const payload = {
+            date: dateISO,                // server will store as serviceDate
+            churchName,                   // string
+            personId: personId, // object with current profile id & name
+            price,                        // number
+        };
+
+        // POST
+        btn.disabled = true;
+        try {
+            const res = await fetch(`${API_URL}/api/liturgies`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                const text = await res.text().catch(() => '');
+                throw new Error(text || `HTTP ${res.status}`);
+            }
+
+            try { showToast?.('Записку надіслано. Дякуємо за пожертву!'); } catch { }
+            // Optionally clear donation selection:
+            // document.querySelectorAll('.donation-btn')?.forEach(b => b.classList.remove('selected'));
+        } catch (e) {
+            console.error('Create liturgy failed:', e);
+            alert('Не вдалося надіслати записку. Спробуйте ще раз.');
+        } finally {
+            btn.disabled = false;
+        }
     });
 
     // ─────────────────────────────────────────────────────────────────────────────

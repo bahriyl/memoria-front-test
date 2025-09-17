@@ -329,12 +329,12 @@ document.addEventListener('DOMContentLoaded', () => {
             foundLabel.hidden = false;
             foundList.innerHTML = data.people.map(p => `
         <li data-id="${p.id}">
-          <img src="${p.avatarUrl || '/img/default-avatar.png'}" alt="">
+          <img src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="">
           <div class="info">
             <div class="name">${p.name}</div>
             <div class="years">${p.birthYear} - ${p.deathYear}</div>
           </div>
-          <button type="button" aria-label="Select">+</button>
+          <button type="button" aria-label="Select"><img src="/img/plus-icon.png" alt="Додати" class="plus-icon" width="24" height="24"></button>
         </li>
       `).join('');
             foundList.querySelectorAll('li button').forEach(btn => {
@@ -391,12 +391,12 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedPerson = p;
         selectedList.innerHTML = `
       <li data-id="${p.id}">
-        <img src="${p.avatarUrl || '/img/default-avatar.png'}" alt="">
+        <img src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="">
         <div class="info">
           <div class="name">${p.name}</div>
           <div class="years">${p.birthYear} - ${p.deathYear}</div>
         </div>
-        <button type="button" aria-label="Deselect">–</button>
+        <button type="button" aria-label="Deselect"><img src="/img/minus-icon.png" alt="Видалити" class="minus-icon" width="24" height="24"></button>
       </li>`;
         selectedList.querySelector('button').addEventListener('click', () => {
             selectedPerson = null;

@@ -619,6 +619,7 @@ body {
     overflow-x: auto;
     scroll-snap-type: x proximity;
     padding-bottom: 6px;
+    padding-top: 6px;
     white-space: nowrap;
 
     /* Hide scrollbar cross-browser */
@@ -715,7 +716,8 @@ body {
 
 .service-info {
     font-size: .875rem;
-    color: #666;
+    font-weight: 500;
+    color: #1C170D;
     line-height: 1.4;
 }
 
@@ -2007,4 +2009,47 @@ body.no-scroll {
     font-weight: 500;
     font-family: 'Montserrat', sans-serif;
     color: #222222;
+}
+
+.date-item {
+    position: relative;
+}
+
+.date-dot {
+    position: absolute;
+    right: -2px;
+    top: -2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #1a9c57;
+}
+
+/* green dot already exists if you added earlier */
+.liturgy-history {
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+.liturgy-history-title {
+    margin: 8px 0 10px;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.liturgy-history-list {
+    display: grid;
+    gap: 12px;
+    /* used above for scroll clamp calc */
+}
+
+/* Reuse .liturgy-details visuals; these tweaks make stacked cards breathe */
+.liturgy-history-item.liturgy-details {
+    margin-bottom: 0;
+}
+
+.liturgy-history-item .liturgy-meta {
+    margin-top: 6px;
+    font-size: 12px;
+    opacity: 0.7;
 }
