@@ -138,6 +138,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const donationCancel = document.getElementById('donation-cancel');
     const donationClose = document.getElementById('donation-close');
 
+    let liturgiesIndex = {}; // { 'YYYY-MM-DD': [ { _id, churchName, price, createdAt, serviceDate } ] }
+
+    function toISOFromParts(y, m, d) {
+        return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+
+    function toISOFromUA(ddmmyyyy) {
+        const m = (ddmmyyyy || '').trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+        if (!m) return '';
+        const [, dd, mm, yyyy] = m;
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function isPastISO(iso) {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const [y, m, d] = iso.split('-').map(Number);
+        const dt = new Date(y, m - 1, d);
+        dt.setHours(0, 0, 0, 0);
+        return dt < today;
+    }
+
+    function ensureLiturgyHistoryContainer() {
+        const host = document.querySelector('.profile-liturgy');
+        if (!host) return null;
+
+        let history = host.querySelector('.liturgy-history');
+        if (!history) {
+            history = document.createElement('div');
+            history.className = 'liturgy-history';
+            const details = host.querySelector('.liturgy-details');
+            if (details?.nextSibling) {
+                details.parentNode.insertBefore(history, details.nextSibling); // right after details
+            } else {
+                host.appendChild(history);
+            }
+        }
+        return history;
+    }
+
     // Mark the original "Інше" button as custom so we can always detect it
     const customDonationBtn = Array.from(donationOptions?.querySelectorAll('.donation-btn') || [])
         .find(btn => btn.textContent.trim() === 'Інше');
@@ -1651,7 +1690,172 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setTimeout(updateLiturgyDetails, 100);
     }
+
     generateDates();
+
+    (async () => {
+        await loadLiturgies();
+        markDatesWithLiturgies();
+
+        // Ensure initial selected (today) effects
+        const selectedDateText = document.querySelector('.selected-date')?.textContent || '';
+        const iso = toISOFromUA(selectedDateText);
+        if (iso) applyDateSelectionEffects(iso);
+    })();
+
+    // Extend existing date-item click handler:
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.date-item')) {
+            const clickedItem = e.target.closest('.date-item');
+            const selectedDateEl = document.querySelector('.selected-date');
+            document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
+            clickedItem.classList.add('selected');
+
+            const day = parseInt(clickedItem.dataset.day, 10);
+            const month = parseInt(clickedItem.dataset.month, 10);
+            const year = parseInt(clickedItem.dataset.year, 10);
+
+            const formattedDate = `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
+            if (selectedDateEl) selectedDateEl.textContent = formattedDate;
+            updateLiturgyDetails();
+
+            // NEW: effects & history
+            const iso = toISOFromParts(year, month, day);
+            applyDateSelectionEffects(iso);
+        }
+    });
+
+    async function loadLiturgies() {
+        try {
+            const res = await fetch(`${API_URL}/api/people/${encodeURIComponent(personId)}/liturgies`);
+            if (!res.ok) throw new Error(await res.text());
+            const list = await res.json(); // [{_id, person, serviceDate, churchName, price, createdAt}, ...]
+            liturgiesIndex = {};
+            list.forEach(it => {
+                const iso = (it.serviceDate || '').slice(0, 10);
+                if (!iso) return;
+                (liturgiesIndex[iso] ||= []).push(it);
+            });
+        } catch (e) {
+            console.error('Failed to load liturgies', e);
+        }
+    }
+
+    function markDatesWithLiturgies() {
+        const dateCalendar = document.querySelector('.date-calendar');
+        if (!dateCalendar) return;
+        dateCalendar.querySelectorAll('.date-item').forEach(it => {
+            it.querySelector('.date-dot')?.remove();
+            const iso = toISOFromParts(Number(it.dataset.year), Number(it.dataset.month), Number(it.dataset.day));
+            if (liturgiesIndex[iso]?.length) {
+                const dot = document.createElement('span');
+                dot.className = 'date-dot'; // small green dot
+                it.appendChild(dot);
+            }
+        });
+    }
+
+    function renderLiturgyHistoryForISO(iso) {
+        const history = ensureLiturgyHistoryContainer();
+        if (!history) return;
+
+        const items = (liturgiesIndex[iso] || [])
+            .slice()
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        history.innerHTML = '';
+
+        const past = isPastISO(iso); // чи дата у минулому
+        const phrase = past
+            ? 'Божественна Літургія за упокій відбулась'
+            : 'Божественна Літургія за упокій відбудеться';
+        const titleText = past ? 'Історія' : 'Записки';
+
+        // Якщо майбутня дата і немає записок → взагалі не показуємо div
+        if (!past && items.length === 0) {
+            history.remove();
+            return;
+        }
+
+        // Header
+        const title = document.createElement('h3');
+        title.className = 'liturgy-history-title';
+        title.textContent = titleText;
+        history.appendChild(title);
+
+        // Empty state (для минулого показуємо «Немає історії»)
+        if (!items.length) {
+            const empty = document.createElement('div');
+            empty.className = 'comments-empty';
+            empty.textContent = 'Немає історії';
+            history.appendChild(empty);
+            return;
+        }
+
+        // List container (scrollable; макс. 2 картки)
+        const list = document.createElement('div');
+        list.className = 'liturgy-history-list';
+        history.appendChild(list);
+
+        // Ім'я поточного профілю
+        const currentPersonName =
+            document.querySelector('.profile-name')?.textContent?.trim() ||
+            document.querySelector('.person-name')?.textContent?.trim() ||
+            '';
+
+        // Рендеримо картки
+        items.forEach((it) => {
+            const d = new Date(it.serviceDate);
+            const dateUa = d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            const card = document.createElement('div');
+            card.className = 'liturgy-details liturgy-history-item';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'person-name';
+            nameDiv.textContent = currentPersonName;
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'service-info';
+            infoDiv.textContent = `${phrase} у ${it.churchName || 'Церква'}, ${dateUa} р.`;
+
+            card.append(nameDiv, infoDiv);
+            list.appendChild(card);
+        });
+
+        // Обмеження на 2 картки
+        requestAnimationFrame(() => {
+            const cards = list.querySelectorAll('.liturgy-history-item');
+            list.style.maxHeight = '';
+            list.style.overflowY = '';
+
+            if (cards.length <= 2) return;
+
+            const first = cards[0];
+            const second = cards[1];
+            const clampPx = Math.ceil(second.getBoundingClientRect().bottom - first.getBoundingClientRect().top);
+            const gap = parseFloat(getComputedStyle(list).rowGap || getComputedStyle(list).gap || '0');
+            const maxH = clampPx + gap;
+
+            list.style.maxHeight = `${maxH}px`;
+            list.style.overflowY = 'auto';
+        });
+    }
+
+    function applyDateSelectionEffects(iso) {
+        const submitBtn = document.querySelector('.liturgy-submit');
+        const detailsEl = document.querySelector('.liturgy-details, .service-info') || document.querySelector('.service-info');
+        const liturgyChurchEl = document.querySelector('.liturgy-church');
+        const liturgyDonationEl = document.querySelector('.liturgy-donation');
+
+        const isPast = isPastISO(iso);
+        if (submitBtn) submitBtn.style.display = isPast ? 'none' : '';
+        if (detailsEl) detailsEl.style.display = isPast ? 'none' : '';
+        if (liturgyDonationEl) liturgyDonationEl.style.display = isPast ? 'none' : '';
+        if (liturgyChurchEl) liturgyChurchEl.style.display = isPast ? 'none' : '';
+
+        renderLiturgyHistoryForISO(iso);
+    }
 
     document.addEventListener('click', (e) => {
         if (e.target.closest('.date-item')) {
@@ -1711,76 +1915,75 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    const liturgySubmitBtn = document.querySelector('.liturgy-submit');
-    liturgySubmitBtn?.addEventListener('click', async () => {
-        const btn = liturgySubmitBtn;
+    function onLiturgySubmit(e) {
+        e.preventDefault();
+        const btn = e.currentTarget || document.querySelector('.liturgy-submit');
 
-        // UI selections
-        const selectedDateText = document.querySelector('.selected-date')?.textContent?.trim() || '';
-        const selectedChurchEl = document.querySelector('.church-btn.selected');
-        const selectedDonationBtn = document.querySelector('.donation-btn.selected');
+        // Double-click / re-entrancy guard
+        if (btn?.dataset.busy === '1') return;
+        if (btn) { btn.dataset.busy = '1'; btn.disabled = true; }
 
-        // Basic validation
-        if (!selectedDateText) return alert('Оберіть дату');
-        if (!selectedChurchEl) return alert('Оберіть церкву');
-        if (!selectedDonationBtn) return alert('Оберіть суму пожертви');
-        if (!personId) return alert('Не знайдено профіль (personId)');
+        (async () => {
+            try {
+                const selectedDateText = document.querySelector('.selected-date')?.textContent?.trim() || '';
+                const selectedChurchEl = document.querySelector('.church-btn.selected');
+                const selectedDonationBtn = document.querySelector('.donation-btn.selected');
 
-        // Parse date "DD.MM.YYYY" -> "YYYY-MM-DD" (or fallback)
-        let dateISO = '';
-        const m = selectedDateText.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-        if (m) {
-            const [, dd, mm, yyyy] = m;
-            dateISO = `${yyyy}-${mm}-${dd}`;
-        } else {
-            const d = new Date(selectedDateText);
-            if (!isNaN(d)) dateISO = d.toISOString().slice(0, 10);
-        }
-        if (!dateISO) return alert('Невірний формат дати');
+                if (!selectedDateText) return alert('Оберіть дату');
+                if (!selectedChurchEl) return alert('Оберіть церкву');
+                if (!selectedDonationBtn) return alert('Оберіть суму пожертви');
+                if (!personId) return alert('Не знайдено профіль (personId)');
 
-        // churchName
-        const churchName = selectedChurchEl.textContent.trim();
+                const dateISO = toISOFromUA(selectedDateText);
+                if (!dateISO) return alert('Невірний формат дати');
 
-        // price: prefer data-amount (для "Інше"), інакше парсимо з тексту ("200 грн")
-        let price = 0;
-        if (selectedDonationBtn.dataset.amount) {
-            price = parseInt(selectedDonationBtn.dataset.amount, 10) || 0;
-        } else {
-            price = parseInt((selectedDonationBtn.textContent || '').replace(/[^\d]/g, ''), 10) || 0;
-        }
-        if (price <= 0) return alert('Введіть коректну суму пожертви');
+                const churchName = selectedChurchEl.textContent.trim();
 
-        // Build payload for new endpoint
-        const payload = {
-            date: dateISO,                // server will store as serviceDate
-            churchName,                   // string
-            personId: personId, // object with current profile id & name
-            price,                        // number
-        };
+                let price = 0;
+                if (selectedDonationBtn.dataset.amount) {
+                    price = parseInt(selectedDonationBtn.dataset.amount, 10) || 0;
+                } else {
+                    price = parseInt((selectedDonationBtn.textContent || '').replace(/[^\d]/g, ''), 10) || 0;
+                }
+                if (price <= 0) return alert('Введіть коректну суму пожертви');
 
-        // POST
-        btn.disabled = true;
-        try {
-            const res = await fetch(`${API_URL}/api/liturgies`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            if (!res.ok) {
-                const text = await res.text().catch(() => '');
-                throw new Error(text || `HTTP ${res.status}`);
+                const payload = { date: dateISO, churchName, personId, price };
+
+                const res = await fetch(`${API_URL}/api/liturgies`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                if (!res.ok) {
+                    const text = await res.text().catch(() => '');
+                    throw new Error(text || `HTTP ${res.status}`);
+                }
+
+                try { showToast?.('Записку надіслано. Дякуємо за пожертву!'); } catch { }
+
+                // Refresh calendar dots & history for the currently selected day
+                await loadLiturgies();
+                markDatesWithLiturgies();
+                const currentSelectedText = document.querySelector('.selected-date')?.textContent || '';
+                const iso = toISOFromUA(currentSelectedText);
+                if (iso) applyDateSelectionEffects(iso);
+
+                // (Optional) clear donation selection
+                // document.querySelectorAll('.donation-btn')?.forEach(b => b.classList.remove('selected'));
+            } catch (err) {
+                console.error('Create liturgy failed:', err);
+                alert('Не вдалося надіслати записку. Спробуйте ще раз.');
+            } finally {
+                if (btn) { btn.disabled = false; delete btn.dataset.busy; }
             }
+        })();
+    }
 
-            try { showToast?.('Записку надіслано. Дякуємо за пожертву!'); } catch { }
-            // Optionally clear donation selection:
-            // document.querySelectorAll('.donation-btn')?.forEach(b => b.classList.remove('selected'));
-        } catch (e) {
-            console.error('Create liturgy failed:', e);
-            alert('Не вдалося надіслати записку. Спробуйте ще раз.');
-        } finally {
-            btn.disabled = false;
-        }
-    });
+    const liturgySubmitBtn = document.querySelector('.liturgy-submit');
+    if (liturgySubmitBtn && !liturgySubmitBtn.dataset.bound) {
+        liturgySubmitBtn.dataset.bound = '1';
+        liturgySubmitBtn.addEventListener('click', onLiturgySubmit);
+    }
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Comments (sample), Relatives (sample) – unchanged
