@@ -681,7 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
             trackUserLocation: true,
             showUserHeading: true
         });
-        map.addControl(geolocate);
+        let geolocateAdded = false;
 
         let ro = null;
         let onWinResize = null;
@@ -690,7 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const latNum = parseFloat(lat);
             const lngNum = parseFloat(lng);
 
-            new mapboxgl.Marker({ color: '#d00', anchor: 'bottom' })
+            new mapboxgl.Marker({ color: '#a80000', anchor: 'bottom' })
                 .setLngLat([lngNum, latNum])
                 .addTo(map);
 
@@ -727,8 +727,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            geolocate.trigger();
-
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     const origin = [pos.coords.longitude, pos.coords.latitude];
@@ -741,31 +739,49 @@ document.addEventListener('DOMContentLoaded', () => {
                     )
                         .then((r) => r.json())
                         .then((data) => {
-                            const route = data.routes[0].geometry;
+                            const route = data.routes?.[0]?.geometry;
+                            if (!route) return;
+
+                            if (!geolocateAdded) {
+                                map.addControl(geolocate, 'top-right'); // now the button appears
+                                geolocateAdded = true;
+                            }
+
+                            // remove previous route if it exists
+                            if (map.getLayer('route')) map.removeLayer('route');
+                            if (map.getSource('route')) map.removeSource('route');
+
                             map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: route } });
                             map.addLayer({
                                 id: 'route',
                                 type: 'line',
                                 source: 'route',
                                 layout: { 'line-join': 'round', 'line-cap': 'round' },
-                                paint: { 'line-color': '#12794f', 'line-width': 6 },
+                                paint: { 'line-color': '#019CE9', 'line-width': 6 },
                             });
+
+                            // show the whole route first
                             const bounds = new mapboxgl.LngLatBounds();
                             route.coordinates.forEach((c) => bounds.extend(c));
-                            map.fitBounds(bounds, { padding: 40 });
+                            map.fitBounds(bounds, { padding: 40, duration: 1000 });
+
+                            // then zoom in to my location when fit is done
+                            map.once('moveend', () => {
+                                // origin was computed above from geolocation:
+                                // const origin = [pos.coords.longitude, pos.coords.latitude];
+                                map.easeTo({
+                                    center: origin,
+                                    zoom: 16.5,          // tweak if you want closer/further
+                                    duration: 1200
+                                });
+
+                                geolocate.trigger();
+                            });
+
+                            // hide the button and stop padding observers, as you already do
                             routeBtn.style.display = 'none';
-
-                            if (ro) {
-                                ro.disconnect();
-                                ro = null;
-                            }
-                            if (onWinResize) {
-                                window.removeEventListener('resize', onWinResize);
-                                onWinResize = null;
-                            }
-
-                            const latNum = parseFloat(lat);
-                            const lngNum = parseFloat(lng);
+                            if (ro) { ro.disconnect(); ro = null; }
+                            if (onWinResize) { window.removeEventListener('resize', onWinResize); onWinResize = null; }
                         });
                 },
                 (err) => {

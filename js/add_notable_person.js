@@ -537,4 +537,83 @@ document.addEventListener('DOMContentLoaded', () => {
         clearActivityBtn.style.display = 'none';
     });
 
+    // ——— ActivityArea: custom suggestions-style dropdown ———
+    (function initActivityAreaDropdown() {
+        const select = document.getElementById('activityArea');
+        const clearBtn = document.getElementById('clear-activity');
+        if (!select || !clearBtn) return;
+
+        const pill = select.closest('.year-pill') || select.parentElement;
+        const display = document.createElement('input');
+        display.classList.add('input-with-chevron');
+        display.type = 'text';
+        display.id = 'activityDisplay';
+        display.placeholder = select.options[0]?.text || 'Сфера діяльності';
+        display.readOnly = true;
+
+        pill.insertBefore(display, select);
+        select.style.display = 'none';
+
+        const list = document.createElement('ul');
+        list.className = 'suggestions-list';
+        list.id = 'activity-suggestions';
+        pill.appendChild(list);
+
+        function populate() {
+            const items = [];
+            for (let i = 0; i < select.options.length; i++) {
+                const opt = select.options[i];
+                if (!opt.value) continue;
+                items.push(`<li data-value="${opt.value}">${opt.text}</li>`);
+            }
+            list.innerHTML = items.join('') || `<li class="no-results">Немає опцій</li>`;
+        }
+
+        function openList() { populate(); list.style.display = 'block'; }
+        function closeList() { list.style.display = 'none'; }
+
+        display.addEventListener('click', (e) => {
+            e.stopPropagation();
+            (list.style.display === 'block') ? closeList() : openList();
+        });
+
+        list.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (!li || li.classList.contains('no-results')) return;
+
+            const val = li.getAttribute('data-value');
+            const txt = li.textContent;
+
+            select.value = val;
+            display.value = txt;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+
+            clearBtn.style.display = 'flex';
+            closeList();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!pill.contains(e.target)) closeList();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeList();
+        });
+
+        select.addEventListener('change', () => {
+            const opt = select.options[select.selectedIndex];
+            if (opt && opt.value) {
+                display.value = opt.text;
+                clearBtn.style.display = 'flex';
+            } else {
+                display.value = '';
+                display.placeholder = select.options[0]?.text || 'Сфера діяльності';
+                clearBtn.style.display = 'none';
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            select.selectedIndex = 0;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    })();
 });

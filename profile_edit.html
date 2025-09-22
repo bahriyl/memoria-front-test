@@ -233,6 +233,30 @@
             </div>
         </div>
 
+        <!-- Avatar cropper -->
+        <div id="avatar-cropper-overlay" class="avatar-cropper-overlay" hidden></div>
+        <div id="avatar-cropper" class="avatar-cropper" hidden role="dialog" aria-modal="true"
+            aria-labelledby="avatar-cropper-title">
+            <div class="avatar-cropper-header">
+                <h3 id="avatar-cropper-title">Розмістіть фото</h3>
+                <p class="avatar-cropper-subtitle">Пересуньте та змініть масштаб так, щоб обличчя було всередині кола
+                </p>
+            </div>
+
+            <div class="avatar-cropper-stage" id="avatar-cropper-stage">
+                <img id="avatar-cropper-img" alt="">
+                <!-- circular mask on top -->
+                <div class="avatar-cropper-mask"></div>
+            </div>
+
+            <div class="avatar-cropper-controls">
+                <div class="avatar-cropper-buttons">
+                    <button id="avatar-cropper-cancel" type="button" class="btn">Скасувати</button>
+                    <button id="avatar-cropper-ok" type="button" class="btn primary">Зберегти</button>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- Confirm Delete Photos (profile) -->

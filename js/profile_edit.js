@@ -362,7 +362,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const updated = await res.json();
 
             avatarEl.src = updated.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png';
-            showToast('Фото профілю оновлено');
         } catch (err) {
             console.error('Update avatar failed', err);
             alert('Не вдалося оновити фото профілю');
@@ -378,6 +377,239 @@ document.addEventListener('DOMContentLoaded', () => {
         avatarInput.click();
     });
 
+    function openAvatarCropper(file) {
+        return new Promise((resolve, reject) => {
+            const overlay = document.getElementById('avatar-cropper-overlay');
+            const modal = document.getElementById('avatar-cropper');
+            const stage = document.getElementById('avatar-cropper-stage');
+            const img = document.getElementById('avatar-cropper-img');
+            const btnOk = document.getElementById('avatar-cropper-ok');
+            const btnCancel = document.getElementById('avatar-cropper-cancel');
+
+            if (!overlay || !modal || !stage || !img || !btnOk || !btnCancel) {
+                resolve(file);
+                return;
+            }
+
+            // helper: wait until stage has a non-zero width (modal is visible & laid out)
+            const waitForStageSize = () => new Promise((r) => {
+                const tick = () => {
+                    const w = stage.getBoundingClientRect().width || stage.clientWidth;
+                    if (w && w > 0) r(w); else requestAnimationFrame(tick);
+                };
+                requestAnimationFrame(tick);
+            });
+
+            // cleanup to avoid stacked listeners
+            const cleanup = () => {
+                stage.onpointerdown = null;
+                stage.onpointermove = null;
+                stage.onpointerup = null;
+                stage.onpointercancel = null;
+                stage.onwheel = null;
+                stage.ontouchmove = null;
+                btnOk.onclick = null;
+                btnCancel.onclick = null;
+            };
+
+            const reader = new FileReader();
+            reader.onload = async () => {
+                img.src = reader.result;
+
+                img.onload = async () => {
+                    if (!img.naturalWidth || !img.naturalHeight) {
+                        cleanup();
+                        reject(new Error('Image decode failed'));
+                        return;
+                    }
+
+                    // 1) show modal FIRST, then measure
+                    overlay.hidden = false;
+                    modal.hidden = false;
+
+                    // 2) wait for stage to have size
+                    const S = await waitForStageSize();            // square stage (px)
+                    const circlePx = S * 0.68;                     // circle diameter in stage px
+
+                    // min scale so image covers the circle
+                    const imgRatio = img.naturalWidth / img.naturalHeight;
+                    const minScale = (imgRatio >= 1)
+                        ? (circlePx / img.naturalHeight)
+                        : (circlePx / img.naturalWidth);
+
+                    let scale = minScale;          // fixed lower bound
+                    const maxScale = minScale * 3; // or 2.5 if you prefer
+                    let dx = 0, dy = 0;            // pan (in stage px)
+
+                    const apply = () => {
+                        img.style.transform =
+                            `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${scale})`;
+                    };
+                    img.style.left = '50%';
+                    img.style.top = '50%';
+                    img.style.transformOrigin = 'center center';
+                    apply();
+
+                    /* ---------- Pan (1 finger / mouse) ---------- */
+                    let dragging = false, lastX = 0, lastY = 0, pinchActive = false;
+
+                    stage.onpointerdown = (e) => {
+                        // ignore pan if pinch is active
+                        if (pinchActive) return;
+                        dragging = true; lastX = e.clientX; lastY = e.clientY;
+                        stage.setPointerCapture?.(e.pointerId);
+                    };
+                    stage.onpointermove = (e) => {
+                        if (!dragging || pinchActive) return;
+                        dx += (e.clientX - lastX);
+                        dy += (e.clientY - lastY);
+                        lastX = e.clientX; lastY = e.clientY;
+                        apply();
+                    };
+                    stage.onpointerup = () => { dragging = false; };
+                    stage.onpointercancel = () => { dragging = false; };
+
+                    /* ---------- Pinch-to-zoom (2 fingers) ---------- */
+                    let startDist = 0;
+                    let startScale = scale;
+
+                    // helper: distance & midpoint between two touches
+                    function touchMetrics(t1, t2) {
+                        const dx = t2.clientX - t1.clientX;
+                        const dy = t2.clientY - t1.clientY;
+                        const dist = Math.hypot(dx, dy);
+                        const midX = (t1.clientX + t2.clientX) / 2;
+                        const midY = (t1.clientY + t2.clientY) / 2;
+                        return { dist, midX, midY };
+                    }
+
+                    stage.addEventListener('touchstart', (e) => {
+                        if (e.touches.length === 2) {
+                            pinchActive = true; dragging = false; // disable pan during pinch
+                            const { dist } = touchMetrics(e.touches[0], e.touches[1]);
+                            startDist = Math.max(dist, 1); // avoid 0
+                            startScale = scale;
+                        }
+                    }, { passive: true });
+
+                    stage.addEventListener('touchmove', (e) => {
+                        if (e.touches.length === 2) {
+                            e.preventDefault(); // stop page zoom/scroll
+                            const { dist, midX, midY } = touchMetrics(e.touches[0], e.touches[1]);
+                            const factor = Math.max(dist, 1) / startDist;
+
+                            // new scale clamped
+                            const prevScale = scale;
+                            const newScale = Math.min(maxScale, Math.max(minScale, startScale * factor));
+                            if (newScale === prevScale) return;
+
+                            // focal-point zoom (keep midpoint content under fingers)
+                            const cx = S / 2, cy = S / 2;           // stage center
+                            const fx = midX - stage.getBoundingClientRect().left;
+                            const fy = midY - stage.getBoundingClientRect().top;
+                            const k = newScale / prevScale;
+
+                            // adjust pan so that focal point stays stable while scaling
+                            dx = fx - k * (fx - dx);
+                            dy = fy - k * (fy - dy);
+
+                            scale = newScale;
+                            apply();
+                        }
+                    }, { passive: false });
+
+                    stage.addEventListener('touchend', (e) => {
+                        if (e.touches.length < 2) {
+                            // pinch finished
+                            pinchActive = false;
+                        }
+                    }, { passive: true });
+
+                    stage.addEventListener('touchcancel', () => { pinchActive = false; }, { passive: true });
+
+                    /* ---------- (Optional) wheel/trackpad zoom on desktop ---------- */
+                    stage.onwheel = (e) => {
+                        // allow pinch-to-zoom on trackpads; block page scroll here
+                        if (!e.ctrlKey && Math.abs(e.deltaY) < 1) return; // ignore tiny moves
+                        e.preventDefault();
+
+                        const rect = stage.getBoundingClientRect();
+                        const fx = e.clientX - rect.left;
+                        const fy = e.clientY - rect.top;
+
+                        const prevScale = scale;
+                        // tune 0.0015 for sensitivity; negative deltaY => zoom in
+                        const kStep = Math.exp(-e.deltaY * 0.0015);
+                        const newScale = Math.min(maxScale, Math.max(minScale, prevScale * kStep));
+                        if (newScale === prevScale) return;
+
+                        const k = newScale / prevScale;
+                        dx = fx - k * (fx - dx);
+                        dy = fy - k * (fy - dy);
+
+                        scale = newScale;
+                        apply();
+                    };
+
+                    btnCancel.onclick = () => {
+                        overlay.hidden = true;
+                        modal.hidden = true;
+                        cleanup();
+                        reject(new Error('cancelled'));
+                    };
+
+                    btnOk.onclick = () => {
+                        try {
+                            const outSize = 600; // export square
+                            const canvas = document.createElement('canvas');
+                            canvas.width = outSize; canvas.height = outSize;
+                            const ctx = canvas.getContext('2d');
+
+                            // re-measure in case layout changed
+                            const Sw = stage.getBoundingClientRect().width || S;
+                            const circleStage = Sw * 0.68;
+                            const k = outSize / circleStage;
+
+                            ctx.clearRect(0, 0, outSize, outSize);
+                            ctx.fillStyle = '#fff';
+                            ctx.fillRect(0, 0, outSize, outSize);
+
+                            // circular clip (so the exported square matches round frame)
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(outSize / 2, outSize / 2, outSize / 2, 0, Math.PI * 2);
+                            ctx.clip();
+
+                            // draw using the same transform you see on screen
+                            ctx.translate(outSize / 2 + dx * k, outSize / 2 + dy * k);
+                            ctx.scale(scale * k, scale * k);
+                            ctx.imageSmoothingEnabled = true;
+                            ctx.imageSmoothingQuality = 'high';
+                            ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+                            ctx.restore();
+
+                            canvas.toBlob((blob) => {
+                                overlay.hidden = true;
+                                modal.hidden = true;
+                                cleanup();
+                                if (!blob) {
+                                    reject(new Error('blob failed'));
+                                    return;
+                                }
+                                resolve(blob);
+                            }, 'image/png', 0.92);
+                        } catch (e) {
+                            cleanup();
+                            reject(e);
+                        }
+                    };
+                };
+            };
+            reader.onerror = (err) => reject(err);
+            reader.readAsDataURL(file);
+        });
+    }
+
     // Upload handler
     avatarInput.addEventListener('change', async (e) => {
         const file = e.target.files?.[0];
@@ -385,14 +617,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showAvatarSpinner();
         try {
-            const hostedUrl = await uploadAvatarToImgBB(file);
+            // 1) Let user crop related to the circle
+            const croppedBlob = await openAvatarCropper(file); // may throw if cancelled
+
+            // 2) Upload the CROPPED blob (not the original)
+            const hostedUrl = await uploadAvatarToImgBB(croppedBlob);
             await updateAvatar(hostedUrl);
+            location.reload();
         } catch (err) {
-            alert('Не вдалося завантажити фото');
+            // cancelled or failed
+            // optional: showToast('Зміни скасовано'); 
         } finally {
             avatarInput.value = ''; // reset
             hideAvatarSpinner();
-            closeAvatarMenu();
+            // Keep menu behavior as you have it now:
+            // profile_edit: menu closes in finally; profile: same
         }
     });
 
@@ -1066,6 +1305,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     let step = 0; const total = previews.length;
                     const open = () => { overlay.hidden = false; dlg.hidden = false; };
                     const close = () => { overlay.hidden = true; dlg.hidden = true; };
+                    overlay.addEventListener('click', () => close());
+
+                    let confirmed = false;
 
                     function renderStep() {
                         previewEl.src = previews[step];
@@ -1078,7 +1320,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     closeX.onclick = () => { commitCurrent(); close(); };
                     prevBtn.onclick = () => { commitCurrent(); step = Math.max(0, step - 1); renderStep(); };
-                    nextBtn.onclick = () => { commitCurrent(); if (step < total - 1) { step++; renderStep(); } else close(); };
+                    nextBtn.onclick = () => { commitCurrent(); if (step < total - 1) { step++; renderStep(); } else { confirmed = true; close(); } };
 
                     open(); renderStep();
 
@@ -1086,6 +1328,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     await new Promise((resolve) => {
                         const iv = setInterval(() => { if (dlg.hidden) { clearInterval(iv); resolve(); } }, 60);
                     });
+
+                    if (!confirmed) {
+                        // rollback temp blobs added before opening the modal
+                        for (let i = previews.length - 1; i >= 0; i--) {
+                            photos.splice(startIndex + i, 1);
+
+                        }
+                        refreshPhotosUI();
+                        fileInput.value = '';
+                        return; // abort: nothing gets uploaded
+                    }
 
                     // 1) Асинхронно вантажимо на ImgBB та замінюємо blob → hosted URL
                     async function uploadToImgBB(file) {
