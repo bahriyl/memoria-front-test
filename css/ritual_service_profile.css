@@ -197,6 +197,19 @@ body {
   flex-shrink: 0;
 }
 
+/* Hide scrollbar in ritual item images */
+.ritual-item-section .item-images {
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and old Edge */
+}
+
+.ritual-item-section .item-images::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari, Opera */
+}
+
 .photos-empty {
   display: flex;
   align-items: center;
@@ -255,7 +268,7 @@ body {
   background: none;
   border: 0;
   color: #fff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 510;
   font-family: "Montserrat", sans-serif;
   cursor: pointer;
@@ -404,11 +417,9 @@ body {
   right: 0;
   bottom: 0;
   padding: 12px 14px 16px;
-  background: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.55) 100%
-  );
+  background: linear-gradient(180deg,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.55) 100%);
   color: #fff;
   font-size: 14px;
   line-height: 1.45;

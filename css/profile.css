@@ -215,6 +215,7 @@ body {
     border-radius: 7px;
     padding: 10px 15px;
     font-size: 15px;
+    font-family: 'Montserrat', sans-serif;
     line-height: 24px;
     color: #1C170D;
     min-height: 150px;
@@ -223,7 +224,7 @@ body {
 }
 
 #bio-editor:focus {
-    box-shadow: inset 0 0 0 2px #A5B4FC;
+    box-shadow: none !important;
 }
 
 #bio-editor::placeholder {
@@ -283,12 +284,22 @@ body {
     background-color: #C82333;
 }
 
-/* Horizontal scroll wrapper */
 .photos-scroll {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     margin-top: 10px;
+
+    /* hide scrollbar across browsers */
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and old Edge */
+}
+
+.photos-scroll::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari, Opera */
 }
 
 /* Two-row, column-flow grid */
@@ -374,7 +385,7 @@ body {
 }
 
 .profile-photos.selection-mode .photos-list li.selected {
-    opacity: 0.7;
+    opacity: 1;
     transition: opacity .2s;
 }
 
@@ -384,6 +395,21 @@ body {
 
 .profile-photos.selection-mode #delete-photo-btn {
     display: inline-block !important;
+}
+
+.profile-photos .photos-list li.selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .28);
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.profile-photos .photo-selection-circle {
+    position: absolute;
+    z-index: 2;
 }
 
 .photos-empty {
@@ -1140,7 +1166,7 @@ body {
     background: none;
     border: 0;
     color: #fff;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 510;
     font-family: "Montserrat", sans-serif;
     cursor: pointer;
@@ -1778,7 +1804,6 @@ body {
     font-weight: 550;
     font-size: 14px;
     color: #fff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
     z-index: 2;
 }
 
@@ -1862,7 +1887,7 @@ body {
     /* центр по горизонталі */
     z-index: 1000;
     /* вище за списки та інше */
-    width: 85%;
+    width: 80%;
     /* відступи зліва/справа */
     max-width: 480px;
     /* щоб не була надто широкою */
@@ -1878,7 +1903,7 @@ body {
 /* (Опційно для iOS) трішки підняти над safe-area, якщо потрібно */
 @supports (padding: max(0px)) {
     #relativesModal .modal-submit-btn {
-        bottom: max(48px, env(safe-area-inset-bottom));
+        bottom: max(60px, env(safe-area-inset-bottom));
     }
 }
 

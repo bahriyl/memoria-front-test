@@ -934,3 +934,14 @@ textarea:focus {
     opacity: .6;
     cursor: default;
 }
+
+#photo-btn-row .ritual-btn,
+#photo-btn-row .ritual-btn--danger {
+    height: 34px;
+    /* a bit taller if needed */
+    padding: 0 16px;
+    line-height: normal;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

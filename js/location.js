@@ -408,25 +408,45 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSubmitButtonVisibility?.();
     });
 
-    landmarksDone?.addEventListener('click', (e) => {
+    landmarksDone?.addEventListener('click', async (e) => {
         e.preventDefault();
         if (!landmarksEl || !landmarksDisplay) return;
 
         const text = (landmarksEl.value || '').trim();
-        currentLocation.landmarks = text;          // commit to state only now
-        landmarksDisplay.textContent = text;
-        landmarksDisplay.style.display = text ? '' : 'none';
+        currentLocation.landmarks = text; // commit
 
-        landmarksEl.style.display = 'none';
-        (landmarksControls && (landmarksControls.style.display = 'none'));
+        // Оновити UI під текст
+        if (text) {
+            landmarksDisplay.textContent = text;
+            landmarksDisplay.style.display = '';
+            landmarksEl.style.display = 'none';
+            // при заповненому тексті — ховаємо панель кнопок, як і на профілі
+            if (landmarksControls) landmarksControls.style.display = 'none';
+        } else {
+            // Користувач видалив орієнтир і натиснув "Готово":
+            // одразу показати textarea для подальшого вводу (вимога)
+            landmarksDisplay.textContent = '';
+            landmarksDisplay.style.display = 'none';
+            landmarksEl.style.display = '';
+            // кнопки можна сховати, щоб не заважали
+            if (landmarksControls) landmarksControls.style.display = 'none';
+        }
+
+        // Крапки показуємо лише коли є текст
+        if (landmarksMenuBtn) landmarksMenuBtn.style.display = text ? '' : 'none';
+        updateLandmarksMargin();
 
         isEditingLandmarks = false;
         changesMade = true;
         maybeUpdateSubmit();
-        if (landmarksMenuBtn) landmarksMenuBtn.style.display = currentLocation.landmarks.trim() ? '' : 'none';
-        updateLandmarksMargin();
 
-        if (initialHasData) pushUpdate();
+        // NEW: завжди пушимо оновлення на бек, навіть у creation flow
+        try {
+            await pushUpdate();
+            hideErrors?.();
+        } catch {
+            // pushUpdate() вже показує помилку через showErrors(), тож можна нічого не робити
+        }
     });
 
     // ===== LOAD EXISTING DATA =====
@@ -535,6 +555,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (landmarksEl)
         landmarksEl.addEventListener('input', () => {
             const val = (landmarksEl.value || '').trim();
+
+            if (landmarksControls) {
+                const shouldShow = true; // показуємо, щойно фокус/ввід почався
+                landmarksControls.style.display = shouldShow ? 'flex' : 'none';
+            }
 
             if (!initialHasData) {
                 // CREATION: live-commit, no confirmation UI, keep dots-menu hidden

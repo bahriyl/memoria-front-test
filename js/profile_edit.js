@@ -673,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!hasRelatives) {
             const empty = document.createElement('div');
             empty.className = 'comments-empty';
-            empty.textContent = 'Родичів поки немає';
+            empty.textContent = 'Родичі не добавлені';
             relListEl.appendChild(empty);
             return; // Важливо: ми вже перемкнули контролли вище
         }
@@ -1997,12 +1997,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function markDatesWithLiturgies() {
         const dateCalendar = document.querySelector('.date-calendar');
         if (!dateCalendar) return;
+
         dateCalendar.querySelectorAll('.date-item').forEach(it => {
+            // remove previous marks
             it.querySelector('.date-dot')?.remove();
+
             const iso = toISOFromParts(Number(it.dataset.year), Number(it.dataset.month), Number(it.dataset.day));
-            if (liturgiesIndex[iso]?.length) {
+            // Only mark PAST dates that have liturgies
+            if (isPastISO(iso) && (liturgiesIndex[iso]?.length)) {
                 const dot = document.createElement('span');
-                dot.className = 'date-dot'; // small green dot
+                dot.className = 'date-dot';          // small green dot
+                dot.dataset.iso = iso;               // helpful for future targeting
                 it.appendChild(dot);
             }
         });
@@ -2012,23 +2017,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const history = ensureLiturgyHistoryContainer();
         if (!history) return;
 
+        const past = isPastISO(iso); // uses your helper
+        // For future dates: remove history block + any timeline dot, then exit
+        if (!past) {
+            history.innerHTML = '';
+            history.remove?.();
+
+            // If you mark dots like <span class="date-dot" data-iso="YYYY-MM-DD">
+            const dot =
+                document.querySelector(`.date-dot[data-iso="${iso}"]`) ||
+                document.querySelector(`.date-dot[data-date="${iso}"]`);
+            dot?.remove();
+            return;
+        }
+
+        // Past only → build history
         const items = (liturgiesIndex[iso] || [])
             .slice()
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         history.innerHTML = '';
 
-        const past = isPastISO(iso); // чи дата у минулому
-        const phrase = past
-            ? 'Божественна Літургія за упокій відбулась'
-            : 'Божественна Літургія за упокій відбудеться';
-        const titleText = past ? 'Історія' : 'Записки';
-
-        // Якщо майбутня дата і немає записок → взагалі не показуємо div
-        if (!past && items.length === 0) {
-            history.remove();
-            return;
-        }
+        const phrase = 'Божественна Літургія за упокій відбулась';
+        const titleText = 'Історія';
 
         // Header
         const title = document.createElement('h3');
@@ -2036,7 +2047,7 @@ document.addEventListener('DOMContentLoaded', () => {
         title.textContent = titleText;
         history.appendChild(title);
 
-        // Empty state (для минулого показуємо «Немає історії»)
+        // Empty state (for past we show “Немає історії”)
         if (!items.length) {
             const empty = document.createElement('div');
             empty.className = 'comments-empty';
@@ -2045,18 +2056,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // List container (scrollable; макс. 2 картки)
+        // List container (scrollable; max 2 cards)
         const list = document.createElement('div');
         list.className = 'liturgy-history-list';
         history.appendChild(list);
 
-        // Ім'я поточного профілю
         const currentPersonName =
             document.querySelector('.profile-name')?.textContent?.trim() ||
             document.querySelector('.person-name')?.textContent?.trim() ||
             '';
 
-        // Рендеримо картки
         items.forEach((it) => {
             const d = new Date(it.serviceDate);
             const dateUa = d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -2076,12 +2085,11 @@ document.addEventListener('DOMContentLoaded', () => {
             list.appendChild(card);
         });
 
-        // Обмеження на 2 картки
+        // Clamp to 2 cards
         requestAnimationFrame(() => {
             const cards = list.querySelectorAll('.liturgy-history-item');
             list.style.maxHeight = '';
             list.style.overflowY = '';
-
             if (cards.length <= 2) return;
 
             const first = cards[0];
@@ -2089,7 +2097,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const clampPx = Math.ceil(second.getBoundingClientRect().bottom - first.getBoundingClientRect().top);
             const gap = parseFloat(getComputedStyle(list).rowGap || getComputedStyle(list).gap || '0');
             const maxH = clampPx + gap;
-
             list.style.maxHeight = `${maxH}px`;
             list.style.overflowY = 'auto';
         });
@@ -2143,8 +2150,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (selectedChurchEl) {
                 const churchName = selectedChurchEl.textContent;
-                serviceInfoEl.textContent =
-                    `Божественна Літургія за упокій відбудеться у ${churchName}, ${selectedDate} р.`;
+                serviceInfoEl.innerHTML =
+                    `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${churchName}</span>, <span style="font-weight:550;">${selectedDate}</span р.`;
             } else {
                 serviceInfoEl.innerHTML = `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву</span>, ${selectedDate} р.`;
             }

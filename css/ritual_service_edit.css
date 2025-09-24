@@ -81,7 +81,7 @@ body {
   background: none;
   border: 0;
   color: #fff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 510;
   font-family: "Montserrat", sans-serif;
   cursor: pointer;
@@ -279,6 +279,19 @@ textarea {
   border-radius: 6px;
 }
 
+/* Hide scrollbar in ritual item images */
+.ritual-item-section .item-images {
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and old Edge */
+}
+
+.ritual-item-section .item-images::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari, Opera */
+}
+
 .ritual-btn-row {
   display: flex;
   gap: 10px;
@@ -457,7 +470,7 @@ textarea {
   flex-shrink: 0;
 }
 
-.item-images .image-wrap > img.item-image {
+.item-images .image-wrap>img.item-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -613,11 +626,9 @@ textarea {
   right: 0;
   bottom: 0;
   padding: 12px 14px 16px;
-  background: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.55) 100%
-  );
+  background: linear-gradient(180deg,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.55) 100%);
   color: #fff;
   font-size: 14px;
   line-height: 1.45;
@@ -739,4 +750,29 @@ textarea {
   font-size: 15px;
   font-weight: 500;
   line-height: 1.4;
+}
+
+.ritual-item-section .image-wrap {
+  position: relative;
+}
+
+.ritual-item-section.selection-mode .image-wrap.is-selected {
+  opacity: 1;
+}
+
+.ritual-item-section .image-wrap.is-selected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, .1);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ritual-item-section .select-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
 }

@@ -47,6 +47,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearYearsBtn = document.getElementById('clearYears');
     let selectedBirth, selectedDeath;
 
+    // коли натиснули «Готово» в пікері років
+    doneBtn.addEventListener('click', () => {
+        saveFilters();
+    });
+
+    // коли очистили роки
+    clearYearsBtn.addEventListener('click', () => {
+        saveFilters();
+    });
+
     // toggle panel only when clicking on the pill display
     display.addEventListener('click', () => {
         panel.classList.toggle('hidden');
@@ -98,6 +108,60 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedList = document.getElementById('selectedList');
 
     const selectedPersons = [];
+
+    // зберігати на будь-які зміни
+    [nameInput, areaInput, cemInput].forEach(el => {
+        el?.addEventListener('input', saveFilters);
+        el?.addEventListener('change', saveFilters);
+    });
+    clearAreaBtn?.addEventListener('click', saveFilters);
+    clearCemBtn?.addEventListener('click', saveFilters);
+
+    // === Keep filters between navigations ===
+    const FILTERS_KEY = 'premiumQR.filters.v1';
+
+    function saveFilters() {
+        const payload = {
+            name: (nameInput?.value || '').trim(),
+            birth: birthInput?.value || (selectedBirth ?? ''),
+            death: deathInput?.value || (selectedDeath ?? ''),
+            area: (areaInput?.value || '').trim(),
+            cemetery: (cemInput?.value || '').trim(),
+        };
+        try { sessionStorage.setItem(FILTERS_KEY, JSON.stringify(payload)); } catch { }
+    }
+
+    function restoreFilters() {
+        try {
+            const raw = sessionStorage.getItem(FILTERS_KEY);
+            if (!raw) return;
+            const f = JSON.parse(raw);
+
+            if (f.name) nameInput.value = f.name;
+
+            if (f.area) {
+                areaInput.value = f.area;
+                clearAreaBtn.style.display = 'flex';
+            }
+
+            if (f.cemetery) {
+                cemInput.value = f.cemetery;
+                clearCemBtn.style.display = 'flex';
+            }
+
+            if (f.birth || f.death) {
+                birthInput.value = f.birth || '';
+                deathInput.value = f.death || '';
+                selectedBirth = f.birth ? Number(f.birth) : undefined;
+                selectedDeath = f.death ? Number(f.death) : undefined;
+
+                const txt = `${f.birth || ''}${(f.birth && f.death) ? ' – ' : ''}${f.death || ''}` || 'Роки життя';
+                display.textContent = txt;
+                display.classList.toggle('has-value', Boolean(f.birth || f.death));
+                clearYearsBtn.hidden = !(f.birth || f.death);
+            }
+        } catch { }
+    }
 
     /*birthInput.addEventListener('change', () => {
         clearBirthBtn.style.display = birthInput.value ? 'flex' : 'none';
@@ -411,6 +475,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const triggerFetch = debounce(fetchPeople, 300);
+    
+    restoreFilters();
+    triggerFetch();
 
     if (!foundList._profileDelegation) {
         foundList.addEventListener('click', (e) => {
@@ -418,7 +485,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const li = e.target.closest('li[data-id]');
             if (!li) return;
             const id = li.dataset.id;
-            if (id) window.location.href = `/profile.html?personId=${encodeURIComponent(id)}&from=premium`;
+            if (id) {
+                saveFilters();
+                window.location.href = `/profile.html?personId=${encodeURIComponent(id)}&from=premium`;
+            }
         });
 
         // Доступність з клавіатури (Enter/Space)
@@ -429,10 +499,41 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!li) return;
             e.preventDefault();
             const id = li.dataset.id;
-            if (id) window.location.href = `/profile.html?personId=${encodeURIComponent(id)}&from=premium`;
+            if (id) {
+                saveFilters();
+                window.location.href = `/profile.html?personId=${encodeURIComponent(id)}&from=premium`;
+            }
         });
 
         foundList._profileDelegation = true;
+    }
+
+    if (!selectedList._profileDelegation) {
+        selectedList.addEventListener('click', (e) => {
+            if (e.target.closest('.deselect-btn')) return;
+            const li = e.target.closest('li[data-id]');
+            if (!li) return;
+            const id = li.dataset.id;
+            if (id) {
+                saveFilters();
+                window.location.href = `/profile.html?personId=${encodeURIComponent(id)}&from=premium`;
+            }
+        });
+
+        selectedList.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            if (e.target.closest('.deselect-btn')) return;
+            const li = e.target.closest('li[data-id]');
+            if (!li) return;
+            e.preventDefault();
+            const id = li.dataset.id;
+            if (id) {
+                saveFilters();
+                window.location.href = `/profile.html?personId=${encodeURIComponent(id)}&from=premium`;
+            }
+        });
+
+        selectedList._profileDelegation = true;
     }
 
     // typing a name fires a search
@@ -578,15 +679,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     mainSubmitBtn.addEventListener('click', e => {
         e.preventDefault();
-
-        // якщо ніхто не вибраний — показати помилку і нічого більше не робити
         if (selectedPersons.length === 0) {
             selectError.hidden = false;
             return;
         }
-        // якщо є вибір — сховати помилку і відкрити модалку
         selectError.hidden = true;
         deliveryModal.hidden = false;
+        mainSubmitBtn.style.display = 'none';   // HIDE when modal opens
+    });
+
+    modalCloseBtn.addEventListener('click', () => {
+        deliveryModal.hidden = true;
+        mainSubmitBtn.style.display = '';       // SHOW again when modal closes
+    });
+
+    deliveryModal.addEventListener('click', e => {
+        if (e.target === deliveryModal) {
+            deliveryModal.hidden = true;
+            mainSubmitBtn.style.display = '';     // SHOW again when clicking outside
+        }
     });
 
     //
