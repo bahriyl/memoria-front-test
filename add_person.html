@@ -63,13 +63,19 @@
                     </button>
 
                     <div id="years-panel" class="years-panel" hidden>
-                        <div class="years-header">
-                            <div class="col">Рік народження</div>
-                            <div class="col">Рік смерті</div>
-                        </div>
                         <div class="years-body">
-                            <ul class="year-list" id="birthYearsList"></ul>
-                            <ul class="year-list" id="deathYearsList"></ul>
+                            <div class="year-column">
+                                <div class="year-column-label">Від</div>
+                                <div class="year-wheel">
+                                    <ul class="year-list" id="birthYearsList"></ul>
+                                </div>
+                            </div>
+                            <div class="year-column">
+                                <div class="year-column-label">До</div>
+                                <div class="year-wheel">
+                                    <ul class="year-list" id="deathYearsList"></ul>
+                                </div>
+                            </div>
                         </div>
                         <button type="button" id="doneYears" class="done-btn">Готово</button>
                         <!-- опційно: кнопка очистити в самій панелі
@@ -167,7 +173,10 @@
 
         <!-- Confirm modal -->
         <div id="confirm-modal" class="modal" hidden>
-            <button id="confirm-close" class="modal-close" aria-label="Закрити">&times;</button>
+            <button id="confirm-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 24 24" width="22"
+                    height="22" aria-hidden="true">
+                    <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                </svg></button>
             <h3 style="margin:8px 0 6px;font-size:18px;">Підтвердження даних</h3>
             <div id="confirm-summary" class="summary-list" style="text-align:left;margin:10px 0 14px;"></div>
             <div class="modal-actions">
@@ -183,6 +192,7 @@
         </div>
     </main>
 
+    <script src="js/year_wheel.js"></script>
     <script src="js/add_person.js"></script>
 </body>
 

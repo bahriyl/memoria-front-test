@@ -27,6 +27,13 @@
             <div class="profile-avatar-wrapper">
                 <img class="profile-avatar" src="" alt="Фото особи" />
                 <div class="avatar-spinner" id="avatar-spinner"></div>
+                <div id="avatar-menu" class="avatar-menu" hidden>
+                    <div class="avatar-menu-card">
+                        <button id="avatar-add" class="avatar-menu-item">Додати фото</button>
+                        <button id="avatar-change" class="avatar-menu-item">Змінити фото</button>
+                        <button id="avatar-delete" class="avatar-menu-item">Видалити фото</button>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -224,15 +231,6 @@
             </div>
         </section>
 
-        <!-- Avatar popup -->
-        <div id="avatar-menu" class="bottom-popup" hidden>
-            <div class="bottom-popup-content">
-                <button id="avatar-add" class="popup-action">Додати фото профілю</button>
-                <button id="avatar-change" class="popup-action">Змінити фото профілю</button>
-                <button id="avatar-delete" class="popup-action">Видалити фото профілю</button>
-            </div>
-        </div>
-
         <!-- Avatar cropper -->
         <div id="avatar-cropper-overlay" class="avatar-cropper-overlay" hidden></div>
         <div id="avatar-cropper" class="avatar-cropper" hidden role="dialog" aria-modal="true"
@@ -340,13 +338,19 @@
                     </button>
 
                     <div class="years-panel hidden" id="relYearsPanel">
-                        <div class="years-header">
-                            <div class="col">Рік народження</div>
-                            <div class="col">Рік смерті</div>
-                        </div>
                         <div class="years-body">
-                            <ul class="year-list" id="relBirthYears"></ul>
-                            <ul class="year-list" id="relDeathYears"></ul>
+                            <div class="year-column">
+                                <div class="year-column-label">Від</div>
+                                <div class="year-wheel">
+                                    <ul class="year-list" id="relBirthYears"></ul>
+                                </div>
+                            </div>
+                            <div class="year-column">
+                                <div class="year-column-label">До</div>
+                                <div class="year-wheel">
+                                    <ul class="year-list" id="relDeathYears"></ul>
+                                </div>
+                            </div>
                         </div>
                         <button type="button" class="done-btn" id="relYearsDone">Готово</button>
                     </div>
@@ -396,6 +400,7 @@
         </div>
     </div>
 
+    <script src="js/year_wheel.js"></script>
     <script src="js/profile_edit.js"></script>
 </body>
 

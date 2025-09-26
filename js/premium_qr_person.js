@@ -60,6 +60,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // toggle panel only when clicking on the pill display
     display.addEventListener('click', () => {
         panel.classList.toggle('hidden');
+        if (!panel.classList.contains('hidden')) {
+            birthWheel.snap({ behavior: 'auto', silent: true });
+            deathWheel.snap({ behavior: 'auto', silent: true });
+        }
     });
     // prevent clicks inside the panel from toggling
     panel.addEventListener('click', e => {
@@ -155,6 +159,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedBirth = f.birth ? Number(f.birth) : undefined;
                 selectedDeath = f.death ? Number(f.death) : undefined;
 
+                if (birthWheel) birthWheel.setValue(f.birth || '', { silent: true, behavior: 'auto' });
+                if (deathWheel) deathWheel.setValue(f.death || '', { silent: true, behavior: 'auto' });
+                applyDeathConstraints();
+
                 const txt = `${f.birth || ''}${(f.birth && f.death) ? ' – ' : ''}${f.death || ''}` || 'Роки життя';
                 display.textContent = txt;
                 display.classList.toggle('has-value', Boolean(f.birth || f.death));
@@ -186,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });*/
 
     //
-    // 3) POPULATE YEARS
+    // 3) POPULATE YEARS + DRUM WHEEL SETUP
     //
     (function populateYears() {
         if (birthList.children.length) return;
@@ -204,47 +212,54 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     })();
 
-    // selection handlers
-    birthList.addEventListener('click', e => {
-        if (e.target.tagName !== 'LI') return;
-        // очистити попередній вибір
-        birthList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-        e.target.classList.add('selected');
+    const applyDeathConstraints = () => {
+        const birthYear = selectedBirth;
+        let firstEnabled = null;
 
-        // оновити змінну
-        selectedBirth = Number(e.target.dataset.value);
-
-        // підсвітити тільки допустимі роки смерті
-        deathList.querySelectorAll('li').forEach(li => {
+        Array.from(deathList.children).forEach((li) => {
             const year = Number(li.dataset.value);
-            if (year < selectedBirth) {
-                li.classList.add('disabled');
-            } else {
-                li.classList.remove('disabled');
+            const disabled = birthYear ? year < birthYear : false;
+            li.classList.toggle('disabled', disabled);
+            if (!disabled && firstEnabled == null) {
+                firstEnabled = li.dataset.value;
             }
         });
 
-        // за потреби прокрутити
-        e.target.scrollIntoView({ block: 'center' });
+        if (!deathWheel) return;
+
+        if (birthYear && selectedDeath && selectedDeath < birthYear) {
+            if (firstEnabled) {
+                deathWheel.setValue(firstEnabled, { silent: true, behavior: 'auto' });
+                selectedDeath = Number(firstEnabled);
+            } else {
+                deathWheel.clear({ silent: true, keepActive: false });
+                selectedDeath = undefined;
+            }
+        }
+
+        deathWheel.refresh();
+    };
+
+    let deathWheel;
+
+    const birthWheel = window.createYearWheel(birthList, {
+        initialValue: selectedBirth ? String(selectedBirth) : '',
+        onChange: (value) => {
+            selectedBirth = value ? Number(value) : undefined;
+            applyDeathConstraints();
+        }
     });
 
-    deathList.addEventListener('click', e => {
-        // look for the nearest <li> up the tree
-        const li = e.target.closest('li');
-        // if there isn't one, or it isn't in our deathList, do nothing
-        if (!li || !deathList.contains(li) || li.classList.contains('disabled')) return;
-
-        // clear the old selection
-        deathList.querySelectorAll('li.selected')
-            .forEach(el => el.classList.remove('selected'));
-
-        // select the one we clicked
-        li.classList.add('selected');
-        selectedDeath = Number(li.dataset.value);
-
-        // scroll it into view if you like
-        li.scrollIntoView({ block: 'center' });
+    deathWheel = window.createYearWheel(deathList, {
+        initialValue: selectedDeath ? String(selectedDeath) : '',
+        onChange: (value) => {
+            selectedDeath = value ? Number(value) : undefined;
+        }
     });
+
+    applyDeathConstraints();
+    display.classList.toggle('has-value', Boolean(selectedBirth || selectedDeath));
+    clearYearsBtn.hidden = !(selectedBirth || selectedDeath);
 
     //
     // 4) TYPEAHEAD SETUP
@@ -430,23 +445,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch(`${API_URL}/api/people?${params}`);
         const data = await res.json();
 
-        const toShow = data.people.filter(
-            p => !selectedPersons.some(sel => sel.id === p.id)
-        );
+        const selectedIdSet = new Set(selectedPersons.map(sel => String(sel.id)));
+        const toShow = data.people || [];
 
         foundLabel.textContent = `Знайдено (${toShow.length}):`;
 
         if (toShow.length) {
             noResults.hidden = true;
             foundLabel.hidden = false;
-            foundList.innerHTML = toShow.map(p => `
-  <li data-id="${p.id}">
+            foundList.innerHTML = toShow.map(p => {
+                const idStr = String(p.id);
+                const isSelected = selectedIdSet.has(idStr);
+                const liClassAttr = isSelected ? ' class="is-selected"' : '';
+                return `
+  <li data-id="${idStr}"${liClassAttr}>
     <img src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="" />
     <div class="info">
       <div class="name">${p.name}</div>
       <div class="years">${p.birthYear} – ${p.deathYear}</div>
     </div>
-    <button class="select-btn" aria-label="Select">
+    <button class="select-btn${isSelected ? ' is-hidden' : ''}" aria-label="Select" ${isSelected ? 'tabindex="-1" disabled aria-hidden="true"' : ''}>
       <img
         src="/img/plus-icon.png"
         alt="Додати"
@@ -456,7 +474,8 @@ document.addEventListener('DOMContentLoaded', () => {
       />
     </button>
   </li>
-`).join('');
+`;
+            }).join('');
         } else {
             foundList.innerHTML = '';
             foundLabel.hidden = true;
@@ -464,11 +483,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // hook up each select button
-        foundList.querySelectorAll('li button').forEach(btn => {
+        foundList.querySelectorAll('li button.select-btn:not(.is-hidden)').forEach(btn => {
             btn.addEventListener('click', () => {
                 const li = btn.closest('li');
                 const id = li.dataset.id;
-                const person = data.people.find(x => x.id === id);
+                const person = data.people.find(x => String(x.id) === id);
                 selectPerson(person);
             });
         });
@@ -541,25 +560,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Done button: validate and write to hidden inputs
     doneBtn.addEventListener('click', () => {
-        // якщо смерть раніше народження — показуємо помилку
+        const birthValue = birthWheel.getValue();
+        const deathValue = deathWheel.getValue();
+
+        selectedBirth = birthValue ? Number(birthValue) : undefined;
+        selectedDeath = deathValue ? Number(deathValue) : undefined;
+
+        applyDeathConstraints();
+
         if (selectedBirth && selectedDeath && Number(selectedDeath) < Number(selectedBirth)) {
             alert("Рік смерті не може бути раніше року народження.");
             return;
         }
 
-        // записуємо у приховані input-и
-        birthInput.value = selectedBirth || "";
-        deathInput.value = selectedDeath || "";
+        birthInput.value = birthValue || '';
+        deathInput.value = deathValue || '';
 
-        // формуємо відображення
         if (selectedBirth || selectedDeath) {
             display.textContent = `${selectedBirth || ""}${(selectedBirth && selectedDeath) ? " – " : ""}${selectedDeath || ""}`;
         } else {
-            display.textContent = "Роки життя"; // плейсхолдер
+            display.textContent = "Роки життя";
         }
 
         panel.classList.add('hidden');
-        if (selectedBirth || selectedDeath) display.classList.add('has-value');
+        display.classList.toggle('has-value', Boolean(selectedBirth || selectedDeath));
         clearYearsBtn.hidden = !(selectedBirth || selectedDeath);
 
         triggerFetch();
@@ -567,17 +591,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     clearYearsBtn.addEventListener('click', e => {
         e.stopPropagation();
-        selectedBirth = selectedDeath = undefined;
+        selectedBirth = undefined;
+        selectedDeath = undefined;
         birthInput.value = '';
         deathInput.value = '';
+        birthWheel.clear({ silent: true, keepActive: false });
+        deathWheel.clear({ silent: true, keepActive: false });
+        applyDeathConstraints();
+
         display.textContent = 'Роки життя';
-        clearYearsBtn.hidden = true;
-
         display.classList.remove('has-value');
-
-        // also clear any .selected class in the panels:
-        birthList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-        deathList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        clearYearsBtn.hidden = true;
 
         triggerFetch();
     });

@@ -42,13 +42,19 @@
 
                 <!-- hidden by default until you click the pill -->
                 <div class="years-panel hidden" id="yearsPanel">
-                    <div class="years-header">
-                        <div class="col">Рік народження</div>
-                        <div class="col">Рік смерті</div>
-                    </div>
                     <div class="years-body">
-                        <ul class="year-list" id="birthYearsList"></ul>
-                        <ul class="year-list" id="deathYearsList"></ul>
+                        <div class="year-column">
+                            <div class="year-column-label">Від</div>
+                            <div class="year-wheel">
+                                <ul class="year-list" id="birthYearsList"></ul>
+                            </div>
+                        </div>
+                        <div class="year-column">
+                            <div class="year-column-label">До</div>
+                            <div class="year-wheel">
+                                <ul class="year-list" id="deathYearsList"></ul>
+                            </div>
+                        </div>
                     </div>
                     <button type="button" class="done-btn" id="yearsDoneBtn">Готово</button>
                 </div>
@@ -180,6 +186,7 @@
     </div>
 
 
+    <script src="js/year_wheel.js"></script>
     <script src="js/premium_qr_person.js"></script>
 </body>
 

@@ -107,17 +107,23 @@ function renderFilterControls() {
             </svg>
           </button>
     
-          <div class="years-panel hidden" id="yearsPanel">
-            <div class="years-header">
-              <div class="col">Рік народження</div>
-              <div class="col">Рік смерті</div>
-            </div>
-            <div class="years-body">
+      <div class="years-panel hidden" id="yearsPanel">
+        <div class="years-body">
+          <div class="year-column">
+            <div class="year-column-label">Від</div>
+            <div class="year-wheel">
               <ul class="year-list" id="birthYearsList"></ul>
+            </div>
+          </div>
+          <div class="year-column">
+            <div class="year-column-label">До</div>
+            <div class="year-wheel">
               <ul class="year-list" id="deathYearsList"></ul>
             </div>
-            <button type="button" class="done-btn" id="yearsDoneBtn">Готово</button>
           </div>
+        </div>
+        <button type="button" class="done-btn" id="yearsDoneBtn">Готово</button>
+      </div>
         </div>
       `;
 
@@ -133,9 +139,20 @@ function renderFilterControls() {
       let selectedBirth = filterState.birthYear ? Number(filterState.birthYear) : undefined;
       let selectedDeath = filterState.deathYear ? Number(filterState.deathYear) : undefined;
 
-      // Відкрити/закрити панель
-      display.addEventListener('click', () => panel.classList.toggle('hidden'));
-      panel.addEventListener('click', e => e.stopPropagation());
+      const picker = controlsEl.querySelector('#lifeYearsPicker');
+
+      const updateDisplay = () => {
+        const hasAny = !!(selectedBirth || selectedDeath);
+        if (hasAny) {
+          display.textContent = `${selectedBirth || ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath || ''}`;
+          display.classList.add('has-value');
+        } else {
+          display.textContent = 'Роки життя';
+          display.classList.remove('has-value');
+        }
+        picker.classList.toggle('has-value', hasAny);
+        clearBtn.hidden = !hasAny;
+      };
 
       // Заповнюємо роки (як у преміум)
       (function populateYears() {
@@ -152,74 +169,72 @@ function renderFilterControls() {
         }
       })();
 
-      // Відновлюємо попередній вибір у списках (якщо був)
-      function restoreSelections() {
-        if (selectedBirth) {
-          [...birthList.children].forEach(li => {
-            li.classList.toggle('selected', Number(li.dataset.value) === selectedBirth);
-          });
-          // Заблокуємо недопустимі роки смерті
-          [...deathList.children].forEach(li => {
-            const y = Number(li.dataset.value);
-            li.classList.toggle('disabled', y < selectedBirth);
-          });
-        }
-        if (selectedDeath) {
-          [...deathList.children].forEach(li => {
-            li.classList.toggle('selected', Number(li.dataset.value) === selectedDeath);
-          });
-        }
-      }
+      const applyDeathConstraints = () => {
+        const birthYear = selectedBirth;
+        let firstEnabled = null;
 
-      const picker = controlsEl.querySelector('#lifeYearsPicker');
-
-      // Оновлення бейджа
-      function updateDisplay() {
-        const hasAny = !!(selectedBirth || selectedDeath);
-        if (hasAny) {
-          display.textContent = `${selectedBirth || ""}${(selectedBirth && selectedDeath) ? " – " : ""}${selectedDeath || ""}`;
-          display.classList.add('has-value');
-        } else {
-          display.textContent = 'Роки життя';
-          display.classList.remove('has-value');
-        }
-        // керуємо видимістю через клас контейнера
-        picker.classList.toggle('has-value', hasAny);
-      }
-
-      // Початковий рендер бейджа зі стану
-      updateDisplay();
-      restoreSelections();
-
-      // Клік по роках народження
-      birthList.addEventListener('click', e => {
-        const li = e.target.closest('li');
-        if (!li) return;
-        birthList.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
-        li.classList.add('selected');
-        selectedBirth = Number(li.dataset.value);
-
-        // Заблокуємо недопустимі роки смерті
-        deathList.querySelectorAll('li').forEach(n => {
-          const y = Number(n.dataset.value);
-          n.classList.toggle('disabled', y < selectedBirth);
+        Array.from(deathList.children).forEach((li) => {
+          const year = Number(li.dataset.value);
+          const disabled = birthYear ? year < birthYear : false;
+          li.classList.toggle('disabled', disabled);
+          if (!disabled && firstEnabled == null) {
+            firstEnabled = li.dataset.value;
+          }
         });
-        li.scrollIntoView({ block: 'center' });
+
+        if (!deathWheel) return;
+
+        if (birthYear && selectedDeath && selectedDeath < birthYear) {
+          if (firstEnabled) {
+            deathWheel.setValue(firstEnabled, { silent: true, behavior: 'auto' });
+            selectedDeath = Number(firstEnabled);
+          } else {
+            deathWheel.clear({ silent: true, keepActive: false });
+            selectedDeath = undefined;
+          }
+        }
+
+        deathWheel.refresh();
+      };
+
+      let deathWheel;
+
+      const birthWheel = window.createYearWheel(birthList, {
+        initialValue: selectedBirth ? String(selectedBirth) : '',
+        onChange: (value) => {
+          selectedBirth = value ? Number(value) : undefined;
+          applyDeathConstraints();
+        }
       });
 
-      // Клік по роках смерті
-      deathList.addEventListener('click', e => {
-        const li = e.target.closest('li');
-        if (!li || li.classList.contains('disabled')) return;
-        deathList.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
-        li.classList.add('selected');
-        selectedDeath = Number(li.dataset.value);
-        li.scrollIntoView({ block: 'center' });
+      deathWheel = window.createYearWheel(deathList, {
+        initialValue: selectedDeath ? String(selectedDeath) : '',
+        onChange: (value) => {
+          selectedDeath = value ? Number(value) : undefined;
+        }
       });
 
-      // Підтвердити вибір
+      applyDeathConstraints();
+      updateDisplay();
+
+      display.addEventListener('click', () => {
+        panel.classList.toggle('hidden');
+        if (!panel.classList.contains('hidden')) {
+          birthWheel.snap({ behavior: 'auto', silent: true });
+          deathWheel.snap({ behavior: 'auto', silent: true });
+        }
+      });
+      panel.addEventListener('click', e => e.stopPropagation());
+
       doneBtn.addEventListener('click', () => {
-        // Записуємо у глобальний стан фільтра
+        const birthValue = birthWheel.getValue();
+        const deathValue = deathWheel.getValue();
+
+        selectedBirth = birthValue ? Number(birthValue) : undefined;
+        selectedDeath = deathValue ? Number(deathValue) : undefined;
+
+        applyDeathConstraints();
+
         filterState.birthYear = selectedBirth || undefined;
         filterState.deathYear = selectedDeath || undefined;
 
@@ -228,17 +243,15 @@ function renderFilterControls() {
         fetchAndRender();
       });
 
-      // Очистити
       clearBtn.addEventListener('click', e => {
         e.stopPropagation();
-        selectedBirth = selectedDeath = undefined;
+        selectedBirth = undefined;
+        selectedDeath = undefined;
         filterState.birthYear = undefined;
         filterState.deathYear = undefined;
-
-        birthList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-        deathList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-        deathList.querySelectorAll('.disabled').forEach(el => el.classList.remove('disabled'));
-
+        birthWheel.clear({ silent: true, keepActive: false });
+        deathWheel.clear({ silent: true, keepActive: false });
+        applyDeathConstraints();
         updateDisplay();
         fetchAndRender();
       });

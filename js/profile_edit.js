@@ -292,6 +292,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Відкрити меню
+    const handleAvatarMenuOutsideClick = (event) => {
+        if (!avatarMenu || avatarMenu.hidden) return;
+        const clickedInsideMenu = event.target.closest('#avatar-menu');
+        const clickedAvatar = event.target.closest('.profile-avatar');
+        if (clickedInsideMenu || clickedAvatar) return;
+        closeAvatarMenu();
+    };
+
     function openAvatarMenu() {
         if (!avatarEl || !avatarMenu) return;
 
@@ -303,26 +311,24 @@ document.addEventListener('DOMContentLoaded', () => {
         avatarDeleteBtn.style.display = hasAvatar ? '' : 'none';
 
         avatarMenu.hidden = false;
-        document.body.classList.add('no-scroll');   // блокуємо скрол
+        document.addEventListener('click', handleAvatarMenuOutsideClick, true);
     }
 
     // Закрити меню
     function closeAvatarMenu() {
         if (!avatarMenu) return;
         avatarMenu.hidden = true;
-        document.body.classList.remove('no-scroll'); // повертаємо скрол
+        document.removeEventListener('click', handleAvatarMenuOutsideClick, true);
     }
 
     // Відкриття по кліку на аватар (як і було)
-    avatarEl?.addEventListener('click', () => {
+    avatarEl?.addEventListener('click', (e) => {
         openAvatarMenu();
+        e.stopPropagation();
     });
 
-    // ❶ Закрити по кліку поза вмістом меню (по бекдропу)
     avatarMenu?.addEventListener('click', (e) => {
-        if (!e.target.closest('.bottom-popup-content')) {
-            closeAvatarMenu();
-        }
+        e.stopPropagation();
     });
 
     // ❷ Закривати по Escape
@@ -370,10 +376,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Add new avatar
     avatarAddBtn?.addEventListener('click', () => {
+        closeAvatarMenu();
         avatarInput.click();
     });
 
     avatarChangeBtn?.addEventListener('click', () => {
+        closeAvatarMenu();
         avatarInput.click();
     });
 
@@ -2384,45 +2392,102 @@ document.addEventListener('DOMContentLoaded', () => {
         const relReturnKey = (id) => `relModalReturn:${id}`;
 
         let selected = [];         // [{id, name, birthYear, deathYear, avatarUrl}]
-        let selectedBirth, selectedDeath;
+        let selectedBirth = birthInput.value ? Number(birthInput.value) : undefined;
+        let selectedDeath = deathInput.value ? Number(deathInput.value) : undefined;
 
-        // ───────────────── Years (DON'T close panel on item click)
-        function fillYears(el, from, to, current) {
-            el.innerHTML = '';
-            for (let y = to; y >= from; y--) {
+        // ───────────────── Years picker (drum)
+        const YEAR_START = 1850;
+        const YEAR_END = new Date().getFullYear();
+
+        function populateYearList(listEl) {
+            const frag = document.createDocumentFragment();
+            for (let y = YEAR_END; y >= YEAR_START; y--) {
                 const li = document.createElement('li');
                 li.textContent = y;
-                if (current && Number(current) === y) li.classList.add('selected');
-                // Only mark selection — do NOT close panel here
-                li.addEventListener('click', () => {
-                    el.querySelectorAll('.selected').forEach(s => s.classList.remove('selected'));
-                    li.classList.add('selected');
-                    // DO NOT CLOSE PANEL - removed panel.classList.toggle('hidden');
-                });
-                el.appendChild(li);
+                li.dataset.value = String(y);
+                frag.appendChild(li);
             }
+            listEl.innerHTML = '';
+            listEl.appendChild(frag);
         }
-        fillYears(birthList, 1850, new Date().getFullYear(), null);
-        fillYears(deathList, 1850, new Date().getFullYear(), null);
+
+        populateYearList(birthList);
+        populateYearList(deathList);
+        const applyDeathConstraints = () => {
+            const birthYear = selectedBirth ? Number(selectedBirth) : undefined;
+            let firstEnabled = null;
+
+            Array.from(deathList.children).forEach((li) => {
+                const year = Number(li.dataset.value);
+                const disabled = birthYear ? year < birthYear : false;
+                li.classList.toggle('disabled', disabled);
+                if (!disabled && firstEnabled == null) {
+                    firstEnabled = li.dataset.value;
+                }
+            });
+
+            if (!deathWheel) return;
+
+            if (birthYear && selectedDeath && Number(selectedDeath) < birthYear) {
+                if (firstEnabled) {
+                    deathWheel.setValue(firstEnabled, { silent: true, behavior: 'auto' });
+                    selectedDeath = firstEnabled;
+                } else {
+                    deathWheel.clear({ silent: true, keepActive: false });
+                    selectedDeath = undefined;
+                }
+            }
+
+            deathWheel.refresh();
+        };
+
+        let deathWheel;
+
+        const birthWheel = window.createYearWheel(birthList, {
+            initialValue: birthInput.value || selectedBirth || '',
+            onChange: (value) => {
+                selectedBirth = value || undefined;
+                applyDeathConstraints();
+            }
+        });
+
+        deathWheel = window.createYearWheel(deathList, {
+            initialValue: deathInput.value || selectedDeath || '',
+            onChange: (value) => {
+                selectedDeath = value || undefined;
+            }
+        });
+
+        applyDeathConstraints();
+        display.textContent = (selectedBirth || selectedDeath)
+            ? `${selectedBirth || ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath || ''}`
+            : 'Рік народження та смерті';
+        display.classList.toggle('has-value', !!(selectedBirth || selectedDeath));
+        clearYears.hidden = !(selectedBirth || selectedDeath);
 
         // Toggle panel on pill click
         pill.addEventListener('click', (e) => {
-            // Prevent event bubbling that might close the panel
             e.stopPropagation();
             panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden')) {
+                birthWheel.snap({ behavior: 'auto', silent: true });
+                deathWheel.snap({ behavior: 'auto', silent: true });
+            }
         });
 
         // ONLY close panel when "Done" button is clicked
         yearsDone.addEventListener('click', () => {
-            const b = birthList.querySelector('.selected')?.textContent;
-            const d = deathList.querySelector('.selected')?.textContent;
+            const b = birthWheel.getValue() || '';
+            const d = deathWheel.getValue() || '';
 
             if (b && d && Number(d) < Number(b)) {
                 alert('Рік смерті не може бути раніше року народження.');
                 return;
             }
 
-            selectedBirth = b; selectedDeath = d;
+            selectedBirth = b || undefined;
+            selectedDeath = d || undefined;
+            applyDeathConstraints();
             birthInput.value = b || '';
             deathInput.value = d || '';
             display.textContent = (b || d) ? `${b || ''}${(b && d) ? ' – ' : ''}${d || ''}` : 'Рік народження та смерті';
@@ -2441,8 +2506,9 @@ document.addEventListener('DOMContentLoaded', () => {
             display.textContent = 'Рік народження та смерті';
             display.classList.remove('has-value');
             clearYears.hidden = true;
-            birthList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-            deathList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+            birthWheel.clear({ silent: true, keepActive: false });
+            deathWheel.clear({ silent: true, keepActive: false });
+            applyDeathConstraints();
             triggerFetch();
         });
 
@@ -2491,6 +2557,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 cemInput.value = '';
                 cemSugList?.classList?.remove('show');
 
+                if (document.activeElement === cemInput) {
+                    fetchRelCemeteries();
+                }
+
                 triggerFetch(); // area is a real filter now
             });
         })();
@@ -2505,6 +2575,10 @@ document.addEventListener('DOMContentLoaded', () => {
             cemInput.value = '';
             cemSugList.classList.remove('show');
 
+            if (document.activeElement === cemInput) {
+                fetchRelCemeteries();
+            }
+
             triggerFetch();
         });
 
@@ -2512,6 +2586,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const fetchRelCemeteries = async () => {
             const q = cemInput.value.trim();
             const area = areaInput.value.trim();
+            const allowEmptyQuery = Boolean(area);
+
+            if (!allowEmptyQuery && q.length === 0) {
+                cemSugList.classList.remove('show');
+                return;
+            }
 
             const params = new URLSearchParams();
             if (q) params.set('search', q);
@@ -2531,7 +2611,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // Show list immediately on focus (no typing required)
+        // Show list immediately on focus when area is chosen; otherwise wait for typing
         cemInput.addEventListener('focus', fetchRelCemeteries);
         // Filter while typing
         cemInput.addEventListener('input', fetchRelCemeteries);
@@ -2644,20 +2724,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const raw = Array.isArray(data.people) ? data.people : [];
 
             // Exclude already selected and (optionally) the current person
+            const selectedIdSet = new Set(selected.map(s => String(s.id)));
             const list = raw
-                .filter(x => !selected.some(s => s.id === x.id))
                 .filter(x => String(x.id) !== String(personId));
 
             // Render
-            foundList.innerHTML = list.map(p => `
-              <li data-id="${p.id}" tabindex="0">
+            foundList.innerHTML = list.map(p => {
+                const idStr = String(p.id);
+                const isSelected = selectedIdSet.has(idStr);
+                const liClassAttr = isSelected ? ' class="is-selected"' : '';
+                return `
+              <li data-id="${idStr}" tabindex="0"${liClassAttr}>
                 <img class="avatar" src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="">
                 <div class="info">
                   <div class="name">${p.name || ''}</div>
                   <div class="years">${(p.birthYear || '')} – ${(p.deathYear || '')}</div>
                 </div>
-                <button class="select-btn" type="button" aria-label="Додати"><img src="/img/plus-icon.png" alt="Додати" class="plus-icon" width="24" height="24"></button>
-              </li>`).join('');
+                <button class="select-btn${isSelected ? ' is-hidden' : ''}" type="button" aria-label="Додати" ${isSelected ? 'tabindex="-1" disabled aria-hidden="true"' : ''}><img src="/img/plus-icon.png" alt="Додати" class="plus-icon" width="24" height="24"></button>
+              </li>`;
+            }).join('');
 
             // Counters + empty state labels
             foundCountEl.textContent = String(list.length);
@@ -2665,13 +2750,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (noResults) noResults.hidden = list.length !== 0;
 
             // (+) add to selected
-            foundList.querySelectorAll('li button.select-btn').forEach(btn => {
+            foundList.querySelectorAll('li button.select-btn:not(.is-hidden)').forEach(btn => {
                 btn.addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     const li = btn.closest('li[data-id]');
                     if (!li) return;
                     const id = li.dataset.id;
-                    const person = list.find(x => x.id === id);
+                    const person = list.find(x => String(x.id) === id);
                     if (!person) return;
                     selected.push(person);
                     renderSelected();

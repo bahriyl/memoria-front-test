@@ -132,12 +132,30 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateLandmarksMargin() {
         const menuBtn = document.getElementById('landmarks-menu-btn');
         const textEl = document.querySelector('.landmarks-text');
-        if (!menuBtn || !textEl) return;
+        const titleEl = document.querySelector('.section-landmarks h2');
 
-        const isHidden = menuBtn.style.display === 'none' ||
-            getComputedStyle(menuBtn).display === 'none';
-        textEl.classList.toggle('without-menu', isHidden);
+        if (menuBtn && textEl) {
+            const isHidden = menuBtn.style.display === 'none' ||
+                getComputedStyle(menuBtn).display === 'none';
+            textEl.classList.toggle('without-menu', isHidden);
+        }
+
+        if (titleEl) {
+            const textSource = textEl ? textEl.textContent : '';
+            const hasLandmarksText = Boolean((currentLocation.landmarks || '').trim())
+                || Boolean((textSource || '').trim());
+            titleEl.style.setProperty('margin-bottom', hasLandmarksText ? '0' : '', 'important');
+        }
     }
+
+    function updatePhotosHeaderSpacing() {
+        const titlebar = document.querySelector('.section-photos .section-titlebar');
+        if (!titlebar) return;
+        const hasCoords = Boolean(currentLocation.coords);
+        titlebar.style.marginTop = hasCoords ? '' : '28px';
+    }
+
+    updatePhotosHeaderSpacing();
 
     function showModal() {
         if (!overlayEl || !modalEl) return;
@@ -218,6 +236,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // підв'язуємо ту ж дію, що і "Змінити":
         const allowBtn = document.getElementById('btn-geo');
         allowBtn?.addEventListener('click', requestGeolocation);
+
+        updatePhotosHeaderSpacing();
     }
 
     // Send current state to API (used in "existing location" mode)
@@ -389,7 +409,9 @@ document.addEventListener('DOMContentLoaded', () => {
         landmarksEl.value = prevLandmarksText;
         currentLocation.landmarks = prevLandmarksText;
 
-        landmarksEl.style.display = 'none';
+        if (landmarksEl.value !== '') {
+            landmarksEl.style.display = 'none';
+        }
         (landmarksControls && (landmarksControls.style.display = 'none'));
 
         if (prevLandmarksText.trim()) {
@@ -517,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (landmarksEl) {
                     landmarksEl.style.display = '';          // show the textarea for immediate typing
-                    landmarksEl.placeholder = 'Важливі орієнтири…';
+                    landmarksEl.placeholder = 'Важливі орієнтири для полегшення пошуку...';
                 }
             }
 
@@ -545,6 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             refreshPlaceholders();
+            updatePhotosHeaderSpacing();
             setSubmitLabel();
             maybeUpdateSubmit();
 
@@ -834,6 +857,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (geoCard) geoCard.style.display = 'none';
                 renderMap(pos.coords.latitude, pos.coords.longitude);
+                updatePhotosHeaderSpacing();
 
                 if (initialHasData) pushUpdate();
                 else maybeUpdateSubmit();

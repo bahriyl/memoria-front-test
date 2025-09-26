@@ -153,17 +153,23 @@ function renderFilterControls() {
                   </svg>
                 </button>
           
-                <div class="years-panel hidden" id="yearsPanel">
-                  <div class="years-header">
-                    <div class="col">Рік народження</div>
-                    <div class="col">Рік смерті</div>
-                  </div>
-                  <div class="years-body">
-                    <ul class="year-list" id="birthYearsList"></ul>
-                    <ul class="year-list" id="deathYearsList"></ul>
-                  </div>
-                  <button type="button" class="done-btn" id="yearsDoneBtn">Готово</button>
-                </div>
+              <div class="years-panel hidden" id="yearsPanel">
+        <div class="years-body">
+          <div class="year-column">
+            <div class="year-column-label">Від</div>
+            <div class="year-wheel">
+              <ul class="year-list" id="birthYearsList"></ul>
+            </div>
+          </div>
+          <div class="year-column">
+            <div class="year-column-label">До</div>
+            <div class="year-wheel">
+              <ul class="year-list" id="deathYearsList"></ul>
+            </div>
+          </div>
+        </div>
+                <button type="button" class="done-btn" id="yearsDoneBtn">Готово</button>
+              </div>
               </div>
             `;
 
@@ -180,6 +186,19 @@ function renderFilterControls() {
             let selectedBirth = filterState.birthYear ? Number(filterState.birthYear) : undefined;
             let selectedDeath = filterState.deathYear ? Number(filterState.deathYear) : undefined;
 
+            const updateDisplay = () => {
+                const hasAny = !!(selectedBirth || selectedDeath);
+                if (hasAny) {
+                    display.textContent = `${selectedBirth ?? ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath ?? ''}`;
+                    display.classList.add('has-value');
+                } else {
+                    display.textContent = 'Роки життя';
+                    display.classList.remove('has-value');
+                }
+                picker.classList.toggle('has-value', hasAny);
+                clearBtn.hidden = !hasAny;
+            };
+
             // Populate years (1900..now)
             (function populateYears() {
                 if (birthUl.children.length) return;
@@ -190,49 +209,61 @@ function renderFilterControls() {
                 }
             })();
 
-            function restoreSelections() {
-                if (selectedBirth) {
-                    [...birthUl.children].forEach(li => {
-                        li.classList.toggle('selected', Number(li.dataset.value) === selectedBirth);
-                    });
-                    // lock death years < birth
-                    [...deathUl.children].forEach(li => {
-                        const y = Number(li.dataset.value);
-                        li.classList.toggle('disabled', y < selectedBirth);
-                    });
-                }
-                if (selectedDeath) {
-                    [...deathUl.children].forEach(li => {
-                        li.classList.toggle('selected', Number(li.dataset.value) === selectedDeath);
-                    });
-                }
-            }
+            const applyDeathConstraints = () => {
+                const birthYear = selectedBirth;
+                let firstEnabled = null;
 
-            function updateDisplay() {
-                const hasAny = !!(selectedBirth || selectedDeath);
-                if (hasAny) {
-                    display.textContent =
-                        `${selectedBirth ?? ""}${(selectedBirth && selectedDeath) ? " – " : ""}${selectedDeath ?? ""}`;
-                    display.classList.add('has-value');
-                } else {
-                    display.textContent = 'Роки життя';
-                    display.classList.remove('has-value');
+                Array.from(deathUl.children).forEach((li) => {
+                    const year = Number(li.dataset.value);
+                    const disabled = birthYear ? year < birthYear : false;
+                    li.classList.toggle('disabled', disabled);
+                    if (!disabled && firstEnabled == null) {
+                        firstEnabled = li.dataset.value;
+                    }
+                });
+
+                if (!deathWheel) return;
+
+                if (birthYear && selectedDeath && selectedDeath < birthYear) {
+                    if (firstEnabled) {
+                        deathWheel.setValue(firstEnabled, { silent: true, behavior: 'auto' });
+                        selectedDeath = Number(firstEnabled);
+                    } else {
+                        deathWheel.clear({ silent: true, keepActive: false });
+                        selectedDeath = undefined;
+                    }
                 }
-                // clear button only when any side selected
-                picker.classList.toggle('has-value', hasAny);
-                clearBtn.hidden = !hasAny;
 
-                // keep filter state in sync for requests
-                filterState.birthYear = selectedBirth || '';
-                filterState.deathYear = selectedDeath || '';
-            }
+                deathWheel.refresh();
+            };
 
-            // Initial render
+            let deathWheel;
+
+            const birthWheel = window.createYearWheel(birthUl, {
+                initialValue: selectedBirth ? String(selectedBirth) : '',
+                onChange: (value) => {
+                    selectedBirth = value ? Number(value) : undefined;
+                    applyDeathConstraints();
+                }
+            });
+
+            deathWheel = window.createYearWheel(deathUl, {
+                initialValue: selectedDeath ? String(selectedDeath) : '',
+                onChange: (value) => {
+                    selectedDeath = value ? Number(value) : undefined;
+                }
+            });
+
+            applyDeathConstraints();
             updateDisplay();
-            restoreSelections();
 
-            // Open/close panel
-            display.addEventListener('click', () => panel.classList.toggle('hidden'));
+            display.addEventListener('click', () => {
+                panel.classList.toggle('hidden');
+                if (!panel.classList.contains('hidden')) {
+                    birthWheel.snap({ behavior: 'auto', silent: true });
+                    deathWheel.snap({ behavior: 'auto', silent: true });
+                }
+            });
             panel.addEventListener('click', e => e.stopPropagation());
             document.addEventListener('click', e => {
                 if (!picker.contains(e.target)) panel.classList.add('hidden');
@@ -241,45 +272,32 @@ function renderFilterControls() {
                 if (e.key === 'Escape') panel.classList.add('hidden');
             });
 
-            // Birth click
-            birthUl.addEventListener('click', e => {
-                const li = e.target.closest('li'); if (!li) return;
-                birthUl.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
-                li.classList.add('selected');
-                selectedBirth = Number(li.dataset.value);
-
-                // disable death years < birth
-                deathUl.querySelectorAll('li').forEach(n => {
-                    const y = Number(n.dataset.value);
-                    n.classList.toggle('disabled', y < selectedBirth);
-                });
-
-                li.scrollIntoView({ block: 'center' });
-            });
-
-            // Death click
-            deathUl.addEventListener('click', e => {
-                const li = e.target.closest('li'); if (!li || li.classList.contains('disabled')) return;
-                deathUl.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
-                li.classList.add('selected');
-                selectedDeath = Number(li.dataset.value);
-                li.scrollIntoView({ block: 'center' });
-            });
-
-            // Done
             doneBtn.addEventListener('click', () => {
+                const birthValue = birthWheel.getValue();
+                const deathValue = deathWheel.getValue();
+
+                selectedBirth = birthValue ? Number(birthValue) : undefined;
+                selectedDeath = deathValue ? Number(deathValue) : undefined;
+
+                applyDeathConstraints();
+
+                filterState.birthYear = selectedBirth || '';
+                filterState.deathYear = selectedDeath || '';
+
                 updateDisplay();
                 panel.classList.add('hidden');
                 fetchAndRender();          // apply filter
             });
 
-            // Clear
             clearBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                selectedBirth = selectedDeath = undefined;
-                birthUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-                deathUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-                deathUl.querySelectorAll('.disabled').forEach(el => el.classList.remove('disabled'));
+                selectedBirth = undefined;
+                selectedDeath = undefined;
+                filterState.birthYear = '';
+                filterState.deathYear = '';
+                birthWheel.clear({ silent: true, keepActive: false });
+                deathWheel.clear({ silent: true, keepActive: false });
+                applyDeathConstraints();
                 updateDisplay();
                 fetchAndRender();
             });

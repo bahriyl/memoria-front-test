@@ -46,7 +46,7 @@ body {
 
 /* ─── Header Card ─── */
 .profile-info {
-    padding: 50px 1rem 1rem;
+    padding: 43px 1rem 1rem;
     text-align: left;
     background-color: #FFFFFF;
     border-radius: 0 0 9px 9px;
@@ -288,7 +288,7 @@ body {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    margin-top: 10px;
+    margin-top: 15px;
 
     /* hide scrollbar across browsers */
     scrollbar-width: none;
@@ -452,7 +452,8 @@ body {
     left: 50%;
     width: 34px;
     height: 34px;
-    transform: translate(-50%, -50%);
+    margin-top: -17px;
+    margin-left: -17px;
     border-radius: 50%;
     border: 3px solid rgba(255, 255, 255, .35);
     border-top-color: #fff;
@@ -471,13 +472,6 @@ body {
     line-height: 16px;
     color: #fff;
     background: rgba(0, 0, 0, .45);
-}
-
-/* Spinner keyframes (reuse if not present) */
-@keyframes memoria-spin {
-    to {
-        transform: translate(-50%, -50%) rotate(360deg);
-    }
 }
 
 /* === Selection badge (match Location page) === */
@@ -605,6 +599,7 @@ body {
     background: #fff;
     border-radius: 20px;
     padding: 1rem;
+    padding-bottom: 20px;
     margin-top: 6px;
     border: 0.2px solid #BFBFBF;
     border-radius: 9px;
@@ -617,7 +612,7 @@ body {
 }
 
 .liturgy-date {
-    margin-bottom: 1.5rem;
+    margin-bottom: 6px;
 }
 
 .date-header {
@@ -691,7 +686,7 @@ body {
 }
 
 .liturgy-church {
-    margin-bottom: 1.5rem;
+    margin-bottom: 30px;
 }
 
 .church-label {
@@ -747,7 +742,7 @@ body {
 }
 
 .liturgy-donation {
-    margin-bottom: 1.5rem;
+    margin-bottom: 26px;
 }
 
 .donation-label {
@@ -792,6 +787,7 @@ body {
 
 .liturgy-submit {
     width: 100%;
+    height: 49px;
     padding: 1rem;
     background-color: #1B8B59;
     color: #fff;
@@ -802,6 +798,9 @@ body {
     font-family: 'Montserrat', sans-serif;
     cursor: pointer;
     transition: background-color .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .liturgy-submit:hover {
@@ -1745,6 +1744,10 @@ body {
     margin: 0 !important;
 }
 
+.select-btn.is-hidden {
+    display: none;
+}
+
 #relSelectedList .minus-icon {
     width: 12px;
     height: 12px;
@@ -1907,77 +1910,73 @@ body {
     }
 }
 
-.bottom-popup {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 2000;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
+.avatar-menu {
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 16px);
+    transform: translateY(-50%);
+    z-index: 5;
 }
 
-.bottom-popup[hidden] {
+.avatar-menu[hidden] {
     display: none;
 }
 
-.bottom-popup-content {
-    background: #fff;
-    padding: 12px 0;
-    width: 100%;
-    max-width: 480px;
-    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.15);
-}
-
-.bottom-popup .bottom-popup-content {
-    width: 100%;
-    max-width: 480px;
-    background: #fff;
-    padding: 8px 0;
-}
-
-body.no-scroll {
+.avatar-menu-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 188px;
+    max-width: 220px;
+    background: #ffffff;
+    border-radius: 18px;
+    border: 0.5px solid #DCDCDC;
+    box-shadow: 0 12px 24px rgba(28, 23, 13, 0.18);
     overflow: hidden;
-    touch-action: none;
+    margin-left: 350px;
+    margin-bottom: 30px;
 }
 
-.popup-action {
-    display: block;
+.avatar-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
     width: 100%;
-    padding: 14px;
-    padding-left: 28px;
+    padding: 14px 20px;
     text-align: left;
-    background: none;
+    background: transparent;
     border: none;
-    font-size: 16px;
-    font-weight: 550;
     font-family: 'Montserrat', sans-serif;
-    color: #202124;
+    font-size: 15px;
+    font-weight: 480;
+    color: #1C170D;
     cursor: pointer;
+    transition: background-color 0.2s ease;
 }
 
-.popup-action+.popup-action {
-    position: relative;
+.avatar-menu-item+.avatar-menu-item {
+    border-top: 0.5px solid #DCDCDC;
 }
 
-.popup-action+.popup-action::before {
-    content: "";
-    position: absolute;
-    left: 5%;
-    /* відступи зліва/справа — можна змінити */
-    right: 5%;
-    bottom: 0;
-    border-bottom: 0.5px solid rgba(220, 220, 220, 1);
+.avatar-menu-item:focus-visible {
+    outline: 2px solid rgba(27, 139, 89, 0.4);
+    outline-offset: -2px;
 }
 
-/* останній елемент без лінії */
-.popup-action:last-child::before {
-    content: none;
+.avatar-menu-item:hover {
+    background: rgba(243, 245, 248, 0.65);
+}
+
+@media (max-width: 480px) {
+    .avatar-menu {
+        left: 50%;
+        transform: translate(-50%, -55%);
+    }
 }
 
 .profile-avatar-wrapper {
     position: absolute;
-    bottom: -40px;
+    bottom: -35px;
     left: 23%;
     transform: translateX(-50%);
     width: 149px;

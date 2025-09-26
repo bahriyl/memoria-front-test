@@ -59,25 +59,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     })();
 
-    // restore selections in lists
-    function restoreSelections() {
-        if (selectedBirth) {
-            [...birthUl.children].forEach(li => {
-                li.classList.toggle('selected', Number(li.dataset.value) === selectedBirth);
-            });
-            // disable death years < birth
-            [...deathUl.children].forEach(li => {
-                const y = Number(li.dataset.value);
-                li.classList.toggle('disabled', y < selectedBirth);
-            });
-        }
-        if (selectedDeath) {
-            [...deathUl.children].forEach(li => {
-                li.classList.toggle('selected', Number(li.dataset.value) === selectedDeath);
-            });
-        }
-    }
-
     function updateDisplay() {
         const hasAny = !!(selectedBirth || selectedDeath);
         if (hasAny) {
@@ -96,13 +77,63 @@ document.addEventListener('DOMContentLoaded', () => {
         deathInput.value = selectedDeath ?? '';
     }
 
+    const applyDeathConstraints = () => {
+        const birthYear = selectedBirth;
+        let firstEnabled = null;
+
+        Array.from(deathUl.children).forEach((li) => {
+            const year = Number(li.dataset.value);
+            const disabled = birthYear ? year < birthYear : false;
+            li.classList.toggle('disabled', disabled);
+            if (!disabled && firstEnabled == null) {
+                firstEnabled = li.dataset.value;
+            }
+        });
+
+        if (!deathWheel) return;
+
+        if (birthYear && selectedDeath && selectedDeath < birthYear) {
+            if (firstEnabled) {
+                deathWheel.setValue(firstEnabled, { silent: true, behavior: 'auto' });
+                selectedDeath = Number(firstEnabled);
+            } else {
+                deathWheel.clear({ silent: true, keepActive: false });
+                selectedDeath = undefined;
+            }
+        }
+
+        deathWheel.refresh();
+    };
+
+    let deathWheel;
+
+    const birthWheel = window.createYearWheel(birthUl, {
+        initialValue: selectedBirth ? String(selectedBirth) : '',
+        onChange: (value) => {
+            selectedBirth = value ? Number(value) : undefined;
+            applyDeathConstraints();
+        }
+    });
+
+    deathWheel = window.createYearWheel(deathUl, {
+        initialValue: selectedDeath ? String(selectedDeath) : '',
+        onChange: (value) => {
+            selectedDeath = value ? Number(value) : undefined;
+        }
+    });
+
+    applyDeathConstraints();
+
     // initial
     updateDisplay();
-    restoreSelections();
 
     // events
     display.addEventListener('click', () => {
         panel.hidden = !panel.hidden;
+        if (!panel.hidden) {
+            birthWheel.snap({ behavior: 'auto', silent: true });
+            deathWheel.snap({ behavior: 'auto', silent: true });
+        }
     });
     panel.addEventListener('click', e => e.stopPropagation());
     document.addEventListener('click', e => {
@@ -112,39 +143,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Escape') panel.hidden = true;
     });
 
-    birthUl.addEventListener('click', e => {
-        const li = e.target.closest('li'); if (!li) return;
-        birthUl.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
-        li.classList.add('selected');
-        selectedBirth = Number(li.dataset.value);
-
-        // lock invalid death years
-        deathUl.querySelectorAll('li').forEach(n => {
-            const y = Number(n.dataset.value);
-            n.classList.toggle('disabled', y < selectedBirth);
-        });
-        li.scrollIntoView({ block: 'center' });
-    });
-
-    deathUl.addEventListener('click', e => {
-        const li = e.target.closest('li'); if (!li || li.classList.contains('disabled')) return;
-        deathUl.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
-        li.classList.add('selected');
-        selectedDeath = Number(li.dataset.value);
-        li.scrollIntoView({ block: 'center' });
-    });
-
     doneBtn.addEventListener('click', () => {
+        const birthValue = birthWheel.getValue();
+        const deathValue = deathWheel.getValue();
+
+        selectedBirth = birthValue ? Number(birthValue) : undefined;
+        selectedDeath = deathValue ? Number(deathValue) : undefined;
+
+        applyDeathConstraints();
+
         updateDisplay();
         panel.hidden = true;
     });
 
     clearBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        selectedBirth = selectedDeath = undefined;
-        birthUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-        deathUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-        deathUl.querySelectorAll('.disabled').forEach(el => el.classList.remove('disabled'));
+        selectedBirth = undefined;
+        selectedDeath = undefined;
+        birthWheel.clear({ silent: true, keepActive: false });
+        deathWheel.clear({ silent: true, keepActive: false });
+        applyDeathConstraints();
         updateDisplay();
     });
 
