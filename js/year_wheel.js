@@ -1,281 +1,352 @@
-(function () {
-    const DEFAULT_ITEM_HEIGHT = 44;
-    const DEFAULT_VISIBLE_COUNT = 5;
-    const DRUM_MAX_SLICES = 3;
-    const SNAP_DELAY = 120;
+(() => {
+    const defaultOptions = {
+        initialValue: '',
+        onChange: () => { }
+    };
 
-    const isNumber = (val) => typeof val === 'number' && !Number.isNaN(val);
+    const wheelInstances = new WeakMap();
+    const raf = typeof window !== 'undefined' && window.requestAnimationFrame
+        ? window.requestAnimationFrame.bind(window)
+        : (cb) => setTimeout(cb, 16);
+    const caf = typeof window !== 'undefined' && window.cancelAnimationFrame
+        ? window.cancelAnimationFrame.bind(window)
+        : clearTimeout;
 
-    function clamp(value, min, max) {
-        return Math.max(min, Math.min(max, value));
-    }
+    // Delay before snapping to the nearest enabled item after user scroll
+    const SNAP_DELAY_MS = 120;
 
-    function getCssNumber(target, prop, fallback) {
-        if (!target) return fallback;
-        const raw = parseFloat(getComputedStyle(target).getPropertyValue(prop));
-        return Number.isFinite(raw) ? raw : fallback;
-    }
+    class YearWheel {
+        constructor(listElement, options = {}) {
+            this.list = listElement;
+            this.wheel = listElement.closest('.year-wheel') || listElement.parentElement;
+            this.options = { ...defaultOptions, ...options };
+            this.value = '';
+            this.currentItem = null;
+            this._scrollFrame = null;
+            this._programmaticScroll = false;
+            this._programmaticClear = null;
+            this._snapDelayTimer = null;
 
-    function noopWheel() {
-        return {
-            getValue: () => '',
-            setValue: () => { },
-            clear: () => { },
-            snap: () => { },
-            refresh: () => { },
-        };
-    }
+            this.onScroll = this.onScroll.bind(this);
+            this.onClick = this.onClick.bind(this);
+            this.onKeyDown = this.onKeyDown.bind(this);
+            this.onFocus = this.onFocus.bind(this);
 
-    function createYearWheel(listEl, options = {}) {
-        if (!listEl) {
-            console.warn('[year_wheel] list element is required');
-            return noopWheel();
-        }
+            this.initAccessibility();
+            this.attachEvents();
 
-        const panelEl = listEl.closest('.years-panel');
-        const wheelEl = listEl.closest('.year-wheel');
-        const panelStyles = panelEl ? getComputedStyle(panelEl) : null;
-
-        const itemHeight = options.itemHeight
-            || getCssNumber(panelEl, '--year-item-height', DEFAULT_ITEM_HEIGHT);
-        const visibleCount = options.visibleCount
-            || getCssNumber(panelEl, '--year-visible-count', DEFAULT_VISIBLE_COUNT);
-        const centerOffset = (visibleCount - 1) / 2;
-
-        if (wheelEl) {
-            wheelEl.classList.add('year-wheel--enhanced');
-        }
-
-        let items = Array.from(listEl.children);
-        if (!items.length) {
-            console.warn('[year_wheel] list has no items');
-            return noopWheel();
-        }
-
-        const onChange = typeof options.onChange === 'function' ? options.onChange : null;
-
-        let activeIndex = 0;
-        let committedValue = '';
-        let rafId = null;
-        let snapTimer = null;
-        let suppressed = true;
-
-        const getValueAt = (idx) => {
-            const item = items[idx];
-            if (!item) return '';
-            return item.dataset.value ?? item.textContent.trim();
-        };
-
-        const findIndexByValue = (value) => {
-            if (value == null || value === '') return -1;
-            const target = String(value);
-            return items.findIndex((li) => (li.dataset.value ?? li.textContent.trim()) === target);
-        };
-
-        const isDisabled = (idx) => {
-            const item = items[idx];
-            return !item || item.classList.contains('disabled');
-        };
-
-        const findNearestEnabled = (idx) => {
-            if (!items.length) return -1;
-            let target = clamp(idx, 0, items.length - 1);
-            if (!isDisabled(target)) return target;
-            for (let offset = 1; offset < items.length; offset += 1) {
-                const prev = target - offset;
-                if (prev >= 0 && !isDisabled(prev)) return prev;
-                const next = target + offset;
-                if (next < items.length && !isDisabled(next)) return next;
-            }
-            return -1;
-        };
-
-        const setCommitted = (value) => {
-            committedValue = value || '';
-            if (committedValue) {
-                listEl.dataset.selectedValue = committedValue;
+            const initial = this.options.initialValue == null ? '' : String(this.options.initialValue);
+            if (initial) {
+                this.setValue(initial, { silent: true, behavior: 'auto' });
             } else {
-                delete listEl.dataset.selectedValue;
+                this.clear({ silent: true, keepActive: true, behavior: 'auto' });
             }
-        };
+            this.snap({ behavior: 'auto', silent: true });
+        }
 
-        const setActiveIndex = (idx) => {
-            if (!items.length) return -1;
-            const target = findNearestEnabled(idx);
-            if (target === -1) return -1;
-            if (activeIndex === target) return target;
-            activeIndex = target;
-            items.forEach((li, i) => {
-                li.classList.toggle('selected', i === target);
-            });
-            return target;
-        };
+        updateOptions(next = {}) {
+            if (!next || typeof next !== 'object') return;
+            const needsInitial = Object.prototype.hasOwnProperty.call(next, 'initialValue');
+            this.options = { ...this.options, ...next };
+            if (needsInitial) {
+                const val = next.initialValue == null ? '' : String(next.initialValue);
+                this.setValue(val, { silent: true, behavior: 'auto' });
+            }
+        }
 
-        const scrollToIndex = (idx, behavior = 'auto') => {
-            const target = clamp(idx, 0, items.length - 1);
-            const top = target * itemHeight;
-            if (typeof listEl.scrollTo === 'function') {
-                listEl.scrollTo({ top, behavior });
+        initAccessibility() {
+            if (!this.list.hasAttribute('role')) {
+                this.list.setAttribute('role', 'listbox');
+            }
+            this.list.setAttribute('aria-orientation', 'vertical');
+            if (!this.list.hasAttribute('tabindex')) {
+                this.list.tabIndex = 0;
+            }
+        }
+
+        attachEvents() {
+            this.list.addEventListener('scroll', this.onScroll, { passive: true });
+            this.list.addEventListener('click', this.onClick);
+            this.list.addEventListener('keydown', this.onKeyDown);
+            this.list.addEventListener('focus', this.onFocus);
+        }
+
+        onFocus() {
+            // If the user has a current selection and it's selectable (e.g. "Від/До" or a year),
+            // just center it; otherwise, pick the nearest selectable.
+            if (this.currentItem && this.isSelectable(this.currentItem)) {
+                this.scrollToItem(this.currentItem, 'auto');
             } else {
-                listEl.scrollTop = top;
+                this.syncToClosest({ silent: true });
             }
-        };
+        }
 
-        const updateDrumStyles = () => {
-            const scrollIndex = listEl.scrollTop / itemHeight;
-            const centerIndex = scrollIndex + centerOffset;
-
-            items.forEach((li, i) => {
-                const delta = i - centerIndex;
-                const absDelta = Math.abs(delta);
-                const slice = Math.min(absDelta, DRUM_MAX_SLICES);
-                const angle = delta * 18;
-                const depth = Math.max(0, 56 - slice * 18);
-                const scale = Math.max(0.82, 1 - slice * 0.12);
-                const opacity = Math.max(0.28, 1 - slice * 0.32);
-                li.style.transform = `translateZ(${depth}px) rotateX(${angle}deg) scale(${scale})`;
-                li.style.opacity = opacity.toFixed(3);
-                li.style.zIndex = String(100 - Math.round(slice * 10));
+        onScroll() {
+            if (this._programmaticScroll) return;
+            if (this._scrollFrame) caf(this._scrollFrame);
+            this._scrollFrame = raf(() => {
+                this._scrollFrame = null;
+                // Debounce snap: wait briefly for scroll to settle
+                if (this._snapDelayTimer) {
+                    clearTimeout(this._snapDelayTimer);
+                }
+                this._snapDelayTimer = setTimeout(() => {
+                    this._snapDelayTimer = null;
+                    this.syncToClosest({ silent: false });
+                }, SNAP_DELAY_MS);
             });
+        }
 
-            const nearest = clamp(Math.round(centerIndex), 0, items.length - 1);
-            setActiveIndex(nearest);
-        };
+        onClick(event) {
+            const item = event.target.closest('li');
+            if (!item || !this.list.contains(item)) return;
+            event.preventDefault();
+            if (!this.isSelectable(item)) return;
+            this.applySelection(item, { silent: false, scroll: true, behavior: 'smooth' });
+        }
 
-        const scheduleDrumUpdate = () => {
-            if (rafId) cancelAnimationFrame(rafId);
-            rafId = requestAnimationFrame(() => {
-                rafId = null;
-                updateDrumStyles();
+        onKeyDown(event) {
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                this.selectRelative(-1);
+            } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                this.selectRelative(1);
+            }
+        }
+
+        getItems() {
+            return Array.from(this.list.querySelectorAll('li'));
+        }
+
+        getValueForItem(item) {
+            return item?.dataset?.value ?? '';
+        }
+
+        isSelectable(item) {
+            if (!item) return false;
+            if (!this.list.contains(item)) return false;
+            if (item.classList.contains('disabled')) return false;
+            if (item.hasAttribute('aria-hidden')) return false;
+            const style = window.getComputedStyle ? window.getComputedStyle(item) : null;
+            if (style && (style.display === 'none' || style.visibility === 'hidden')) return false;
+            return true;
+        }
+
+        findItemByValue(value) {
+            const val = value == null ? '' : String(value);
+            return this.getItems().find(item => this.getValueForItem(item) === val) || null;
+        }
+
+        findPlaceholder() {
+            return this.getItems().find(item => this.getValueForItem(item) === '') || null;
+        }
+
+        selectRelative(direction) {
+            const selectable = this.getItems().filter(item => this.isSelectable(item));
+            if (!selectable.length) return;
+            const current = this.currentItem && this.isSelectable(this.currentItem)
+                ? this.currentItem
+                : this.findItemByValue(this.value);
+            let index = selectable.indexOf(current);
+            if (index === -1) {
+                index = direction > 0 ? -1 : 0;
+            }
+            index = Math.max(0, Math.min(selectable.length - 1, index + direction));
+            const next = selectable[index];
+            if (next) {
+                this.applySelection(next, { silent: false, scroll: true, behavior: 'smooth' });
+            }
+        }
+
+        scrollToItem(item, behavior = 'smooth') {
+            if (!item) return;
+            const targetTop = item.offsetTop - (this.list.clientHeight / 2) + (item.offsetHeight / 2);
+            const scrollBehavior = behavior === 'smooth' ? 'smooth' : 'auto';
+            this._programmaticScroll = true;
+            try {
+                this.list.scrollTo({ top: targetTop, behavior: scrollBehavior });
+            } catch (e) {
+                this.list.scrollTop = targetTop;
+            }
+            if (this._programmaticClear) caf(this._programmaticClear);
+            this._programmaticClear = raf(() => {
+                this._programmaticScroll = false;
+                this._programmaticClear = null;
             });
-        };
+        }
 
-        const applySelected = (idx, behavior = 'auto', config = {}) => {
-            const { commit = true, silent = false } = config;
-            const target = setActiveIndex(idx);
-            if (target === -1) return -1;
+        applySelection(item, opts = {}) {
+            const { silent = false, scroll = true, behavior = 'smooth' } = opts;
+            if (!item) return;
+            const newValue = this.getValueForItem(item);
+            const oldValue = this.value;
+            if (this.currentItem && this.currentItem !== item) {
+                this.currentItem.classList.remove('selected');
+                this.currentItem.removeAttribute('aria-selected');
+            }
+            this.currentItem = item;
+            this.value = newValue;
+            item.classList.add('selected');
+            item.setAttribute('aria-selected', 'true');
 
-            if (behavior !== 'none') {
-                scrollToIndex(target, behavior);
+            if (scroll) {
+                this.scrollToItem(item, behavior);
             }
 
-            if (commit) {
-                const previous = committedValue;
-                setCommitted(getValueAt(target));
-                if (!suppressed && !silent && onChange && previous !== committedValue) {
-                    onChange(committedValue);
+            if (!silent && newValue !== oldValue) {
+                this.options.onChange(newValue);
+            }
+        }
+
+        syncToClosest(opts = {}) {
+            const { silent = false } = opts;
+            const closest = this.findClosestToCenter();
+            if (!closest) return;
+            // If we’re correcting away from a disabled center, also move the wheel.
+            const shouldScroll = true; // safe default for a crisp snap experience
+            this.applySelection(closest, { silent, scroll: shouldScroll, behavior: 'auto' });
+        }
+
+        findClosestToCenter() {
+            const items = this.getItems();
+            if (!items.length) return null;
+            const container = this.wheel || this.list;
+            const rect = container.getBoundingClientRect();
+            const center = rect.top + rect.height / 2;
+            let best = null;
+            let minDist = Infinity;
+            for (const item of items) {
+                if (!this.isSelectable(item)) continue;
+                const itemRect = item.getBoundingClientRect();
+                if (!itemRect || !itemRect.height) continue;
+                const itemCenter = itemRect.top + itemRect.height / 2;
+                const dist = Math.abs(itemCenter - center);
+                if (dist < minDist) {
+                    minDist = dist;
+                    best = item;
                 }
             }
+            return best || this.findPlaceholder();
+        }
 
-            scheduleDrumUpdate();
-            return target;
-        };
-
-        const snapToNearest = (opts = {}) => {
-            const { behavior = 'smooth', silent = false } = opts;
-            const scrollIndex = listEl.scrollTop / itemHeight;
-            const centerIndex = scrollIndex + centerOffset;
-            const nearest = clamp(Math.round(centerIndex), 0, items.length - 1);
-            return applySelected(nearest, behavior, { commit: true, silent });
-        };
-
-        const handleScroll = () => {
-            scheduleDrumUpdate();
-            if (!snapOnStop) return;
-            if (snapTimer) clearTimeout(snapTimer);
-            snapTimer = setTimeout(() => {
-                snapToNearest({ behavior: 'smooth', silent: false });
-            }, SNAP_DELAY);
-        };
-
-
-        const handleClick = (event) => {
-            const li = event.target.closest('li');
-            if (!li) return;
-            const idx = items.indexOf(li);
-            if (idx === -1 || isDisabled(idx)) return;
-            applySelected(idx, 'smooth', { commit: true, silent: false });
-        };
-
-        listEl.addEventListener('scroll', handleScroll, { passive: true });
-        listEl.addEventListener('click', handleClick);
-
-        const initFromValue = () => {
-            if (options.initialValue != null && options.initialValue !== '') {
-                const idx = findIndexByValue(options.initialValue);
-                if (idx !== -1) {
-                    setCommitted(String(options.initialValue));
-                    applySelected(idx, 'auto', { commit: true, silent: true });
-                    return;
-                }
+        findNearestSelectable(reference) {
+            const items = this.getItems();
+            if (!items.length) return null;
+            let index = reference ? items.indexOf(reference) : -1;
+            if (index === -1 && this.value) {
+                index = items.findIndex(item => this.getValueForItem(item) === this.value);
             }
-
-            if (listEl.dataset.selectedValue) {
-                const idx = findIndexByValue(listEl.dataset.selectedValue);
-                if (idx !== -1) {
-                    setCommitted(listEl.dataset.selectedValue);
-                    applySelected(idx, 'auto', { commit: true, silent: true });
-                    return;
-                }
+            if (index === -1) {
+                return this.findClosestToCenter();
             }
+            for (let offset = 0; offset < items.length; offset += 1) {
+                const forward = items[index + offset];
+                if (forward && this.isSelectable(forward)) return forward;
+                const backward = items[index - offset];
+                if (backward && this.isSelectable(backward)) return backward;
+            }
+            return this.findPlaceholder();
+        }
 
-            const preselectedIdx = items.findIndex((li) => li.classList.contains('selected'));
-            if (preselectedIdx !== -1) {
-                const val = getValueAt(preselectedIdx);
-                setCommitted(val);
-                applySelected(preselectedIdx, 'auto', { commit: true, silent: true });
+        getValue() {
+            return this.value;
+        }
+
+        setValue(value, opts = {}) {
+            const { silent = false, behavior = 'smooth' } = opts;
+            const val = value == null ? '' : String(value);
+            if (!val) {
+                this.clear({ silent, keepActive: true, behavior });
                 return;
             }
+            const item = this.findItemByValue(val);
+            if (!item) {
+                this.clear({ silent, keepActive: true, behavior });
+                return;
+            }
+            if (!this.isSelectable(item)) {
+                const fallback = this.findNearestSelectable(item);
+                if (fallback) {
+                    this.applySelection(fallback, { silent, scroll: true, behavior });
+                }
+                return;
+            }
+            this.applySelection(item, { silent, scroll: true, behavior });
+        }
 
-            const fallback = clamp(Math.round(centerOffset), 0, items.length - 1);
-            applySelected(fallback, 'auto', { commit: false, silent: true });
-            scrollToIndex(fallback, 'auto');
-        };
+        clear(opts = {}) {
+            const { silent = false, keepActive = true, behavior = 'smooth' } = opts;
+            const previous = this.value;
+            if (this.currentItem) {
+                this.currentItem.classList.remove('selected');
+                this.currentItem.removeAttribute('aria-selected');
+                this.currentItem = null;
+            }
+            this.value = '';
+            if (keepActive) {
+                const placeholder = this.findPlaceholder();
+                if (placeholder) {
+                    this.applySelection(placeholder, { silent: true, scroll: true, behavior });
+                }
+            }
+            if (!silent && previous !== '') {
+                this.options.onChange('');
+            }
+        }
 
-        initFromValue();
-        scheduleDrumUpdate();
-        suppressed = false;
+        snap(opts = {}) {
+            const { behavior = 'smooth', silent = true } = opts;
+            const target = this.currentItem || this.findItemByValue(this.value) || this.findPlaceholder() || this.findClosestToCenter();
+            if (target) {
+                this.scrollToItem(target, behavior);
+                if (!silent) {
+                    this.syncToClosest({ silent: false });
+                }
+            }
+        }
 
-        return {
-            getValue: () => committedValue || '',
-            setValue: (value, opts = {}) => {
-                const { silent = false, behavior = 'auto' } = opts;
-                if (value == null || value === '') {
-                    const previous = committedValue;
-                    setCommitted('');
-                    if (!suppressed && !silent && onChange && previous !== committedValue) {
-                        onChange('');
-                    }
-                    scheduleDrumUpdate();
+        refresh(opts = {}) {
+            const { silent = true } = opts;
+            let current = this.currentItem && this.list.contains(this.currentItem) ? this.currentItem : null;
+            if (current && !this.isSelectable(current)) {
+                const fallback = this.findNearestSelectable(current);
+                if (fallback) {
+                    this.applySelection(fallback, { silent, scroll: true, behavior: 'auto' });
+                } else {
+                    this.clear({ silent, keepActive: false });
+                }
+                return;
+            }
+            if (!current) {
+                const byValue = this.findItemByValue(this.value);
+                if (byValue && this.isSelectable(byValue)) {
+                    this.applySelection(byValue, { silent: true, scroll: false, behavior: 'auto' });
                     return;
                 }
-                const idx = findIndexByValue(value);
-                if (idx === -1) return;
-                applySelected(idx, behavior, { commit: true, silent });
-            },
-            clear: (opts = {}) => {
-                const { silent = false, keepActive = true } = opts;
-                const previous = committedValue;
-                setCommitted('');
-                if (!keepActive) {
-                    activeIndex = -1;
-                    items.forEach((li) => li.classList.remove('selected'));
-                } else {
-                    items.forEach((li, i) => li.classList.toggle('selected', i === activeIndex));
+                const fallback = this.findClosestToCenter();
+                if (fallback) {
+                    this.applySelection(fallback, { silent, scroll: false, behavior: 'auto' });
                 }
-                if (!suppressed && !silent && onChange && previous !== committedValue) {
-                    onChange('');
-                }
-                scheduleDrumUpdate();
-            },
-            snap: (opts = {}) => {
-                snapToNearest(opts);
-            },
-            refresh: () => {
-                items = Array.from(listEl.children);
-                scheduleDrumUpdate();
-            },
-        };
+                return;
+            }
+            current.classList.add('selected');
+            current.setAttribute('aria-selected', 'true');
+        }
+    }
+
+    function createYearWheel(listElement, options = {}) {
+        if (!listElement || !(listElement instanceof HTMLElement)) {
+            throw new Error('createYearWheel expects a DOM element.');
+        }
+        const existing = wheelInstances.get(listElement);
+        if (existing) {
+            existing.updateOptions(options);
+            return existing;
+        }
+        const instance = new YearWheel(listElement, options);
+        wheelInstances.set(listElement, instance);
+        return instance;
     }
 
     window.createYearWheel = createYearWheel;

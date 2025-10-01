@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let isEditingLandmarks = false;
     let prevLandmarksText = '';
+    let initialLocationSnapshot = { coords: '', landmarks: '', photos: [] };
 
     // ===== UTIL =====
     function closeAllMenus() {
@@ -88,6 +89,49 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('personId missing in query string');
         return;
     }
+
+    const clonePhotos = (arr) => Array.isArray(arr) ? arr.slice() : [];
+
+    const normalizeLandmarks = (value) => (value || '').trim();
+
+    const photosEqual = (a = [], b = []) => {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i += 1) {
+            if (a[i] !== b[i]) return false;
+        }
+        return true;
+    };
+
+    const captureInitialSnapshot = () => {
+        initialLocationSnapshot = {
+            coords: currentLocation.coords || '',
+            landmarks: normalizeLandmarks(currentLocation.landmarks),
+            photos: clonePhotos(currentLocation.photos),
+        };
+        if (initialHasData) {
+            changesMade = false;
+        }
+    };
+
+    const computeChangesMade = () => {
+        if (!initialHasData) return;
+        const sameCoords = (initialLocationSnapshot.coords || '') === (currentLocation.coords || '');
+        const sameLandmarks = initialLocationSnapshot.landmarks === normalizeLandmarks(currentLocation.landmarks);
+        const samePhotos = photosEqual(initialLocationSnapshot.photos, currentLocation.photos);
+        changesMade = !(sameCoords && sameLandmarks && samePhotos);
+    };
+
+    const markChanged = () => {
+        if (!initialHasData) {
+            changesMade = true;
+            return;
+        }
+        computeChangesMade();
+        if (!changesMade) {
+            // if nothing actually changed (same values), keep current flag
+            changesMade = false;
+        }
+    };
 
     const nonBlobPhotos = () =>
         (currentLocation.photos || []).filter(
@@ -257,6 +301,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!res.ok) throw new Error(await res.text());
             hideErrors?.();
+            captureInitialSnapshot();
+            computeChangesMade();
+            maybeUpdateSubmit();
         } catch (e) {
             console.error('Update failed', e);
             showErrors?.('Не вдалося оновити локацію. Спробуйте ще раз.');
@@ -426,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLandmarksMargin();
 
         isEditingLandmarks = false;   // <<< important
-        // no changesMade here
+        computeChangesMade();
         updateSubmitButtonVisibility?.();
     });
 
@@ -459,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLandmarksMargin();
 
         isEditingLandmarks = false;
-        changesMade = true;
+        markChanged();
         maybeUpdateSubmit();
 
         // NEW: завжди пушимо оновлення на бек, навіть у creation flow
@@ -569,6 +616,8 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshPlaceholders();
             updatePhotosHeaderSpacing();
             setSubmitLabel();
+            captureInitialSnapshot();
+            computeChangesMade();
             maybeUpdateSubmit();
 
             if (premiumLocked) applyPremiumLock();
@@ -587,7 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!initialHasData) {
                 // CREATION: live-commit, no confirmation UI, keep dots-menu hidden
                 currentLocation.landmarks = val;
-                changesMade = true;
+                markChanged();
 
                 if (landmarksMenuBtn) landmarksMenuBtn.style.display = 'none';
                 updateLandmarksMargin();
@@ -853,7 +902,7 @@ document.addEventListener('DOMContentLoaded', () => {
             (pos) => {
                 const coordsStr = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
                 currentLocation.coords = coordsStr;
-                changesMade = true;
+                markChanged();
 
                 if (geoCard) geoCard.style.display = 'none';
                 renderMap(pos.coords.latitude, pos.coords.longitude);
@@ -889,7 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // show previews immediately
             previewUrls.forEach((url) => currentLocation.photos.push(url));
             refreshPlaceholders();
-            changesMade = true;
+            markChanged();
             maybeUpdateSubmit();
             fileInput.value = '';
 
@@ -1145,7 +1194,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentLocation.photos = currentLocation.photos.filter((u) => !toRemove.has(u));
             hideDeleteConfirm();
             exitSelectionMode();
-            changesMade = true;
+            markChanged();
             maybeUpdateSubmit();
 
             if (initialHasData) pushUpdate();

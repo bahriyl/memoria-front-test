@@ -310,16 +310,30 @@ document.addEventListener('DOMContentLoaded', () => {
         return json.data.url;
     }
 
-    async function updateAvatar(url) {
+    async function updateAvatar(payload) {
+        // payload can be: null | string (cropped only) | { avatarUrl, portraitUrl }
+        let body;
+        if (payload == null) {
+            body = { avatarUrl: null, portraitUrl: null };          // delete both
+        } else if (typeof payload === 'string') {
+            body = { avatarUrl: payload };                           // backward-compat
+        } else {
+            body = {
+                avatarUrl: payload.avatarUrl || null,
+                portraitUrl: payload.portraitUrl || null
+            };
+        }
+
         try {
             const res = await fetch(`${API_BASE}/${personId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ avatarUrl: url })
+                body: JSON.stringify(body)
             });
             if (!res.ok) throw new Error(await res.text());
             const updated = await res.json();
 
+            // keep UI in sync with cropped avatar
             avatarEl.src = updated.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png';
         } catch (err) {
             console.error('Update avatar failed', err);
@@ -347,8 +361,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const btnOk = document.getElementById('avatar-cropper-ok');
             const btnCancel = document.getElementById('avatar-cropper-cancel');
 
+            // Fallback when the modal isn't present:
             if (!overlay || !modal || !stage || !img || !btnOk || !btnCancel) {
-                resolve(file);
+                // return both pointing to the original so the rest of the flow still works
+                resolve({ cropped: file, original: file });
                 return;
             }
 
@@ -557,7 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     reject(new Error('blob failed'));
                                     return;
                                 }
-                                resolve(blob);
+                                resolve({ cropped: blob, original: file });
                             }, 'image/png', 0.92);
                         } catch (e) {
                             cleanup();
@@ -578,21 +594,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showAvatarSpinner();
         try {
-            // 1) Let user crop related to the circle
-            const croppedBlob = await openAvatarCropper(file); // may throw if cancelled
+            // 1) Crop
+            const { cropped, original } = await openAvatarCropper(file); // now returns both
 
-            // 2) Upload the CROPPED blob (not the original)
-            const hostedUrl = await uploadAvatarToImgBB(croppedBlob);
-            await updateAvatar(hostedUrl);
+            // 2) Upload both in parallel
+            const [croppedUrl, originalUrl] = await Promise.all([
+                uploadAvatarToImgBB(cropped),
+                uploadAvatarToImgBB(original)
+            ]);
+
+            // 3) Save both (cropped for avatar, original for notable)
+            await updateAvatar({ avatarUrl: croppedUrl, portraitUrl: originalUrl });
+
             location.reload();
         } catch (err) {
             // cancelled or failed
-            // optional: showToast('Зміни скасовано'); 
         } finally {
-            avatarInput.value = ''; // reset
+            avatarInput.value = '';
             hideAvatarSpinner();
-            // Keep menu behavior as you have it now:
-            // profile_edit: menu closes in finally; profile: same
         }
     });
 
@@ -846,7 +865,30 @@ document.addEventListener('DOMContentLoaded', () => {
     // Рендер
     function refreshSharedUI() {
         if (!sharedListEl) return;
-        sharedListEl.innerHTML = '';
+
+        // Get the scroll container (parent of the UL)
+        const sharedScroll = document.querySelector('.profile-shared .shared-scroll');
+        if (!sharedScroll) return;
+
+        const hasItems =
+            (Array.isArray(sharedPending) && sharedPending.length > 0) ||
+            (Array.isArray(sharedPhotos) && sharedPhotos.length > 0);
+
+        if (!hasItems) {
+            // Render full-width empty state like profile-photos
+            sharedScroll.innerHTML = '<div class="photos-empty">Немає спільних фото</div>';
+            return;
+        }
+
+        // Ensure UL exists inside the scroll container, then render items
+        let ul = sharedScroll.querySelector('.shared-list');
+        if (!ul) {
+            ul = document.createElement('ul');
+            ul.className = 'photos-list shared-list';
+            sharedScroll.innerHTML = '';
+            sharedScroll.appendChild(ul);
+        }
+        ul.innerHTML = '';
 
         // PUBLIC PAGE: show only accepted photos + local blob previews
         const localPendingBlobs = sharedPending.filter(p => isBlob(p.url));
@@ -1946,7 +1988,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 serviceInfoEl.innerHTML =
                     `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${churchName}</span>, <span style="font-weight:550;">${selectedDate}</span> р.`;
             } else {
-                serviceInfoEl.innerHTML = `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву</span>, ${selectedDate} р.`;
+                serviceInfoEl.innerHTML = `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву</span>, <span style="font-weight:550;">${selectedDate}</span> р.`;
             }
         }
     }
@@ -2441,43 +2483,75 @@ document.addEventListener('DOMContentLoaded', () => {
         const YEAR_START = 1850;
         const YEAR_END = new Date().getFullYear();
 
-        function populateYearList(listEl) {
-            const frag = document.createDocumentFragment();
+        function populateYearList(listEl, placeholderLabel) {
+            if (!listEl || listEl.children.length) return;
+
+            const placeholder = document.createElement('li');
+            placeholder.textContent = placeholderLabel;
+            placeholder.dataset.value = '';
+            listEl.appendChild(placeholder);
+
             for (let y = YEAR_END; y >= YEAR_START; y--) {
                 const li = document.createElement('li');
                 li.textContent = y;
                 li.dataset.value = String(y);
-                frag.appendChild(li);
+                listEl.appendChild(li);
             }
-            listEl.innerHTML = '';
-            listEl.appendChild(frag);
         }
 
-        populateYearList(birthList);
-        populateYearList(deathList);
+        populateYearList(birthList, 'Від');
+        populateYearList(deathList, 'До');
+
+        const updateYearsDisplay = () => {
+            const hasAny = !!(selectedBirth || selectedDeath);
+            const text = hasAny
+                ? `${selectedBirth ?? ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath ?? ''}`
+                : 'Рік народження та смерті';
+            display.textContent = text;
+            display.classList.toggle('has-value', hasAny);
+            clearYears.hidden = !hasAny;
+            birthInput.value = selectedBirth ?? '';
+            deathInput.value = selectedDeath ?? '';
+        };
+
+        const enforceRelChronology = (source = 'birth', behavior = 'smooth') => {
+            const birthYear = selectedBirth ? Number(selectedBirth) : undefined;
+            const deathYear = selectedDeath ? Number(selectedDeath) : undefined;
+            if (!birthYear || !deathYear) return false;
+            if (birthYear === deathYear) return false;
+
+            if (birthYear > deathYear) {
+                if (source === 'death') {
+                    birthWheel.setValue(String(deathYear), { silent: true, behavior });
+                    selectedBirth = deathYear;
+                } else {
+                    deathWheel.setValue(String(birthYear), { silent: true, behavior });
+                    selectedDeath = birthYear;
+                }
+                return true;
+            }
+            return false;
+        };
+
         const applyDeathConstraints = () => {
             const birthYear = selectedBirth ? Number(selectedBirth) : undefined;
-            let firstEnabled = null;
+            let hasEnabledNonEmpty = false;
 
             Array.from(deathList.children).forEach((li) => {
-                const year = Number(li.dataset.value);
-                const disabled = birthYear ? year < birthYear : false;
+                const raw = li.dataset.value ?? '';
+                const year = raw === '' ? NaN : Number(raw);
+                const disabled = Number.isFinite(year) && birthYear ? year < birthYear : false;
                 li.classList.toggle('disabled', disabled);
-                if (!disabled && firstEnabled == null) {
-                    firstEnabled = li.dataset.value;
+                if (!disabled && raw !== '') {
+                    hasEnabledNonEmpty = true;
                 }
             });
 
             if (!deathWheel) return;
 
-            if (birthYear && selectedDeath && Number(selectedDeath) < birthYear) {
-                if (firstEnabled) {
-                    deathWheel.setValue(firstEnabled, { silent: true, behavior: 'auto' });
-                    selectedDeath = firstEnabled;
-                } else {
-                    deathWheel.clear({ silent: true, keepActive: false });
-                    selectedDeath = undefined;
-                }
+            if (birthYear && !hasEnabledNonEmpty) {
+                deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+                selectedDeath = undefined;
             }
 
             deathWheel.refresh();
@@ -2488,32 +2562,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const birthWheel = window.createYearWheel(birthList, {
             initialValue: birthInput.value || selectedBirth || '',
             onChange: (value) => {
-                selectedBirth = value || undefined;
+                selectedBirth = value ? Number(value) : undefined;
+                enforceRelChronology('birth');
                 applyDeathConstraints();
+                updateYearsDisplay();
             }
         });
 
         deathWheel = window.createYearWheel(deathList, {
             initialValue: deathInput.value || selectedDeath || '',
             onChange: (value) => {
-                selectedDeath = value || undefined;
+                selectedDeath = value ? Number(value) : undefined;
+                enforceRelChronology('death');
+                applyDeathConstraints();
+                updateYearsDisplay();
             }
         });
 
+        enforceRelChronology('birth', 'auto');
         applyDeathConstraints();
-        display.textContent = (selectedBirth || selectedDeath)
-            ? `${selectedBirth || ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath || ''}`
-            : 'Рік народження та смерті';
-        display.classList.toggle('has-value', !!(selectedBirth || selectedDeath));
-        clearYears.hidden = !(selectedBirth || selectedDeath);
+        updateYearsDisplay();
 
         // Toggle panel on pill click
         pill.addEventListener('click', (e) => {
             e.stopPropagation();
-            panel.classList.toggle('hidden');
-            if (!panel.classList.contains('hidden')) {
-                birthWheel.snap({ behavior: 'auto', silent: true });
-                deathWheel.snap({ behavior: 'auto', silent: true });
+            panel.hidden = !panel.hidden;
+            if (!panel.hidden) {
+                const hasBirth = !!birthWheel.getValue();
+                const hasDeath = !!deathWheel.getValue();
+                if (hasBirth) birthWheel.snap({ behavior: 'auto', silent: true });
+                if (hasDeath) deathWheel.snap({ behavior: 'auto', silent: true });
             }
         });
 
@@ -2522,22 +2600,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const b = birthWheel.getValue() || '';
             const d = deathWheel.getValue() || '';
 
-            if (b && d && Number(d) < Number(b)) {
-                alert('Рік смерті не може бути раніше року народження.');
-                return;
-            }
+            selectedBirth = b ? Number(b) : undefined;
+            selectedDeath = d ? Number(d) : undefined;
 
-            selectedBirth = b || undefined;
-            selectedDeath = d || undefined;
+            enforceRelChronology('birth', 'auto');
             applyDeathConstraints();
-            birthInput.value = b || '';
-            deathInput.value = d || '';
-            display.textContent = (b || d) ? `${b || ''}${(b && d) ? ' – ' : ''}${d || ''}` : 'Рік народження та смерті';
-            display.classList.toggle('has-value', !!(b || d));
-            clearYears.hidden = !(b || d);
+            updateYearsDisplay();
 
             // CLOSE ONLY on Done button click
-            panel.classList.add('hidden');
+            panel.hidden = true;
             triggerFetch();
         });
 
@@ -2545,12 +2616,10 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             selectedBirth = selectedDeath = undefined;
             birthInput.value = deathInput.value = '';
-            display.textContent = 'Рік народження та смерті';
-            display.classList.remove('has-value');
-            clearYears.hidden = true;
             birthWheel.clear({ silent: true, keepActive: false });
             deathWheel.clear({ silent: true, keepActive: false });
             applyDeathConstraints();
+            updateYearsDisplay();
             triggerFetch();
         });
 
@@ -2562,7 +2631,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Close panel if clicking outside of it
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#relYearsPill')) {
-                panel.classList.add('hidden');
+                panel.hidden = true;
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                panel.hidden = true;
             }
         });
 
@@ -3041,7 +3116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Make sure years panel is closed when opening modal
-            panel.classList.add('hidden');
+            panel.hidden = true;
 
             // hide Area clear initially
             if (areaClear) areaClear.style.display = 'none';

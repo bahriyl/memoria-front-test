@@ -1827,7 +1827,7 @@ body {
 
 /* Dim selected tile a bit */
 .profile-relatives.selection-mode .relative-item.is-selected {
-    opacity: .82;
+    opacity: 1;
 }
 
 /* Hide dots menu while selecting */
@@ -2040,7 +2040,7 @@ body {
 
 .date-dot {
     position: absolute;
-    right: 20px;
+    right: 23px;
     top: 75px;
     width: 12px;
     height: 12px;

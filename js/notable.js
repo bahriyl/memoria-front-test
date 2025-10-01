@@ -16,8 +16,8 @@ const loadingEl = document.getElementById('loading');
 
 const filterState = {
     search: '',
-    birthYear: '',
-    deathYear: '',
+    birthYear: undefined,
+    deathYear: undefined,
     area: '',
     cemetery: '',
     notableOnly: true
@@ -61,7 +61,7 @@ function initPhotoSlider() {
                 slide.className = 'photo-slide';
 
                 const img = document.createElement('img');
-                img.src = person.avatarUrl;
+                img.src = person.portraitUrl || person.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png';
                 img.alt = person.name || '';
                 slide.append(img);
 
@@ -95,6 +95,13 @@ document.querySelectorAll('.filter').forEach(btn => {
 function renderFilterControls() {
     controlsEl.innerHTML = '';
     controlsEl.classList.remove("search-bar");
+
+    if (window._notableYearsDocHandlers) {
+        for (const { type, handler } of window._notableYearsDocHandlers) {
+            document.removeEventListener(type, handler);
+        }
+        window._notableYearsDocHandlers = null;
+    }
 
     switch (activeFilter) {
         case 'person': {
@@ -142,38 +149,37 @@ function renderFilterControls() {
         }
 
         case 'years': {
-            // Render the same lifeYearsPicker
             controlsEl.innerHTML = `
               <div class="year-pill" id="lifeYearsPicker">
                 <div class="year-display" id="lifeYearsDisplay">Роки життя</div>
-                <button type="button" id="clearYears" class="icon-btn clear-btn" aria-label="Очистити роки життя">
+                <button type="button" id="clearYears" class="icon-btn clear-btn" aria-label="Очистити роки життя" hidden>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
-          
-              <div class="years-panel hidden" id="yearsPanel">
-        <div class="years-body">
-          <div class="year-column">
-            <div class="year-column-label">Від</div>
-            <div class="year-wheel">
-              <ul class="year-list" id="birthYearsList"></ul>
-            </div>
-          </div>
-          <div class="year-column">
-            <div class="year-column-label">До</div>
-            <div class="year-wheel">
-              <ul class="year-list" id="deathYearsList"></ul>
-            </div>
-          </div>
-        </div>
-                <button type="button" class="done-btn" id="yearsDoneBtn">Готово</button>
-              </div>
+
+                <div class="years-panel" id="yearsPanel" hidden>
+                  <h3 class="years-panel__title">Рік народження та смерті</h3>
+                  <div class="years-body">
+                    <div class="year-column">
+                      <div class="year-wheel year-wheel--flat">
+                        <ul class="year-list" id="birthYearsList"></ul>
+                        <div class="year-focus" aria-hidden="true"></div>
+                      </div>
+                    </div>
+                    <div class="year-column">
+                      <div class="year-wheel year-wheel--flat">
+                        <ul class="year-list" id="deathYearsList"></ul>
+                        <div class="year-focus" aria-hidden="true"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <button type="button" class="done-btn" id="yearsDoneBtn">Готово</button>
+                </div>
               </div>
             `;
 
-            // Elements
             const picker = controlsEl.querySelector('#lifeYearsPicker');
             const display = controlsEl.querySelector('#lifeYearsDisplay');
             const clearBtn = controlsEl.querySelector('#clearYears');
@@ -182,56 +188,76 @@ function renderFilterControls() {
             const deathUl = controlsEl.querySelector('#deathYearsList');
             const doneBtn = controlsEl.querySelector('#yearsDoneBtn');
 
-            // Pull previous state if any
             let selectedBirth = filterState.birthYear ? Number(filterState.birthYear) : undefined;
             let selectedDeath = filterState.deathYear ? Number(filterState.deathYear) : undefined;
 
             const updateDisplay = () => {
                 const hasAny = !!(selectedBirth || selectedDeath);
-                if (hasAny) {
-                    display.textContent = `${selectedBirth ?? ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath ?? ''}`;
-                    display.classList.add('has-value');
-                } else {
-                    display.textContent = 'Роки життя';
-                    display.classList.remove('has-value');
-                }
+                const text = hasAny
+                    ? `${selectedBirth ?? ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath ?? ''}`
+                    : 'Роки життя';
+                display.textContent = text;
+                display.classList.toggle('has-value', hasAny);
                 picker.classList.toggle('has-value', hasAny);
                 clearBtn.hidden = !hasAny;
             };
 
-            // Populate years (1900..now)
+            const enforceChronology = (source = 'birth', behavior = 'smooth') => {
+                if (!selectedBirth || !selectedDeath) return false;
+                if (selectedBirth === selectedDeath) return false;
+
+                if (selectedBirth > selectedDeath) {
+                    if (source === 'death') {
+                        birthWheel.setValue(String(selectedDeath), { silent: true, behavior });
+                        selectedBirth = selectedDeath;
+                    } else {
+                        deathWheel.setValue(String(selectedBirth), { silent: true, behavior });
+                        selectedDeath = selectedBirth;
+                    }
+                    return true;
+                }
+                return false;
+            };
+
             (function populateYears() {
                 if (birthUl.children.length) return;
+
+                const birthPlaceholder = document.createElement('li');
+                birthPlaceholder.textContent = 'Від';
+                birthPlaceholder.dataset.value = '';
+                birthUl.appendChild(birthPlaceholder);
+
+                const deathPlaceholder = document.createElement('li');
+                deathPlaceholder.textContent = 'До';
+                deathPlaceholder.dataset.value = '';
+                deathUl.appendChild(deathPlaceholder);
+
                 const now = new Date().getFullYear();
                 for (let y = now; y >= 1900; y--) {
-                    const b = document.createElement('li'); b.textContent = y; b.dataset.value = y; birthUl.appendChild(b);
-                    const d = document.createElement('li'); d.textContent = y; d.dataset.value = y; deathUl.appendChild(d);
+                    const b = document.createElement('li'); b.textContent = y; b.dataset.value = String(y); birthUl.appendChild(b);
+                    const d = document.createElement('li'); d.textContent = y; d.dataset.value = String(y); deathUl.appendChild(d);
                 }
             })();
 
             const applyDeathConstraints = () => {
                 const birthYear = selectedBirth;
-                let firstEnabled = null;
+                let hasEnabledNonEmpty = false;
 
                 Array.from(deathUl.children).forEach((li) => {
-                    const year = Number(li.dataset.value);
-                    const disabled = birthYear ? year < birthYear : false;
+                    const raw = li.dataset.value ?? '';
+                    const year = raw === '' ? NaN : Number(raw);
+                    const disabled = Number.isFinite(year) && birthYear ? year < birthYear : false;
                     li.classList.toggle('disabled', disabled);
-                    if (!disabled && firstEnabled == null) {
-                        firstEnabled = li.dataset.value;
+                    if (!disabled && raw !== '') {
+                        hasEnabledNonEmpty = true;
                     }
                 });
 
                 if (!deathWheel) return;
 
-                if (birthYear && selectedDeath && selectedDeath < birthYear) {
-                    if (firstEnabled) {
-                        deathWheel.setValue(firstEnabled, { silent: true, behavior: 'auto' });
-                        selectedDeath = Number(firstEnabled);
-                    } else {
-                        deathWheel.clear({ silent: true, keepActive: false });
-                        selectedDeath = undefined;
-                    }
+                if (birthYear && !hasEnabledNonEmpty) {
+                    deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+                    selectedDeath = undefined;
                 }
 
                 deathWheel.refresh();
@@ -243,7 +269,9 @@ function renderFilterControls() {
                 initialValue: selectedBirth ? String(selectedBirth) : '',
                 onChange: (value) => {
                     selectedBirth = value ? Number(value) : undefined;
+                    enforceChronology('birth');
                     applyDeathConstraints();
+                    updateDisplay();
                 }
             });
 
@@ -251,26 +279,41 @@ function renderFilterControls() {
                 initialValue: selectedDeath ? String(selectedDeath) : '',
                 onChange: (value) => {
                     selectedDeath = value ? Number(value) : undefined;
+                    enforceChronology('death');
+                    applyDeathConstraints();
+                    updateDisplay();
                 }
             });
 
+            enforceChronology('birth', 'auto');
             applyDeathConstraints();
             updateDisplay();
 
             display.addEventListener('click', () => {
-                panel.classList.toggle('hidden');
-                if (!panel.classList.contains('hidden')) {
-                    birthWheel.snap({ behavior: 'auto', silent: true });
-                    deathWheel.snap({ behavior: 'auto', silent: true });
+                panel.hidden = !panel.hidden;
+                if (!panel.hidden) {
+                    const hasBirth = !!birthWheel.getValue();
+                    const hasDeath = !!deathWheel.getValue();
+                    if (hasBirth) birthWheel.snap({ behavior: 'auto', silent: true });
+                    if (hasDeath) deathWheel.snap({ behavior: 'auto', silent: true });
                 }
             });
             panel.addEventListener('click', e => e.stopPropagation());
-            document.addEventListener('click', e => {
-                if (!picker.contains(e.target)) panel.classList.add('hidden');
-            });
-            document.addEventListener('keydown', e => {
-                if (e.key === 'Escape') panel.classList.add('hidden');
-            });
+
+            const onDocClick = (e) => {
+                if (!picker.contains(e.target)) panel.hidden = true;
+            };
+            const onDocKeyDown = (e) => {
+                if (e.key === 'Escape') panel.hidden = true;
+            };
+
+            document.addEventListener('click', onDocClick);
+            document.addEventListener('keydown', onDocKeyDown);
+
+            window._notableYearsDocHandlers = [
+                { type: 'click', handler: onDocClick },
+                { type: 'keydown', handler: onDocKeyDown },
+            ];
 
             doneBtn.addEventListener('click', () => {
                 const birthValue = birthWheel.getValue();
@@ -279,13 +322,14 @@ function renderFilterControls() {
                 selectedBirth = birthValue ? Number(birthValue) : undefined;
                 selectedDeath = deathValue ? Number(deathValue) : undefined;
 
+                enforceChronology('birth', 'auto');
                 applyDeathConstraints();
 
-                filterState.birthYear = selectedBirth || '';
-                filterState.deathYear = selectedDeath || '';
+                filterState.birthYear = selectedBirth ?? undefined;
+                filterState.deathYear = selectedDeath ?? undefined;
 
                 updateDisplay();
-                panel.classList.add('hidden');
+                panel.hidden = true;
                 fetchAndRender();          // apply filter
             });
 
@@ -293,8 +337,8 @@ function renderFilterControls() {
                 e.stopPropagation();
                 selectedBirth = undefined;
                 selectedDeath = undefined;
-                filterState.birthYear = '';
-                filterState.deathYear = '';
+                filterState.birthYear = undefined;
+                filterState.deathYear = undefined;
                 birthWheel.clear({ silent: true, keepActive: false });
                 deathWheel.clear({ silent: true, keepActive: false });
                 applyDeathConstraints();
