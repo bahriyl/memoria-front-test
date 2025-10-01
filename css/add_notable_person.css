@@ -421,7 +421,7 @@ textarea {
 .modal-close {
     position: absolute;
     top: 12px;
-    right: 12px;
+    right: 3px;
     background: none;
     border: none;
     font-size: 1.25rem;
@@ -431,18 +431,22 @@ textarea {
 
 .modal-text {
     margin: 32px 0 24px;
-    font-size: 16px;
-    color: var(--color-text);
+    font-size: 15px;
+    font-weight: 480;
+    color: #000000;
     line-height: 1.4;
 }
 
 .modal-ok {
-    padding: 12px 32px;
-    background: #397355;
+    height: 42px;
+    padding: 0 32px;
+    background: #1B8B59;
     color: #fff;
     border: none;
-    border-radius: 8px;
-    font-size: 16px;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
     cursor: pointer;
 }
 
@@ -515,6 +519,7 @@ textarea {
     --year-item-height: 44px;
     --year-visible-count: 4;
     position: absolute;
+    z-index: 9999 !important;
     top: calc(100% + 12px);
     left: 0;
     right: 0;
@@ -523,7 +528,6 @@ textarea {
     border: 1px solid rgba(15, 23, 42, 0.05);
     box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
     padding: 26px 24px 24px;
-    z-index: 40;
 }
 
 .years-panel__title {

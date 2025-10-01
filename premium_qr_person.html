@@ -124,7 +124,10 @@
     <!-- DELIVERY DETAILS MODAL -->
     <div id="deliveryModal" class="modal-overlay" hidden>
         <div class="modal-content">
-            <button id="deliveryModalClose" class="modal-close" aria-label="Закрити">&times;</button>
+            <button id="deliveryModalClose" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
+                height="28" aria-hidden="true">
+                <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+            </svg></button>
 
             <h2 class="modal-title">Вкажіть деталі доставки</h2>
 
@@ -163,18 +166,12 @@
 
             <label class="radio-row">
                 <input type="radio" name="payment" value="cod" checked />
-                <span>Накладний платіж (700 грн + доставка)</span>
+                <span>Накладний платіж</span>
             </label>
 
-            <label class="radio-row modal-pay-now">
+            <label class="radio-row">
                 <input type="radio" name="payment" value="online" />
                 <span>Оплатити зараз</span>
-                <span class="pay-icons">
-                    <img src="/img/apple-pay.png" alt="Apple Pay" />
-                    <img src="/img/google-pay.png" alt="G Pay" />
-                    <img src="/img/visa.png" alt="Visa" />
-                    <img src="/img/mastercard.png" alt="MasterCard" />
-                </span>
             </label>
 
             <!-- Контейнер для помилок платежу -->

@@ -292,8 +292,9 @@ body {
 .login-box {
   background: white;
   padding: 24px;
+  padding-bottom: 10px;
   border-radius: 12px;
-  width: 90%;
+  width: 100%;
   max-width: 320px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -561,4 +562,98 @@ body {
   font-size: 15px;
   font-weight: 500;
   line-height: 1.4;
+}
+
+.login-modal h2 {
+  margin: 10px 0 10px 0;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
+}
+
+#loginClose {
+  top: 4px;
+  right: 14px;
+}
+
+input[type="password"] {
+  width: 100%;
+  height: 54px;
+  padding: 12px 12px;
+  padding-left: 18px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: #EFF2F5;
+  font-size: 16px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 460;
+  color: #72767D;
+  outline: none;
+}
+
+input[type="password"]::placeholder {
+  color: #72767D;
+}
+
+input[type="text"] {
+  height: 54px;
+  width: 100%;
+  border: none;
+  border-radius: var(--radius-md);
+  background: #EFF2F5;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 460;
+  color: #222222;
+  outline: none;
+}
+
+.login-box input {
+  padding: 12px 12px;
+  padding-left: 18px;
+  font-size: 16px;
+}
+
+#loginSubmit {
+  border-radius: 14px;
+  background: #1B8B59;
+  height: 46px;
+  font-size: 17px;
+  font-weight: 550;
+  font-family: 'Montserrat', sans-serif;
+  width: 50%;
+  align-self: center;
+  margin-top: 10px;
+}
+
+.forgot-password {
+  font-size: 12px;
+  color: #72767D;
+  font-weight: 460;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Login modal inputs — match profile page look */
+#loginModal .login-box input[type="text"],
+#loginModal .login-box input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+  background: #F1F3F5;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 16px;
+  font-weight: 460;
+  font-family: 'Montserrat', sans-serif;
+  color: #1C170D;
+  outline: none;
+  margin: 4px 0;
+  /* same vertical rhythm as profile */
+}
+
+#loginModal .login-box input::placeholder {
+  color: #9CA3AF;
+  opacity: 1;
+  font-family: 'Montserrat', sans-serif;
 }

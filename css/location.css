@@ -363,8 +363,8 @@ textarea:focus {
 
 .modal-close {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 10px;
+    right: 3px;
     background: none;
     border: none;
     font-size: 1.25rem;
@@ -372,20 +372,33 @@ textarea:focus {
     cursor: pointer;
 }
 
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    color: #000000;
+    margin-top: 8px;
+}
+
 .modal-text {
-    margin: 32px 0 24px;
-    font-size: 16px;
-    color: #222222;
+    margin: 18px 18px 24px;
+    font-size: 15px;
+    font-weight: 480;
+    font-family: 'Montserrat', sans-serif;
+    color: #000000;
     line-height: 1.4;
 }
 
 .modal-ok {
-    padding: 12px 32px;
-    background: #397355;
+    height: 42px;
+    padding: 0 32px;
+    background: #1B8B59;
     color: #fff;
     border: none;
-    border-radius: 8px;
-    font-size: 16px;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
     cursor: pointer;
 }
 

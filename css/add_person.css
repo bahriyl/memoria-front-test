@@ -526,7 +526,6 @@ input[type="checkbox"] {
 }
 
 .modal-ok {
-    padding: 12px 32px;
     background: #397355;
     color: #fff;
     border: none;
@@ -559,16 +558,6 @@ input[type="checkbox"] {
 .summary-list {
     font-size: 15px;
     line-height: 1.45;
-}
-
-.summary-list .row {
-    margin: 6px 0;
-}
-
-.summary-list .k {
-    color: #72767D;
-    display: inline-block;
-    min-width: 138px;
 }
 
 .toast {
@@ -948,4 +937,112 @@ input[type="checkbox"] {
 #activity-suggestions.suggestions-list {
     z-index: 20;
     /* above other inputs */
+}
+
+/* === Confirm Modal (exact as screenshot) === */
+#confirm-modal.modal {
+    width: 92%;
+    max-width: 420px;
+    padding: 22px 20px 18px;
+    border-radius: 14px;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+    text-align: left;
+    /* контент ліворуч */
+}
+
+#confirm-modal .modal-close {
+    top: 10px;
+    right: 3px;
+    font-size: 22px;
+    color: #9AA0A6;
+}
+
+#confirm-modal .confirm-title {
+    margin: 14px 0 28px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    /* щільний заголовок */
+    text-align: center;
+    /* по центру, як на макеті */
+    color: #2B2F33;
+}
+
+/* список підсумку */
+#confirm-modal .summary-list {
+    margin: 4px 0 10px;
+    padding: 0 4px;
+    font-size: 16px;
+    line-height: 1.55;
+}
+
+#confirm-modal .summary-list .row {
+    display: flex;
+    flex-wrap: wrap;
+    /* дозволяє перенос при довгих значеннях */
+    margin: 6px 0;
+    font-weight: 460;
+    font-size: 16px;
+}
+
+#confirm-modal .summary-list .k {
+    color: #8B9097;
+    /* сірий лейбл */
+    font-weight: 460;
+    font-size: 16px;
+    margin-right: 6px;
+    /* невеликий відступ замість великого gap */
+    flex: 0 0 auto;
+    /* займає тільки ширину тексту */
+}
+
+#confirm-modal .summary-list .v {
+    color: #111;
+    flex: 1 1 auto;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    overflow: hidden;
+    display: -webkit-box;
+   -webkit-line-clamp: 4;
+   -webkit-box-orient: vertical;
+}
+
+/* блок кнопок внизу */
+#confirm-modal .modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    margin-top: 28px;
+    margin-bottom: 3px;
+}
+
+/* сіра кнопка "Змінити" */
+#confirm-modal .btn.btn-secondary {
+    flex: 1 1 50%;
+    height: 42px;
+    border-radius: 14px;
+    background: #EFF2F5;
+    color: #222;
+    border: none;
+    font-size: 17px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
+}
+
+/* зелена кнопка "Готово" */
+#confirm-modal .modal-ok {
+    flex: 1 1 50%;
+    height: 42px;
+    border-radius: 14px;
+    background: #1B8B59;
+    color: #fff;
+    border: none;
+    font-size: 17px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
+}
+
+/* трішки щільніший оверлей */
+.modal-overlay {
+    background: rgba(0, 0, 0, .45);
 }

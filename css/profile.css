@@ -1059,18 +1059,17 @@ body {
 
 .modal-close {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 10px;
+    right: 3px;
     background: none;
     border: 0;
-    font-size: 1.25rem;
     color: #90959C;
     cursor: pointer;
 }
 
 .modal-text {
-    margin: 32px 0 24px;
-    font-size: 16px;
+    font-size: 18px;
+    font-weight: 600;
     font-family: 'Montserrat', sans-serif;
     color: #222;
     line-height: 1.4;
@@ -1084,23 +1083,57 @@ body {
 }
 
 .modal-ok {
-    padding: 12px 32px;
-    background: #397355;
+    height: 42px;
+    padding: 0 32px;
+    background: #1B8B59;
     color: #fff;
     border: 0;
-    border-radius: 8px;
-    font-size: 16px;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
     cursor: pointer;
 }
 
 .modal-cancel {
-    padding: 12px 32px;
+    height: 42px;
+    padding: 0 32px;
     background: #F2F4F7;
     color: #222;
     border: 0;
-    border-radius: 8px;
-    font-size: 16px;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
     cursor: pointer;
+}
+
+/* Comment-template modal: make action buttons fit the input width */
+#comment-template-modal .modal-actions {
+    width: 100%;
+    /* same inner width as the input (respects modal padding) */
+    box-sizing: border-box;
+    display: flex;
+    gap: 12px;
+    /* keep small gap between buttons */
+    justify-content: stretch;
+    /* no centering shrink */
+    margin-top: 0;
+    /* tuck right under the input */
+    padding: 0;
+    /* align with input’s edges */
+}
+
+#comment-template-modal .modal-actions .modal-cancel,
+#comment-template-modal .modal-actions .modal-ok {
+    flex: 1 1 0;
+    /* each takes 50% of the row */
+    width: auto;
+    /* don’t use fixed paddings to define width */
+    height: 44px;
+    /* match your button height */
+    padding: 0;
+    /* visual width comes from flex, not padding */
 }
 
 /* ——— Comments: empty state (same look as photos empty) ——— */
@@ -1130,10 +1163,12 @@ body {
     box-sizing: border-box;
     background: #F1F3F5;
     border: none;
-    border-radius: 8px;
+    border-radius: 14px;
     padding: 10px 12px;
-    font-size: 15px;
-    margin: 8px 0 16px 0;
+    font-size: 16px;
+    font-weight: 460;
+    font-family: 'Montserrat', sans-serif;
+    margin: 8px 0 24px 0;
     outline: none;
 }
 
@@ -1187,9 +1222,9 @@ body {
 .login-box {
     background: #fff;
     padding: 24px;
+    padding-bottom: 10px;
     border-radius: 12px;
     width: 90%;
-    max-width: 320px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, .2);
     display: flex;
     flex-direction: column;
@@ -1910,6 +1945,20 @@ body {
     }
 }
 
+/* Make the years panel float ABOVE everything in relativesModal */
+#relativesModal .years-panel {
+    position: fixed !important;
+    /* escape local stacking contexts */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1100 !important;
+    /* higher than modal-submit-btn (1000) */
+    width: min(92vw, 460px);
+    max-height: 80vh;
+    overflow: hidden;
+}
+
 .avatar-menu {
     position: absolute;
     top: 50%;
@@ -2187,3 +2236,66 @@ body {
     background: #1B8B59;
     color: #fff;
 }
+
+.login-modal h2 {
+    margin: 10px 0 10px 0;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+}
+
+#loginClose {
+    top: 4px;
+    right: 14px;
+}
+
+input[type="password"] {
+    width: 100%;
+    height: 54px;
+    padding: 12px 12px;
+    padding-left: 18px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: #EFF2F5;
+    font-size: 16px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 460;
+    color: #72767D;
+    outline: none;
+}
+
+input[type="password"]::placeholder {
+    color: #72767D;
+}
+
+input[type="text"] {
+    height: 54px;
+}
+
+.login-box input {
+    padding: 12px 12px;
+    padding-left: 18px;
+    font-size: 16px;
+}
+
+#loginSubmit {
+    border-radius: 14px;
+    background: #1B8B59;
+    height: 46px;
+    font-size: 17px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
+    width: 50%;
+    align-self: center;
+    margin-top: 10px;
+}
+
+.forgot-password {
+    font-size: 12px;
+    color: #72767D;
+    font-weight: 460;
+    margin: 0;
+    cursor: pointer;
+}
+

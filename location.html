@@ -109,11 +109,14 @@
 
     <!-- Confirm Change Location Modal -->
     <div id="confirm-modal" class="modal" hidden>
-        <button id="confirm-close" class="modal-close">&times;</button>
-        <p class="modal-text">Змінити геолокацію? Поточні координати буде замінено.</p>
+        <button id="confirm-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
+                height="28" aria-hidden="true">
+                <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+            </svg></button>
+        <p class="modal-title">Змінити локацію</p>
+        <p class="modal-text">Знаходьтеся поруч із місцем поховання, щоб координати були точними!</p>
         <div class="modal-actions">
-            <button id="confirm-cancel" class="btn btn-secondary">Скасувати</button>
-            <button id="confirm-ok" class="modal-ok">Змінити</button>
+            <button id="confirm-ok" class="modal-ok">Змінити локацію</button>
         </div>
     </div>
 
