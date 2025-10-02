@@ -776,3 +776,170 @@ textarea {
   right: 8px;
   z-index: 2;
 }
+
+/* ── Unified Photo Desc Modal ───────────────────────────── */
+#modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  z-index: 999;
+  display: block;
+}
+
+.modal {
+  position: fixed;
+  margin: auto;
+  background: #fff;
+  border-radius: 18px;
+  padding: 18px 18px 20px;
+  z-index: 1000;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .25);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+}
+
+.modal[hidden],
+#modal-overlay[hidden] {
+  display: none;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 3px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  font-size: 26px;
+  line-height: 34px;
+  cursor: pointer;
+}
+
+.modal-title {
+  margin: 0 0 20px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.photo-desc-thumbs {
+  display: flex !important;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  white-space: nowrap;
+  scrollbar-width: none;
+  border-radius: 4px;
+  padding: 18px 0;
+}
+
+.photo-desc-thumbs::-webkit-scrollbar {
+  display: none;
+}
+
+.photo-desc-thumb {
+  flex: 0 0 129px;
+  scroll-snap-align: start;
+  height: 152px;
+  width: 129px;
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #eee;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+
+.photo-desc-thumb img {
+  width: 129px;
+  height: 152px;
+  object-fit: cover;
+}
+
+.photo-desc-thumb.is-selected {
+  transform: scale(1.04);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .14);
+}
+
+.photo-desc-thumb .thumb-x {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border: 0;
+  cursor: pointer;
+  color: #333;
+  padding-left: 5px;
+}
+
+.photo-desc-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #F2F4F7;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 16px;
+  font-weight: 460;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 22px;
+  min-height: 120px;
+  outline: none;
+}
+
+.photo-type {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 14px 4px 0;
+}
+
+.photo-type .radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 480;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.photo-type input[type="radio"] {
+  width: 19px;
+  height: 19px;
+  accent-color: #1B8B59;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.modal-ok {
+  height: 42px;
+  padding: 0 32px;
+  background: #1B8B59;
+  color: #fff;
+  border: 0;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 550;
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+}
+
+#photo-desc-add {
+  margin-top: 12px;
+  width: 60%
+}

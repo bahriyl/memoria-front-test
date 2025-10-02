@@ -721,6 +721,7 @@ body {
     color: #fff;
 }
 
+/* ——— Liturgy card (matches mock) ——— */
 .liturgy-details {
     background-color: #F2F4F7;
     border-radius: 16px;
@@ -728,17 +729,82 @@ body {
     margin-bottom: 1.5rem;
 }
 
-.person-name {
-    font-size: 1rem;
+/* Name (bigger & bolder like the mock) */
+.liturgy-details .person-name {
+    margin: 0 0 8px 0;
+    font-size: 16px;
     font-weight: 600;
-    margin-bottom: .5rem;
+    color: #1C170D;
 }
 
-.service-info {
-    font-size: .875rem;
+/* Body line (larger, comfortable line-height) */
+.liturgy-details .service-info {
+    font-size: 14px;
     font-weight: 500;
     color: #1C170D;
-    line-height: 1.4;
+    line-height: 1.45;
+}
+
+/* Make the existing .liturgy-details a horizontal, swipeable strip */
+.liturgy-details.is-strip {
+    /* strip container */
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    white-space: nowrap;
+
+    /* reset the outer card look (the children are the real cards) */
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    margin-bottom: 12px;
+
+    /* hide scrollbar */
+    scrollbar-width: none;
+}
+
+.liturgy-details.is-strip::-webkit-scrollbar {
+    display: none;
+}
+
+/* Each inner card keeps your original card styles and shows 1-at-a-time */
+.liturgy-details.is-strip>.liturgy-details {
+    flex: 0 0 100%;
+    /* ~1 screen wide; shows a tiny peek of next */
+    scroll-snap-align: start;
+    white-space: normal;
+    /* allow text wrapping inside the card */
+
+    /* ensure no extra gaps between stacked-inner cards */
+    margin: 0;
+    /* parent adds the outer margin */
+}
+
+/* ——— Pager dots under the card ——— */
+.liturgy-pager {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    /* spacing between dots like the mock */
+    margin: 6px 0 16px;
+    /* sits right under the card */
+}
+
+.liturgy-pager .pip {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #D7DBDF;
+    /* grey (inactive) */
+}
+
+.liturgy-pager .pip.is-active {
+    background: #1B8B59;
+    /* green (active) */
 }
 
 .liturgy-donation {
@@ -1050,6 +1116,7 @@ body {
     background: #fff;
     border-radius: 12px;
     padding: 24px 16px;
+    padding-bottom: 20px;
     width: 90%;
     max-width: 360px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, .15);
@@ -1075,11 +1142,17 @@ body {
     line-height: 1.4;
 }
 
+#confirm-delete-modal-text {
+    font-size: 15px;
+    font-weight: 480;
+    font-family: 'Montserrat', sans-serif;
+}
+
 .modal-actions {
     display: flex;
     gap: 12px;
     justify-content: center;
-    margin-top: 8px;
+    margin-top: 26px;
 }
 
 .modal-ok {
@@ -2089,10 +2162,10 @@ body {
 
 .date-dot {
     position: absolute;
-    right: 23px;
+    right: 26px;
     top: 75px;
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 999px;
     background: #1a9c57;
 }
@@ -2299,3 +2372,95 @@ input[type="text"] {
     cursor: pointer;
 }
 
+/* ── Photo Description Modal (unified) ───────────────────────── */
+.modal-title {
+    margin: 0 0 20px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.photo-desc-thumbs {
+    display: flex !important;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    white-space: nowrap;
+    scrollbar-width: none;
+    border-radius: 4px;
+    padding: 18px 0;
+}
+
+.photo-desc-thumbs::-webkit-scrollbar {
+    display: none;
+}
+
+.photo-desc-thumb {
+    flex: 0 0 129px;
+    scroll-snap-align: start;
+    height: 152px;
+    width: 129px;
+    position: relative;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #eee;
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+
+.photo-desc-thumb img {
+    width: 129px;
+    height: 152px;
+    object-fit: cover;
+}
+
+.photo-desc-thumb.is-selected {
+    transform: scale(1.04);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .14);
+    border-radius: 4px;
+}
+
+.photo-desc-thumb .thumb-x {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #fff;
+    border: 0;
+    cursor: pointer;
+    color: #333;
+    padding-left: 5px;
+}
+
+.photo-desc-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: #F2F4F7;
+    border: none;
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 16px;
+    font-weight: 460;
+    font-family: 'Montserrat', sans-serif;
+    line-height: 22px;
+    min-height: 120px;
+    outline: none;
+}
+
+.photo-desc-textarea::placeholder {
+    color: #72767D;
+}
+
+#photo-desc-add {
+    margin-top: 12px;
+    width: 60%;
+}
+
+.modal-close {
+    right: 0;
+}

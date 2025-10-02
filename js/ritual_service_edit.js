@@ -34,13 +34,13 @@ function normalizeItems(struct) {
   struct.items = struct.items.map(([title, arr]) => {
     const albums = Array.isArray(arr)
       ? arr.map((x) => {
-          if (typeof x === "string") return { photos: [x], description: "" };
-          if (Array.isArray(x)) return { photos: x, description: "" };
-          return {
-            photos: Array.isArray(x?.photos) ? x.photos : [],
-            description: (x?.description || "").toString(),
-          };
-        })
+        if (typeof x === "string") return { photos: [x], description: "" };
+        if (Array.isArray(x)) return { photos: x, description: "" };
+        return {
+          photos: Array.isArray(x?.photos) ? x.photos : [],
+          description: (x?.description || "").toString(),
+        };
+      })
       : [];
     return [title, albums];
   });
@@ -386,109 +386,186 @@ function renderData(data) {
     }
 
     // Upload handler
+    // ==== ADD PHOTOS HANDLER with Album/Photo modal ====
     fileInput.addEventListener("change", async (e) => {
       const files = Array.from(e.target.files || []);
       if (!files.length) return;
 
-      // Build (or reuse) modal
-      let modal = document.querySelector(".modal-overlay");
-      if (!modal) {
-        modal = document.createElement("div");
-        modal.className = "modal-overlay";
-        document.body.appendChild(modal);
-      }
-      modal.innerHTML = `
-        <div class="rename-modal">
-          <h2>Новий альбом</h2>
-          <p class="picked-count" style="margin:0 0 8px 0;">Обрано фото: ${files.length}</p>
-          <textarea id="albumDesc" placeholder="Опис альбому" style="width:100%;height:90px;"></textarea>
-          <div class="modal-actions">
-            <button class="confirm-btn">Завантажити</button>
-            <button class="cancel-btn">Скасувати</button>
-          </div>
-          <div class="modal-progress" style="display:none;">
-            <div class="spinner"></div>
-            <div class="progress-text">Завантаження… 0/${files.length}</div>
-          </div>
-        </div>`;
-      modal.style.display = "flex";
+      // local previews & temp captions
+      const previews = files.map(f => URL.createObjectURL(f));
+      const tempCaptions = new Array(previews.length).fill("");
 
-      const close = () => {
-        modal.style.display = "none";
+      // modal elements (global, one per page)
+      const overlay = document.getElementById("modal-overlay");
+      const dlg = document.getElementById("photo-desc-modal");
+      const closeX = document.getElementById("photo-desc-close");
+      const thumbsEl = document.getElementById("photo-desc-thumbs");
+      const textEl = document.getElementById("photo-desc-text");
+      const countEl = document.getElementById("photo-desc-count");
+      const okBtn = document.getElementById("photo-desc-add");
+      const modeAlbum = document.getElementById("mode-album");
+      const modePhoto = document.getElementById("mode-photo");
+
+      let sel = 0;
+      let confirmed = false;
+
+      function commitCurrent() {
+        // зберігаємо textarea у підпис поточного прев’ю
+        if (!previews.length) return;
+        tempCaptions[sel] = (textEl.value || "").trim();
+      }
+
+      function renderThumbs(disabled) {
+        thumbsEl.innerHTML = "";
+        previews.forEach((src, i) => {
+          const wrap = document.createElement("div");
+          wrap.className = "photo-desc-thumb" + (i === sel ? " is-selected" : "");
+          wrap.innerHTML = `
+        <img src="${src}" alt="">
+        <button class="thumb-x" data-i="${i}" ${disabled ? "disabled" : ""}>
+          <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>`;
+          if (!disabled) {
+            wrap.addEventListener("click", (ev) => {
+              if (ev.target.closest(".thumb-x")) return;
+              commitCurrent();
+              sel = i;
+              renderThumbs(false);
+              textEl.value = tempCaptions[sel] || "";
+            });
+          }
+          thumbsEl.appendChild(wrap);
+        });
+        countEl.textContent = String(previews.length);
+      }
+
+      // delete via X (event delegation)
+      thumbsEl.onclick = (ev) => {
+        const btn = ev.target.closest('.thumb-x');
+        if (!btn) return;
+        // у режимі "Альбом" за задумом видалення відключене
+        if (modeAlbum.checked) return;
+
+        const i = Number(btn.dataset.i);
+
+        // зберігаємо поточний опис перед модифікацією масивів
+        commitCurrent();
+
+        // прибираємо blob preview
+        try { URL.revokeObjectURL(previews[i]); } catch { }
+
+        // ⚠️ ВАЖЛИВО: видаляємо з УСІХ локальних масивів
+        previews.splice(i, 1);
+        tempCaptions.splice(i, 1);
+        files.splice(i, 1);            // ← тепер файл точно не завантажиться
+
+        // підлаштовуємо індекс вибраного
+        if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
+
+        // якщо нічого не лишилось — закриваємо модал
+        if (previews.length === 0) {
+          closeModal();
+          return;
+        }
+
+        // перемальовуємо прев’ю і відновлюємо textarea для поточного sel
+        renderThumbs(false);
+        textEl.value = tempCaptions[sel] || '';
       };
-      modal.querySelector(".cancel-btn").onclick = close;
-      modal.addEventListener("click", (ev) => {
-        if (ev.target === modal) close();
+
+      function openModal() { overlay.hidden = false; dlg.hidden = false; }
+      function closeModal() { overlay.hidden = true; dlg.hidden = true; }
+
+      // switch UI by mode (album/photo)
+      function applyModeUI() {
+        if (modeAlbum.checked) {
+          // в режимі "Альбом" вибір фото не потрібен — всі мають один опис
+          renderThumbs(true);                   // без кліків і видалення
+          sel = 0;
+          // показуємо 1 textarea (загальний опис), підставляємо перший збережений або порожній
+          textEl.value = tempCaptions[0] || "";
+        } else {
+          // "Фото" — індивідуальні описи
+          renderThumbs(false);
+          textEl.value = tempCaptions[sel] || "";
+        }
+      }
+
+      modeAlbum.addEventListener("change", applyModeUI);
+      modePhoto.addEventListener("change", applyModeUI);
+
+      // open modal
+      openModal();
+      applyModeUI();
+
+      closeX.onclick = () => { closeModal(); };
+      overlay.addEventListener("click", closeModal, { once: true });
+
+      okBtn.onclick = () => {
+        // перед закриттям зберігаємо поточне
+        commitCurrent();
+        confirmed = true;
+        closeModal();
+      };
+
+      // wait until closed
+      await new Promise((r) => {
+        const iv = setInterval(() => { if (dlg.hidden) { clearInterval(iv); r(); } }, 60);
       });
 
-      const confirmBtn = modal.querySelector(".confirm-btn");
-      const cancelBtn = modal.querySelector(".cancel-btn");
-      const progressEl = modal.querySelector(".modal-progress");
-      const progressTxt = modal.querySelector(".progress-text");
+      if (!confirmed || previews.length === 0) {
+        // cleanup previews
+        previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
+        e.target.value = "";
+        return;
+      }
 
-      confirmBtn.onclick = async () => {
-        const desc = modal.querySelector("#albumDesc").value.trim();
+      // === UPLOAD ===
+      async function uploadToImgBB(file) {
+        const formData = new FormData();
+        formData.append("image", file);
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
+        const json = await res.json();
+        if (!json?.success) throw new Error("IMGBB upload failed");
+        return json.data.url;
+      }
 
-        // lock UI + show progress
-        confirmBtn.disabled = true;
-        cancelBtn.disabled = true;
-        progressEl.style.display = "flex";
-        progressTxt.textContent = `Завантаження… 0/${files.length}`;
-
-        try {
-          // Upload in parallel; update N/M as each finishes
-          let done = 0;
-          const tick = () => {
-            done += 1;
-            progressTxt.textContent = `Завантаження… ${done}/${files.length}`;
-          };
-
-          const tasks = files.map(async (f) => {
-            if (!f.type.startsWith("image/")) {
-              tick();
-              return null;
-            }
-            try {
-              const url = await uploadToImgBB(f);
-              tick();
-              return url;
-            } catch (err) {
-              console.error("Upload failed:", err);
-              tick();
-              return null; // continue; we keep successful ones
-            }
-          });
-
-          const settled = await Promise.allSettled(tasks);
-          const urls = settled
-            .map((r) => (r.status === "fulfilled" ? r.value : null))
-            .filter(Boolean);
-
-          if (!urls.length) {
-            alert("Не вдалося завантажити фото.");
-            confirmBtn.disabled = false;
-            cancelBtn.disabled = false;
-            progressEl.style.display = "none";
-            return;
+      // albums — масив альбомів у поточній категорії
+      // Кожен альбом: { photos: [urls], description: "" }
+      try {
+        if (modeAlbum.checked) {
+          // 1 альбом з N фото і ОДНИМ описом
+          const urls = [];
+          for (let i = 0; i < files.length; i++) {
+            const u = await uploadToImgBB(files[i]);
+            urls.push(u);
           }
-
-          // Push as a single ALBUM (photos[] + description)
-          if (!Array.isArray(ritualData.items[index][1]))
-            ritualData.items[index][1] = [];
-          ritualData.items[index][1].push({ photos: urls, description: desc });
-
-          close();
-          await updateItems(ritualData.items); // your existing saver (reloads on success)
-        } catch (err) {
-          console.error(err);
-          alert("Сталася помилка при завантаженні.");
-          confirmBtn.disabled = false;
-          cancelBtn.disabled = false;
-          progressEl.style.display = "none";
-        } finally {
-          e.target.value = ""; // reset picker
+          const commonDesc = (tempCaptions[0] || "").trim();
+          albums.push({ photos: urls, description: commonDesc });
+        } else {
+          // Кожне фото — окремий альбом (1 фото в альбомі) зі СВОЇМ описом
+          for (let i = 0; i < files.length; i++) {
+            const u = await uploadToImgBB(files[i]);
+            const d = (tempCaptions[i] || "").trim();
+            albums.push({ photos: [u], description: d });
+          }
         }
-      };
+
+        // оновлюємо розділ
+        renderImages();
+
+        // зберігаємо на бек
+        await updateItems(ritualData.items);
+      } catch (err) {
+        console.error("Upload failed", err);
+        alert("Не вдалося завантажити фото");
+      } finally {
+        previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
+        e.target.value = "";
+      }
     });
 
     // === Add everything into section ===

@@ -231,6 +231,12 @@
             </div>
         </section>
 
+        <!-- Success toast (reused from add_person) -->
+        <div id="toast" class="toast toast--success" hidden>
+            <span id="toast-text">Успішно відправлено на модерацію! Ми сповістимо вас коли буде готово</span>
+            <button id="toast-close" class="toast-close" type="button" aria-label="Закрити">&times;</button>
+        </div>
+
         <!-- Avatar cropper -->
         <div id="avatar-cropper-overlay" class="avatar-cropper-overlay" hidden></div>
         <div id="avatar-cropper" class="avatar-cropper" hidden role="dialog" aria-modal="true"
@@ -260,8 +266,11 @@
     <!-- Confirm Delete Photos (profile) -->
     <div id="modal-overlay" class="modal-overlay" hidden></div>
     <div id="confirm-delete-modal" class="modal" hidden>
-        <button id="confirm-delete-close" class="modal-close">&times;</button>
-        <p class="modal-text">Видалити вибрані фотографії?</p>
+        <button id="confirm-delete-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
+                height="28" aria-hidden="true">
+                <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+            </svg></button>
+        <p id="confirm-delete-modal-text" class="modal-text">Видалити вибрані фотографії?</p>
         <div class="modal-actions">
             <button id="confirm-delete-cancel" class="modal-cancel">Скасувати</button>
             <button id="confirm-delete-ok" class="modal-ok">Видалити</button>
@@ -281,24 +290,24 @@
 
     <!-- Add descriptions for selected photos -->
     <div id="photo-desc-modal" class="modal" hidden>
-        <button id="photo-desc-close" class="modal-close" aria-label="Закрити">&times;</button>
-        <h3 style="margin:0 0 12px">Опис фотографій</h3>
+        <button id="photo-desc-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
+                height="28" aria-hidden="true">
+                <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+            </svg></button>
 
-        <div class="photo-desc-step" style="margin-bottom:12px">
-            <div style="display:flex; gap:10px; align-items:center">
-                <img id="photo-desc-preview" alt=""
-                    style="width:80px; height:80px; object-fit:cover; border-radius:8px; background:#eee">
-                <textarea id="photo-desc-text" placeholder="Додайте опис до фото…"
-                    style="flex:1; min-height:80px; resize:vertical"></textarea>
-            </div>
-            <div id="photo-desc-counter" style="margin-top:8px; font-size:13px; color:#666"></div>
-        </div>
+        <h3 class="modal-title">
+            Додати фото (<span id="photo-desc-count">0</span>)
+        </h3>
+
+        <div class="photo-desc-thumbs" id="photo-desc-thumbs"></div>
+
+        <textarea id="photo-desc-text" class="photo-desc-textarea" placeholder="Додати опис..."></textarea>
 
         <div class="modal-actions">
-            <button id="photo-desc-prev" class="modal-cancel">Назад</button>
-            <button id="photo-desc-next" class="modal-ok">Далі</button>
+            <button id="photo-desc-add" class="modal-ok">Додати</button>
         </div>
     </div>
+
 
     <!-- Custom Donation Modal -->
     <div id="donation-modal" class="modal" hidden>

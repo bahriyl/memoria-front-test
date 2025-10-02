@@ -159,6 +159,115 @@ document.addEventListener('DOMContentLoaded', () => {
         return dt < today;
     }
 
+    // Use the existing .liturgy-details as:
+    //  - a swipeable strip for today/future dates (first card = compose, then existing),
+    //  - a single non-swipe block for past dates.
+    // Adds a pager (.liturgy-pager) under the strip to match the mock.
+    function renderLiturgyDetailsStrip(iso) {
+        const box = document.querySelector('.liturgy-details');
+        if (!box) return;
+
+        // remove any previous pager
+        box.nextElementSibling?.classList?.contains('liturgy-pager') && box.nextElementSibling.remove();
+
+        const past = isPastISO(iso);
+        const existing = Array.isArray(liturgiesIndex[iso]) ? liturgiesIndex[iso] : [];
+
+        // Read current "compose" fields (keep your card design)
+        const pnText =
+            document.querySelector('.liturgy-details .person-name')?.textContent?.trim() ||
+            document.querySelector('.person-name')?.textContent?.trim() || '';
+        const infoText =
+            document.querySelector('.liturgy-details .service-info')?.textContent?.trim() ||
+            document.querySelector('.service-info')?.textContent?.trim() || '';
+
+        if (past) {
+            // Past date → keep single non-swipe layout and no pager
+            box.classList.remove('is-strip');
+            box.innerHTML = '';
+            const pnEl = document.createElement('div');
+            pnEl.className = 'person-name';
+            pnEl.textContent = pnText;
+            const siEl = document.createElement('div');
+            siEl.className = 'service-info';
+            siEl.textContent = infoText;
+            box.append(pnEl, siEl);
+            return;
+        }
+
+        // Today/Future → swipe strip
+        box.classList.add('is-strip');
+        box.innerHTML = '';
+
+        // 1) compose card (first)
+        const compose = document.createElement('div');
+        compose.className = 'liturgy-details';
+        compose.innerHTML = `
+            <div class="person-name">${pnText}</div>
+            <div class="service-info">${infoText}</div>
+        `;
+        box.appendChild(compose);
+
+        // 2) existing cards
+        existing
+            .slice()
+            .sort((a, b) => new Date(b.createdAt || b.serviceDate) - new Date(a.createdAt || a.serviceDate))
+            .forEach((it) => {
+                const d = new Date(it.serviceDate || it.createdAt || iso);
+                const dateUa = d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+                const card = document.createElement('div');
+                card.className = 'liturgy-details';
+                card.innerHTML = `
+                    <div class="person-name">${pnText}</div>
+                    <div class="service-info">Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${it.churchName}, ${dateUa} р.</span></div>
+                `;
+                box.appendChild(card);
+            });
+
+        // --- pager (dots) under the strip, like in the mock ---
+        const total = box.children.length;
+        if (total > 1) {
+            const pager = document.createElement('div');
+            pager.className = 'liturgy-pager';
+            for (let i = 0; i < total; i++) {
+                const pip = document.createElement('span');
+                pip.className = 'pip' + (i === 0 ? ' is-active' : '');
+                pip.dataset.index = String(i);
+                pager.appendChild(pip);
+            }
+            // insert right after the strip
+            box.parentNode.insertBefore(pager, box.nextSibling);
+
+            // tap on dot → scroll to card
+            pager.addEventListener('click', (e) => {
+                const pip = e.target.closest('.pip');
+                if (!pip) return;
+                const i = Number(pip.dataset.index);
+                const target = box.children[i];
+                target?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            });
+
+            // update active dot while scrolling
+            const updateActive = () => {
+                // find the card whose left edge is closest to the container’s left
+                let best = 0;
+                let bestDist = Infinity;
+                for (let i = 0; i < total; i++) {
+                    const el = box.children[i];
+                    const dist = Math.abs(el.getBoundingClientRect().left - box.getBoundingClientRect().left);
+                    if (dist < bestDist) { bestDist = dist; best = i; }
+                }
+                pager.querySelectorAll('.pip').forEach((p, idx) => {
+                    p.classList.toggle('is-active', idx === best);
+                });
+            };
+            box.addEventListener('scroll', () => { window.requestAnimationFrame(updateActive); }, { passive: true });
+            // initial state
+            updateActive();
+        }
+    }
+
     function ensureLiturgyHistoryContainer() {
         const host = document.querySelector('.profile-liturgy');
         if (!host) return null;
@@ -1005,25 +1114,140 @@ document.addEventListener('DOMContentLoaded', () => {
     // додавання від редагування (залогінений теж може “додати” як гість → летить у pending)
     sharedAddBtn?.addEventListener('click', () => sharedInput?.click());
     sharedInput?.addEventListener('change', async (e) => {
-        const files = Array.from(e.target.files || []); if (!files.length) return;
-        const start = sharedPending.length;
-        const previews = files.map(f => URL.createObjectURL(f));
-        previews.forEach(url => sharedPending.push({ url }));
-        refreshSharedUI(); sharedInput.value = '';
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
 
-        for (let i = 0; i < files.length; i++) {
-            try {
-                const hosted = await uploadToImgBB(files[i]);
-                sharedPending[start + i] = { url: hosted };
-                refreshSharedUI();
-                // (опційно) одразу збережемо pending на бекенді
-                await saveSharedAlbum();
-            } catch (err) {
-                console.error('Shared upload failed', err);
-                sharedPending.splice(start + i, 1);
-                refreshSharedUI();
-                alert('Не вдалося додати фото до спільного альбому.');
+        // Local previews & temp captions kept only until user confirms
+        const previews = files.map(f => URL.createObjectURL(f));
+        const tempCaptions = new Array(previews.length).fill('');
+
+        // Modal elements (shared the same as photos)
+        const overlay = document.getElementById('modal-overlay');
+        const dlg = document.getElementById('photo-desc-modal');
+        const closeX = document.getElementById('photo-desc-close');
+        const thumbsEl = document.getElementById('photo-desc-thumbs');
+        const textEl = document.getElementById('photo-desc-text');
+        const countEl = document.getElementById('photo-desc-count');
+        const okBtn = document.getElementById('photo-desc-add');
+
+        let sel = 0;
+        let confirmed = false;
+
+        function commitCurrent() {
+            if (!previews.length) return;
+            tempCaptions[sel] = (textEl.value || '').trim();
+        }
+
+        function renderThumbs() {
+            thumbsEl.innerHTML = '';
+            previews.forEach((src, i) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'photo-desc-thumb' + (i === sel ? ' is-selected' : '');
+                wrap.innerHTML = `
+        <img src="${src}" alt="">
+        <button class="thumb-x" data-i="${i}">
+          <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>`;
+
+                // select on tile click (but not on X)
+                wrap.addEventListener('click', (ev) => {
+                    if (ev.target.closest('.thumb-x')) return;
+                    commitCurrent();
+                    sel = i;
+                    renderThumbs();
+                    textEl.value = tempCaptions[sel] || '';
+                    // keep the selected card centered in the horizontal strip
+                    thumbsEl.querySelector('.photo-desc-thumb.is-selected')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                });
+
+                thumbsEl.appendChild(wrap);
+            });
+            countEl.textContent = String(previews.length);
+        }
+
+        // delete via X (don’t upload removed files)
+        thumbsEl.onclick = (ev) => {
+            const btn = ev.target.closest('.thumb-x');
+            if (!btn) return;
+            const i = Number(btn.dataset.i);
+
+            commitCurrent();
+
+            // cleanup blob, then remove from *all* local arrays
+            try { URL.revokeObjectURL(previews[i]); } catch { }
+            previews.splice(i, 1);
+            tempCaptions.splice(i, 1);
+            files.splice(i, 1);
+
+            if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
+
+            if (!previews.length) {
+                closeModal();
+                return;
             }
+            renderThumbs();
+            textEl.value = tempCaptions[sel] || '';
+        };
+
+        function openModal() { overlay.hidden = false; dlg.hidden = false; }
+        function closeModal() { overlay.hidden = true; dlg.hidden = true; }
+
+        // open modal
+        openModal();
+        renderThumbs();
+        textEl.value = tempCaptions[sel] || '';
+
+        closeX.onclick = () => { commitCurrent(); closeModal(); };
+        overlay.addEventListener('click', () => { commitCurrent(); closeModal(); }, { once: true });
+
+        okBtn.onclick = () => {
+            commitCurrent();
+            confirmed = true;
+            closeModal();
+        };
+
+        // wait until modal is closed
+        await new Promise((r) => {
+            const iv = setInterval(() => { if (!dlg || dlg.hidden) { clearInterval(iv); r(); } }, 60);
+        });
+
+        if (!confirmed || previews.length === 0 || files.length === 0) {
+            previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
+            e.target.value = '';
+            return;
+        }
+
+        // === Upload each, create pending record with description, save ===
+        try {
+            const start = sharedPending.length;
+
+            // Optimistic local placeholders (keep uploading overlay the same way you do elsewhere)
+            previews.forEach((url, i) => {
+                sharedPending.push({ url, description: tempCaptions[i] || '' });
+            });
+            refreshSharedUI();
+
+            for (let i = 0; i < files.length; i++) {
+                try {
+                    const hosted = await uploadToImgBB(files[i]);             // existing helper
+                    // replace optimistic blob with hosted url (keep description)
+                    sharedPending[start + i] = { url: hosted, description: tempCaptions[i] || '' };
+                    refreshSharedUI();
+                    await saveSharedAlbum?.();                                // your existing persistence (if present)
+                } catch (err) {
+                    console.error('Shared upload failed', err);
+                    sharedPending.splice(start + i, 1);
+                    refreshSharedUI();
+                    alert('Не вдалося додати фото до спільного альбому.');
+                }
+            }
+        } finally {
+            previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
+            e.target.value = '';
         }
     });
 
@@ -1265,7 +1489,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (choosePhotoBtn)
             choosePhotoBtn.addEventListener('click', () => {
                 if (isSelecting) {
-                    // cancel
                     exitSelectionMode();
                     choosePhotoBtn.textContent = 'Вибрати';
                 } else {
@@ -1292,14 +1515,9 @@ document.addEventListener('DOMContentLoaded', () => {
             [closeX, cancelBtn, overlay].forEach(el => el && el.addEventListener('click', closeConfirm));
 
             okBtn?.addEventListener('click', async () => {
-                // Remove selected in descending order
                 const toDelete = [...selectedOrder].sort((a, b) => b - a);
                 toDelete.forEach(i => {
-                    if (i >= 0 && i < photos.length) {
-                        const u = photos[i];
-                        // if (u?.startsWith('blob:')) { try { URL.revokeObjectURL(u); } catch { } }
-                        photos.splice(i, 1);
-                    }
+                    if (i >= 0 && i < photos.length) photos.splice(i, 1);
                 });
                 selectedOrder = [];
                 await saveProfilePhotos();
@@ -1309,100 +1527,162 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (fileInput)
-            if (fileInput)
-                fileInput.addEventListener('change', async (e) => {
-                    const files = Array.from(e.target.files || []);
-                    if (!files.length) return;
+            fileInput.addEventListener('change', async (e) => {
+                const files = Array.from(e.target.files || []);
+                if (!files.length) return;
 
-                    // 0) Додаємо МИТТЄВІ превʼю в photos
-                    const startIndex = photos.length;
-                    const previews = files.map(f => URL.createObjectURL(f));
-                    const tempCaptions = new Array(previews.length).fill('');
+                // 0) add instant previews to photos
+                const startIndex = photos.length;
+                const previews = files.map(f => URL.createObjectURL(f));
+                const tempCaptions = new Array(previews.length).fill('');
 
-                    previews.forEach((url) => {
-                        photos.push({ url, description: '' /* тимчасово */, _temp: true });
-                    });
-                    refreshPhotosUI();  // покаже ліст із класом .uploading для blob:
-                    // ↓ відкриваємо степпер описів як і раніше
-                    const overlay = document.getElementById('modal-overlay');
-                    const dlg = document.getElementById('photo-desc-modal');
-                    const closeX = document.getElementById('photo-desc-close');
-                    const prevBtn = document.getElementById('photo-desc-prev');
-                    const nextBtn = document.getElementById('photo-desc-next');
-                    const previewEl = document.getElementById('photo-desc-preview');
-                    const textEl = document.getElementById('photo-desc-text');
-                    const counterEl = document.getElementById('photo-desc-counter');
-
-                    let step = 0; const total = previews.length;
-                    const open = () => { overlay.hidden = false; dlg.hidden = false; };
-                    const close = () => { overlay.hidden = true; dlg.hidden = true; };
-                    overlay.addEventListener('click', () => close());
-
-                    let confirmed = false;
-
-                    function renderStep() {
-                        previewEl.src = previews[step];
-                        textEl.value = tempCaptions[step] || '';
-                        counterEl.textContent = `Фото ${step + 1} з ${total}`;
-                        prevBtn.style.display = step === 0 ? 'none' : '';
-                        nextBtn.textContent = step === total - 1 ? 'Готово' : 'Далі';
-                    }
-                    function commitCurrent() { tempCaptions[step] = (textEl.value || '').trim(); }
-
-                    closeX.onclick = () => { commitCurrent(); close(); };
-                    prevBtn.onclick = () => { commitCurrent(); step = Math.max(0, step - 1); renderStep(); };
-                    nextBtn.onclick = () => { commitCurrent(); if (step < total - 1) { step++; renderStep(); } else { confirmed = true; close(); } };
-
-                    open(); renderStep();
-
-                    // чекаємо, поки користувач закриє діалог
-                    await new Promise((resolve) => {
-                        const iv = setInterval(() => { if (dlg.hidden) { clearInterval(iv); resolve(); } }, 60);
-                    });
-
-                    if (!confirmed) {
-                        // rollback temp blobs added before opening the modal
-                        for (let i = previews.length - 1; i >= 0; i--) {
-                            photos.splice(startIndex + i, 1);
-
-                        }
-                        refreshPhotosUI();
-                        fileInput.value = '';
-                        return; // abort: nothing gets uploaded
-                    }
-
-                    // 1) Асинхронно вантажимо на ImgBB та замінюємо blob → hosted URL
-                    async function uploadToImgBB(file) {
-                        const form = new FormData();
-                        form.append('image', file);
-                        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: form });
-                        const json = await res.json();
-                        if (!json.success) throw new Error('Upload failed');
-                        return json.data.url;
-                    }
-
-                    for (let i = 0; i < files.length; i++) {
-                        const listIndex = startIndex + i; // позиція тимчасового елемента в photos
-                        try {
-                            const hostedUrl = await uploadToImgBB(files[i]);
-                            // звільняємо blob і підміняємо на фінальний обʼєкт
-                            try { URL.revokeObjectURL(previews[i]); } catch { }
-                            const desc = tempCaptions[i] || '';
-                            photos[listIndex] = { url: hostedUrl, description: desc }; // прибираємо _temp
-                            refreshPhotosUI(); // оновимо картку (зникне оверлей "Завантаження…")
-                        } catch (err) {
-                            console.error('Upload failed for', files[i].name, err);
-                            alert(`Не вдалося завантажити фото ${files[i].name}`);
-                            // видаляємо зірване превʼю
-                            photos.splice(listIndex, 1);
-                            refreshPhotosUI();
-                        }
-                    }
-
-                    // 2) Зберігаємо профіль уже з hosted URL’ами
-                    await saveProfilePhotos();
-                    e.target.value = '';
+                previews.forEach((url) => {
+                    photos.push({ url, description: '', _temp: true });
                 });
+                refreshPhotosUI();
+
+                // --- new gallery modal ---
+                const overlay = document.getElementById('modal-overlay');
+                const dlg = document.getElementById('photo-desc-modal');
+                const closeX = document.getElementById('photo-desc-close');
+                const thumbsEl = document.getElementById('photo-desc-thumbs');
+                const textEl = document.getElementById('photo-desc-text');
+                const countEl = document.getElementById('photo-desc-count');
+                const okBtn = document.getElementById('photo-desc-add');
+
+                let sel = 0;
+                let confirmed = false;
+
+                function commitCurrent() {
+                    // save the textarea into the caption for the currently selected photo
+                    if (previews.length === 0) return;
+                    tempCaptions[sel] = (textEl.value || '').trim();
+                }
+
+                function renderThumbs() {
+                    thumbsEl.innerHTML = '';
+                    previews.forEach((src, i) => {
+                        const wrap = document.createElement('div');
+                        wrap.className = 'photo-desc-thumb' + (i === sel ? ' is-selected' : '');
+                        wrap.innerHTML = `
+                        <img src="${src}" alt="">
+                        <button class="thumb-x" data-i="${i}">
+                          <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                        </button>
+                    `;
+                        wrap.addEventListener('click', (ev) => {
+                            if (ev.target.closest('.thumb-x')) return;
+                            // before switching, save the current textarea value
+                            commitCurrent();
+                            sel = i;
+                            renderThumbs();
+                            textEl.value = tempCaptions[sel] || '';
+                        });
+                        thumbsEl.appendChild(wrap);
+                    });
+                    countEl.textContent = String(previews.length);
+                }
+
+                // delete via X (event delegation)
+                thumbsEl.onclick = (ev) => {
+                    const btn = ev.target.closest('.thumb-x');
+                    if (!btn) return;
+                    const i = Number(btn.dataset.i);
+
+                    // persist current textarea before we mutate arrays
+                    commitCurrent?.();
+
+                    // revoke blob preview
+                    try { URL.revokeObjectURL(previews[i]); } catch { }
+
+                    // remove from ALL synced arrays
+                    previews.splice(i, 1);
+                    tempCaptions.splice(i, 1);
+                    files.splice(i, 1);                 // <-- CRITICAL: removes the actual file to upload
+                    photos.splice(startIndex + i, 1);   // UI list you've already added
+
+                    // adjust selection
+                    if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
+
+                    if (previews.length === 0) {
+                        closeModal();                     // nothing left → close the modal
+                        refreshPhotosUI();
+                        return;
+                    }
+
+                    renderThumbs(false);
+                    textEl.value = tempCaptions[sel] || '';
+                    refreshPhotosUI();
+                };
+
+                function openModal() { overlay.hidden = false; dlg.hidden = false; }
+                function closeModal() { overlay.hidden = true; dlg.hidden = true; }
+
+                // close actions
+                overlay.addEventListener('click', closeModal, { once: true });
+                closeX.onclick = () => { closeModal(); };
+
+                okBtn.onclick = () => {
+                    // final save for the current one before closing
+                    commitCurrent();
+                    confirmed = true;
+                    closeModal();
+                };
+
+                openModal();
+                renderThumbs();
+                textEl.value = tempCaptions[0] || '';
+
+                // wait until modal closes
+                await new Promise((resolve) => {
+                    const iv = setInterval(() => {
+                        if (dlg.hidden) { clearInterval(iv); resolve(); }
+                    }, 60);
+                });
+
+                if (!confirmed) {
+                    // rollback temp additions
+                    for (let i = previews.length - 1; i >= 0; i--) {
+                        photos.splice(startIndex + i, 1);
+                    }
+                    refreshPhotosUI();
+                    fileInput.value = '';
+                    return;
+                }
+
+                // 1) upload to ImgBB and replace temp objects
+                async function uploadToImgBB(file) {
+                    const form = new FormData();
+                    form.append('image', file);
+                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: form });
+                    const json = await res.json();
+                    if (!json.success) throw new Error('Upload failed');
+                    return json.data.url;
+                }
+
+                for (let i = 0; i < files.length; i++) {
+                    const listIndex = startIndex + i;
+                    try {
+                        const hostedUrl = await uploadToImgBB(files[i]);
+                        try { URL.revokeObjectURL(previews[i]); } catch { }
+                        const desc = tempCaptions[i] || '';
+                        photos[listIndex] = { url: hostedUrl, description: desc };
+                        refreshPhotosUI();
+                    } catch (err) {
+                        console.error('Upload failed for', files[i].name, err);
+                        alert(`Не вдалося завантажити фото ${files[i].name}`);
+                        photos.splice(listIndex, 1);
+                        refreshPhotosUI();
+                    }
+                }
+
+                // 2) persist profile with hosted URLs + captions
+                await saveProfilePhotos();
+                e.target.value = '';
+            });
     }
 
     // Robust parser for "DD.MM.YYYY" (e.g., "01.09.2025")
@@ -1985,6 +2265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedDateText = document.querySelector('.selected-date')?.textContent || '';
         const iso = toISOFromUA(selectedDateText);
         if (iso) applyDateSelectionEffects(iso);
+        renderLiturgyDetailsStrip(iso);
     })();
 
     // Extend existing date-item click handler:
@@ -2006,6 +2287,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // NEW: effects & history
             const iso = toISOFromParts(year, month, day);
             applyDateSelectionEffects(iso);
+            renderLiturgyDetailsStrip(iso);
         }
     });
 
@@ -2030,17 +2312,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!dateCalendar) return;
 
         dateCalendar.querySelectorAll('.date-item').forEach(it => {
-            // remove previous marks
+            // clear old mark
             it.querySelector('.date-dot')?.remove();
 
             const iso = toISOFromParts(Number(it.dataset.year), Number(it.dataset.month), Number(it.dataset.day));
-            // Only mark PAST dates that have liturgies
-            if (isPastISO(iso) && (liturgiesIndex[iso]?.length)) {
-                const dot = document.createElement('span');
-                dot.className = 'date-dot';          // small green dot
-                dot.dataset.iso = iso;               // helpful for future targeting
-                it.appendChild(dot);
-            }
+            const has = (liturgiesIndex[iso]?.length || 0) > 0;
+            if (!has) return;
+
+            const dot = document.createElement('span');
+            // use a modifier if you want different style for future/today
+            dot.className = 'date-dot' + (isPastISO(iso) ? '' : ' date-dot--future');
+            dot.dataset.iso = iso;
+            it.appendChild(dot);
         });
     }
 
@@ -2053,12 +2336,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!past) {
             history.innerHTML = '';
             history.remove?.();
-
-            // If you mark dots like <span class="date-dot" data-iso="YYYY-MM-DD">
-            const dot =
-                document.querySelector(`.date-dot[data-iso="${iso}"]`) ||
-                document.querySelector(`.date-dot[data-date="${iso}"]`);
-            dot?.remove();
             return;
         }
 
@@ -2110,7 +2387,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const infoDiv = document.createElement('div');
             infoDiv.className = 'service-info';
-            infoDiv.textContent = `${phrase} у ${it.churchName || 'Церква'}, ${dateUa} р.`;
+            infoDiv.innerHTML = `${phrase} у <span style="font-weight:550;">${it.churchName || 'Церква'}, ${dateUa}</span> р.`;
 
             card.append(nameDiv, infoDiv);
             list.appendChild(card);
@@ -2258,6 +2535,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const currentSelectedText = document.querySelector('.selected-date')?.textContent || '';
                 const iso = toISOFromUA(currentSelectedText);
                 if (iso) applyDateSelectionEffects(iso);
+                renderLiturgyDetailsStrip(iso);
 
                 // (Optional) clear donation selection
                 // document.querySelectorAll('.donation-btn')?.forEach(b => b.classList.remove('selected'));
