@@ -56,7 +56,7 @@
   justify-content: center;
   min-height: 120px;
   padding: 24px;
-  margin: 0 0 8px 0;
+  margin: 0;
   background: #f5f5f8;
   color: #72767d;
   border-radius: 12px;
@@ -69,6 +69,30 @@
 /* Override profile.css rules for edit page */
 .profile-relatives #add-relative-btn,
 .profile-bio #bio-edit {
+  display: inline-flex;
+}
+
+.profile-bio #bio-edit {
+  display: none !important;
+  /* за замовчуванням прихована */
+}
+
+#bio-cancel-btn {
+  margin-right: 0;
+}
+
+.profile-bio.has-bio #bio-edit {
+  display: inline-flex !important;
+  /* показуємо тільки якщо JS додасть клас */
+}
+
+/* hide shared menu button by default */
+#shared-menu-btn {
+  display: none;
+}
+
+/* show only when section has photos */
+.profile-shared.has-photos #shared-menu-btn {
   display: inline-flex;
 }
 

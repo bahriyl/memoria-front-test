@@ -76,7 +76,7 @@
             </div>
 
             <div class="bio-body">
-                <p class="bio-content collapsed" id="bio-content">
+                <p style="margin-bottom: 0;" class="bio-content collapsed" id="bio-content">
                     <!-- JS will inject fullBio text here... -->
                 </p>
             </div>
@@ -363,7 +363,10 @@
     <!-- Add Relative (modal) -->
     <div id="relativesModal" class="modal-overlay" hidden>
         <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relModalTitle">
-            <button class="modal-close" id="relModalClose" type="button" aria-label="Закрити">×</button>
+            <button class="modal-close" id="relModalClose" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
+                    height="28" aria-hidden="true">
+                    <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+                </svg></button>
             <h2 class="modal-title" id="relModalTitle" style="text-align:center;margin:6px 0 30px">Додати родича</h2>
 
             <!-- 1) ПІБ -->

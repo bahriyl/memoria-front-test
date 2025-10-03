@@ -105,7 +105,7 @@ body {
 .profile-bio {
     background-color: #fff;
     border-radius: 9px;
-    padding: 1rem 1rem 6px;
+    padding: 1rem 1rem 18px;
     margin-top: 6px;
     border: 0.2px solid #BFBFBF;
     border-left: none;
@@ -240,7 +240,7 @@ body {
     justify-content: center;
     min-height: 120px;
     padding: 24px;
-    margin: 0 0 8px 0;
+    margin: 0;
     background: #F5F5F8;
     color: #72767D;
     border-radius: 12px;
@@ -254,7 +254,7 @@ body {
 .profile-photos {
     background: #fff;
     border-radius: 20px;
-    padding: 1rem 1rem 22px;
+    padding: 1rem 1rem 18px;
     margin-top: 6px;
     position: relative;
     border: 0.2px solid #BFBFBF;
@@ -289,7 +289,7 @@ body {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    margin-top: 15px;
+    margin-top: 10px;
 
     /* hide scrollbar across browsers */
     scrollbar-width: none;
@@ -419,7 +419,7 @@ body {
     justify-content: center;
     min-height: 160px;
     padding: 24px;
-    margin: 0 0 8px 0;
+    margin: 0;
     background: #F5F5F8;
     color: #72767D;
     border-radius: 12px;
@@ -599,8 +599,7 @@ body {
 .profile-liturgy {
     background: #fff;
     border-radius: 20px;
-    padding: 1rem;
-    padding-bottom: 20px;
+    padding: 18px;
     margin-top: 6px;
     border: 0.2px solid #BFBFBF;
     border-radius: 9px;
@@ -878,7 +877,7 @@ body {
 .profile-comments {
     background: #fff;
     border-radius: 20px;
-    padding: 1rem;
+    padding: 18px;
     margin-top: 6px;
     border: 0.2px solid #BFBFBF;
     border-radius: 9px;
@@ -947,7 +946,6 @@ body {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: 4px;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -993,7 +991,7 @@ body {
     background: #fff;
     border: 0.2px solid #BFBFBF;
     border-radius: 9px;
-    padding: 1rem;
+    padding: 18px;
     margin-top: 6px;
     position: relative;
 }
@@ -1001,7 +999,7 @@ body {
 .relatives-title {
     font-size: 19px;
     font-weight: 570;
-    margin: 0 0 8px;
+    margin: 0;
 }
 
 .relatives-list {
@@ -1218,7 +1216,7 @@ body {
     justify-content: center;
     min-height: 120px;
     padding: 24px;
-    margin: 0 0 8px 0;
+    margin: 0;
     background: #F5F5F8;
     color: #72767D;
     border-radius: 12px;
@@ -1496,7 +1494,7 @@ body {
 .profile-shared {
     background: #fff;
     border-radius: 9px;
-    padding: 1rem 1rem 22px;
+    padding: 1rem 1rem 18px;
     border: 0.2px solid #BFBFBF;
     border-left: none;
     border-right: none;
@@ -1915,6 +1913,7 @@ body {
 
 .relatives-list .relative-item:last-child {
     border-bottom: none;
+    padding-bottom: 0;
 }
 
 .relatives-list .select-badge {

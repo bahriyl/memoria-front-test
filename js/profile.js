@@ -756,6 +756,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const heroApply = document.getElementById('hero-apply');
 
     let selectedHeroUrl = '';
+    let originalHeroInlineBg = '';
 
     const HERO_PRESETS = [
         'img/hero1.jpg',
@@ -765,6 +766,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openHeroPicker() {
         if (!heroOverlay || !heroPicker || !heroGrid || !heroEl) return;
+
+        originalHeroInlineBg = heroEl.style.backgroundImage || '';
 
         document.body.classList.add('hero-changing'); // hide avatar
         heroOverlay.hidden = false;
@@ -780,14 +783,27 @@ document.addEventListener('DOMContentLoaded', () => {
             cell.className = 'hero-option';
             cell.innerHTML = `<img src="${url}" alt="">`;
             cell.addEventListener('click', () => {
-                // select
-                heroGrid.querySelectorAll('.hero-option').forEach(o => o.classList.remove('is-selected'));
-                cell.classList.add('is-selected');
-                selectedHeroUrl = url;
-                heroApply.disabled = false;
+                const alreadySelected = cell.classList.contains('is-selected');
 
-                // live preview
-                heroEl.style.backgroundImage = `url(${url})`;
+                // clear all selections first
+                heroGrid.querySelectorAll('.hero-option').forEach(o => o.classList.remove('is-selected'));
+
+                if (alreadySelected) {
+                    // toggle OFF → no selection
+                    selectedHeroUrl = '';
+                    if (heroApply) heroApply.disabled = true;
+
+                    // restore the hero to whatever it had before picker opened
+                    heroEl.style.backgroundImage = originalHeroInlineBg;  // '' → falls back to CSS default
+                } else {
+                    // select this one
+                    cell.classList.add('is-selected');
+                    selectedHeroUrl = url;
+                    if (heroApply) heroApply.disabled = false;
+
+                    // live preview
+                    heroEl.style.backgroundImage = `url(${url})`;
+                }
             });
 
             // preselect if matches current

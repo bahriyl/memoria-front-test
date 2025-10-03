@@ -785,6 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const heroApply = document.getElementById('hero-apply');
 
     let selectedHeroUrl = '';
+    let originalHeroInlineBg = '';
 
     const HERO_PRESETS = [
         'img/hero1.jpg',
@@ -794,6 +795,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openHeroPicker() {
         if (!heroOverlay || !heroPicker || !heroGrid || !heroEl) return;
+
+        originalHeroInlineBg = heroEl.style.backgroundImage || '';
 
         document.body.classList.add('hero-changing'); // hide avatar
         heroOverlay.hidden = false;
@@ -809,14 +812,27 @@ document.addEventListener('DOMContentLoaded', () => {
             cell.className = 'hero-option';
             cell.innerHTML = `<img src="${url}" alt="">`;
             cell.addEventListener('click', () => {
-                // select
-                heroGrid.querySelectorAll('.hero-option').forEach(o => o.classList.remove('is-selected'));
-                cell.classList.add('is-selected');
-                selectedHeroUrl = url;
-                heroApply.disabled = false;
+                const alreadySelected = cell.classList.contains('is-selected');
 
-                // live preview
-                heroEl.style.backgroundImage = `url(${url})`;
+                // clear all selections first
+                heroGrid.querySelectorAll('.hero-option').forEach(o => o.classList.remove('is-selected'));
+
+                if (alreadySelected) {
+                    // toggle OFF → no selection
+                    selectedHeroUrl = '';
+                    if (heroApply) heroApply.disabled = true;
+
+                    // restore the hero to whatever it had before picker opened
+                    heroEl.style.backgroundImage = originalHeroInlineBg;  // '' → falls back to CSS default
+                } else {
+                    // select this one
+                    cell.classList.add('is-selected');
+                    selectedHeroUrl = url;
+                    if (heroApply) heroApply.disabled = false;
+
+                    // live preview
+                    heroEl.style.backgroundImage = `url(${url})`;
+                }
             });
 
             // preselect if matches current
@@ -1086,6 +1102,57 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Reuse the existing confirm modal used by profile-photos
+    const sharedConfirmOverlay = document.getElementById('modal-overlay');
+    const sharedConfirmDlg = document.getElementById('confirm-delete-modal');
+    const sharedConfirmClose = document.getElementById('confirm-delete-close');
+    const sharedConfirmCancel = document.getElementById('confirm-delete-cancel');
+    const sharedConfirmOk = document.getElementById('confirm-delete-ok');
+
+    function updateSharedEmptyState() {
+        const hasAccepted = Array.isArray(sharedPhotos) && sharedPhotos.length > 0;
+        const hasPending = Array.isArray(sharedPending) && sharedPending.length > 0;
+        const hasAny = hasAccepted || hasPending;
+
+        const sharedSection = document.querySelector('.profile-shared');
+        const dotsBtn = document.getElementById('shared-menu-btn');   // 3-dots
+        const addBtn = document.getElementById('shared-add-btn');    // “+” add
+
+        // class for CSS if you also use .has-photos rules
+        if (sharedSection) {
+            sharedSection.classList.toggle('has-photos', hasAny);
+        }
+
+        // direct, immediate UI toggle (no CSS dependency)
+        if (dotsBtn) dotsBtn.style.display = hasAny ? 'inline-flex' : 'none';
+        if (addBtn) addBtn.style.display = hasAny ? 'none' : 'inline-flex';
+    }
+
+    function openSharedDeleteConfirm() {
+        if (!sharedConfirmOverlay || !sharedConfirmDlg) return;
+        sharedConfirmOverlay.hidden = false;
+        sharedConfirmDlg.hidden = false;
+    }
+    function closeSharedDeleteConfirm() {
+        if (!sharedConfirmOverlay || !sharedConfirmDlg) return;
+        sharedConfirmOverlay.hidden = true;
+        sharedConfirmDlg.hidden = true;
+    }
+
+    // one place to cleanly exit selection mode + hide inline controls
+    function exitSharedSelection() {
+        sharedSelecting = false;
+        sharedSelectedOrder = [];
+        document.querySelector('.profile-shared')?.classList.remove('selection-mode');
+
+        if (sharedMenuBtn) sharedMenuBtn.style.display = 'inline-flex';
+        if (sharedDeleteBtn) sharedDeleteBtn.style.display = 'none';
+        if (sharedCancelBtn) sharedCancelBtn.style.display = 'none';
+
+        refreshSharedUI?.();
+        updateSharedEmptyState();
+    }
+
     // підтвердження/відхилення pending
     async function acceptPending(i) {
         const item = sharedPending[i]; if (!item) return;
@@ -1099,16 +1166,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // delete for accepted (selection)
-    sharedDeleteBtn?.addEventListener('click', async () => {
-        if (!sharedSelecting || sharedSelectedOrder.length === 0) { sharedSelecting = false; document.querySelector('.profile-shared')?.classList.remove('selection-mode'); refreshSharedUI(); return; }
-        // видаляємо за індексами (у зворотньому порядку)
-        [...sharedSelectedOrder].sort((a, b) => b - a).forEach(i => sharedPhotos.splice(i, 1));
-        sharedSelectedOrder = [];
-        await saveSharedAlbum();
-        sharedSelecting = false;
-        document.querySelector('.profile-shared')?.classList.remove('selection-mode');
-        refreshSharedUI();
+    sharedDeleteBtn?.addEventListener('click', () => {
+        if (!sharedSelecting || sharedSelectedOrder.length === 0) {
+            exitSharedSelection();
+            return;
+        }
+        openSharedDeleteConfirm();
     });
+
+    // Make the shared section use the same confirmation modal as profile-photos
+    if (sharedConfirmDlg) {
+        // close actions
+        sharedConfirmClose?.addEventListener('click', closeSharedDeleteConfirm);
+        sharedConfirmCancel?.addEventListener('click', closeSharedDeleteConfirm);
+        sharedConfirmOverlay?.addEventListener('click', closeSharedDeleteConfirm);
+
+        // confirm deletion
+        sharedConfirmOk?.addEventListener('click', async () => {
+            // delete accepted items by their accepted indexes
+            const toDeleteAccepted = [...sharedSelectedOrder].sort((a, b) => b - a);
+            toDeleteAccepted.forEach(i => {
+                if (i >= 0 && i < sharedPhotos.length) sharedPhotos.splice(i, 1);
+            });
+
+            sharedSelectedOrder = [];
+            await saveSharedAlbum?.();
+
+            closeSharedDeleteConfirm();
+            exitSharedSelection();
+            updateSharedEmptyState();
+        });
+    }
 
     // рендер (pending завжди першими)
     function refreshSharedUI() {
