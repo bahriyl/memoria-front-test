@@ -283,13 +283,31 @@ function renderFilterControls() {
 
       clearBtn.addEventListener('click', e => {
         e.stopPropagation();
+
+        // 1) Reset state
         selectedBirth = undefined;
         selectedDeath = undefined;
         filterState.birthYear = undefined;
         filterState.deathYear = undefined;
-        birthWheel.clear({ silent: true, keepActive: false });
-        deathWheel.clear({ silent: true, keepActive: false });
+
+        // 2) Reset wheels to placeholders and re-snap (UI re-render)
+        //    - updateOptions ensures internal initialValue = ''
+        //    - clear({ keepActive: true }) selects the placeholder ("Від"/"До")
+        birthWheel.updateOptions({ initialValue: '' });
+        deathWheel.updateOptions({ initialValue: '' });
+        birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+        deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+
+        // 3) Re-apply constraints (death >= birth when present)
         applyDeathConstraints();
+
+        // 4) Keep the panel open and snap both lists so placeholders are centered
+        panel.hidden = false;
+        birthWheel.snap({ behavior: 'auto', silent: true });
+        deathWheel.snap({ behavior: 'auto', silent: true });
+        panel.hidden = true;
+
+        // 5) Reflect in header and re-fetch list
         updateDisplay();
         fetchAndRender();
       });

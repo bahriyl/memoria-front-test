@@ -403,9 +403,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Відкрити меню
     const handleAvatarMenuOutsideClick = (event) => {
         if (!avatarMenu || avatarMenu.hidden) return;
+
         const clickedInsideMenu = event.target.closest('#avatar-menu');
         const clickedAvatar = event.target.closest('.profile-avatar');
-        if (clickedInsideMenu || clickedAvatar) return;
+        const clickedHero = event.target.closest('.profile-hero'); // NEW
+
+        if (clickedInsideMenu || clickedAvatar || clickedHero) return;   // ← include hero
         closeAvatarMenu();
     };
 
@@ -430,10 +433,20 @@ document.addEventListener('DOMContentLoaded', () => {
         document.removeEventListener('click', handleAvatarMenuOutsideClick, true);
     }
 
-    // Відкриття по кліку на аватар (як і було)
+    // avatar click
     avatarEl?.addEventListener('click', (e) => {
+        if (typeof premiumLock !== 'undefined' && premiumLock && !token) return; // hardened
         openAvatarMenu();
         e.stopPropagation();
+    });
+
+    // hero click (where your error pointed)
+    heroEl?.addEventListener('click', (e) => {
+        if (typeof premiumLock !== 'undefined' && premiumLock && !token) return; // hardened
+        const picker = document.getElementById('hero-picker');
+        if (picker && !picker.hidden) return;
+        e.stopPropagation();
+        openAvatarMenu();
     });
 
     avatarMenu?.addEventListener('click', (e) => {
@@ -759,6 +772,104 @@ document.addEventListener('DOMContentLoaded', () => {
         await updateAvatar(null); // send null to remove
         hideAvatarSpinner();
         closeAvatarMenu();
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // HERO CHANGE (background)
+    // ─────────────────────────────────────────────────────────────────────────────
+    const heroChangeBtn = document.getElementById('hero-change');
+    const heroOverlay = document.getElementById('hero-overlay');
+    const heroPicker = document.getElementById('hero-picker');
+    const heroGrid = document.getElementById('hero-grid');
+    const heroCancel = document.getElementById('hero-cancel');
+    const heroApply = document.getElementById('hero-apply');
+
+    let selectedHeroUrl = '';
+
+    const HERO_PRESETS = [
+        'img/hero1.jpg',
+        'img/hero2.jpg',
+        'img/hero3.jpg'
+    ];
+
+    function openHeroPicker() {
+        if (!heroOverlay || !heroPicker || !heroGrid || !heroEl) return;
+
+        document.body.classList.add('hero-changing'); // hide avatar
+        heroOverlay.hidden = false;
+        heroPicker.hidden = false;
+
+        // build grid
+        heroGrid.innerHTML = '';
+        const currentBg = getComputedStyle(heroEl).backgroundImage
+            .replace(/^url\(["']?/, '')
+            .replace(/["']?\)$/, '');
+        HERO_PRESETS.forEach((url) => {
+            const cell = document.createElement('div');
+            cell.className = 'hero-option';
+            cell.innerHTML = `<img src="${url}" alt="">`;
+            cell.addEventListener('click', () => {
+                // select
+                heroGrid.querySelectorAll('.hero-option').forEach(o => o.classList.remove('is-selected'));
+                cell.classList.add('is-selected');
+                selectedHeroUrl = url;
+                heroApply.disabled = false;
+
+                // live preview
+                heroEl.style.backgroundImage = `url(${url})`;
+            });
+
+            // preselect if matches current
+            if (currentBg && currentBg === url) {
+                cell.classList.add('is-selected');
+                selectedHeroUrl = url;
+                heroApply.disabled = false;
+            }
+            heroGrid.appendChild(cell);
+        });
+
+        // focus primary button for a11y
+        requestAnimationFrame(() => heroApply?.focus());
+    }
+
+    function closeHeroPicker(reset = false) {
+        if (!heroOverlay || !heroPicker) return;
+        heroOverlay.hidden = true;
+        heroPicker.hidden = true;
+        document.body.classList.remove('hero-changing');
+        if (reset) location.reload();
+    }
+
+    async function updateHeroImage(url) {
+        try {
+            const res = await fetch(`${API_BASE}/${personId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ heroImage: url })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            // ensure UI reflects server state
+            location.reload();
+        } catch (e) {
+            console.error('Update hero failed', e);
+            alert('Не вдалося оновити фон профілю');
+        }
+    }
+
+    heroChangeBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // same guard as avatar menu (respect premium lock)
+        if (typeof premiumLock !== 'undefined' && premiumLock && !token) return;
+        // close avatar menu if open
+        try { document.getElementById('avatar-menu').hidden = true; } catch { }
+        openHeroPicker();
+    });
+
+    heroCancel?.addEventListener('click', () => closeHeroPicker(true)); // Скасувати → reload
+    heroOverlay?.addEventListener('click', () => { /* ignore clicks behind */ });
+    heroApply?.addEventListener('click', () => {
+        if (!selectedHeroUrl) return;
+        updateHeroImage(selectedHeroUrl); // Встановити → PUT heroImage
     });
 
     async function saveRelatives() {
@@ -1968,8 +2079,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ─── AVATAR / HERO ───
             if (avatarEl) avatarEl.src = data.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png';
-            if (heroEl && data.backgroundUrl) {
-                heroEl.style.backgroundImage = `url(${data.backgroundUrl})`;
+
+            // prefer new heroImage; fallback to legacy backgroundUrl; else keep CSS default
+            const heroUrl = data.heroImage || data.backgroundUrl || '';
+            if (heroEl && heroUrl) {
+                heroEl.style.backgroundImage = `url(${heroUrl})`;
             }
 
             // ─── NAME / YEARS / CEMETERY ───

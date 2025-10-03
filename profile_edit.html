@@ -31,6 +31,7 @@
                     <div class="avatar-menu-card">
                         <button id="avatar-add" class="avatar-menu-item">Додати фото</button>
                         <button id="avatar-change" class="avatar-menu-item">Змінити фото</button>
+                        <button id="hero-change" class="avatar-menu-item">Змінити фон</button>
                         <button id="avatar-delete" class="avatar-menu-item">Видалити фото</button>
                     </div>
                 </div>
@@ -257,6 +258,23 @@
                 <div class="avatar-cropper-buttons">
                     <button id="avatar-cropper-cancel" type="button" class="btn">Скасувати</button>
                     <button id="avatar-cropper-ok" type="button" class="btn primary">Зберегти</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hero change overlay (dims the page, but hero stays visible above it) -->
+        <div id="hero-overlay" class="hero-change-overlay" hidden></div>
+
+        <!-- Hero picker -->
+        <div id="hero-picker" class="hero-picker" hidden role="dialog" aria-modal="true"
+            aria-labelledby="hero-picker-title">
+            <div class="hero-picker-card">
+                <!-- thumbnails go here -->
+                <div id="hero-grid" class="hero-grid"></div>
+
+                <div class="hero-actions">
+                    <button id="hero-cancel" type="button" class="btn">Скасувати</button>
+                    <button id="hero-apply" type="button" class="btn primary" disabled>Встановити</button>
                 </div>
             </div>
         </div>

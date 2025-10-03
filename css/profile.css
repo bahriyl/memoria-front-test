@@ -29,6 +29,7 @@ body {
     height: calc(200px + constant(safe-area-inset-top));
     height: calc(200px + env(safe-area-inset-top));
     background: url('https://pbs.twimg.com/media/Fq4UD5RXoAAo9OB.jpg') center/cover no-repeat;
+    z-index: 200;
 }
 
 .profile-avatar {
@@ -1086,7 +1087,8 @@ body {
     height: auto;
     border-radius: 0;
     transition: none;
-    z-index: 20;
+    z-index: 350;
+    pointer-events: auto;
 }
 
 .back-button:hover {
@@ -1256,7 +1258,21 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    z-index: 10;
+    z-index: 300;
+}
+
+/* Allow clicks to pass through empty parts of the header so back button underneath is clickable */
+.ritual-header {
+    pointer-events: none;
+    /* header itself won't capture clicks */
+}
+
+/* Keep the actual interactive elements clickable */
+.ritual-header .ritual-login-btn,
+.ritual-header .ritual-back-btn,
+.ritual-header a,
+.ritual-header button {
+    pointer-events: auto;
 }
 
 .ritual-back-btn {
@@ -2217,6 +2233,7 @@ body {
     background: #fff;
     border-radius: 14px;
     padding: 16px;
+    padding-bottom: 20px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
 }
 
@@ -2226,6 +2243,7 @@ body {
     font-weight: 570;
     font-size: 18px;
     color: #222;
+    text-align: center;
 }
 
 .avatar-cropper-subtitle {
@@ -2233,6 +2251,7 @@ body {
     font-size: 13px;
     color: #666;
     font-weight: 500;
+    text-align: center;
 }
 
 /* square stage with circular mask overlay */
@@ -2281,7 +2300,7 @@ body {
 }
 
 .avatar-cropper-controls {
-    margin-top: 12px;
+    margin-top: 24px;
 }
 
 .avatar-cropper-controls input[type="range"] {
@@ -2289,25 +2308,33 @@ body {
 }
 
 .avatar-cropper-buttons {
+    width: 80%;
+    margin: 0 auto;
+    /* center the row */
     display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 10px;
+    gap: 16px;
+    justify-content: center;
+    /* center buttons inside the row */
+    margin-bottom: 6px;
 }
 
 .avatar-cropper .btn {
+    flex: 1;
+    /* обидві кнопки однакові по ширині */
+    padding: 12px 0;
+    border-radius: 14px;
+    border: 0 solid #E5E7EB;
     background: #F2F4F7;
-    border: 0;
-    border-radius: 12px;
-    padding: 8px 14px;
+    color: #000;
+    font-size: 17px;
+    font-weight: 550;
     font-family: 'Montserrat', sans-serif;
-    font-weight: 510;
-    cursor: pointer;
 }
 
 .avatar-cropper .btn.primary {
-    background: #1B8B59;
+    background-color: #1B8B59;
     color: #fff;
+    border: none;
 }
 
 .login-modal h2 {
@@ -2463,4 +2490,122 @@ input[type="text"] {
 
 .modal-close {
     right: 0;
+}
+
+/* Overlay */
+.hero-change-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .45);
+    z-index: 180;
+}
+
+/* Ховаємо аватар, коли активний hero-picker */
+.hero-changing .profile-avatar-wrapper {
+    visibility: hidden;
+}
+
+/* Контейнер пікера */
+.hero-picker {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    /* вирівнювання знизу */
+    justify-content: center;
+    z-index: 400;
+}
+
+/* Карточка пікера */
+.hero-picker-card {
+    width: 100%;
+    background: #fff;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, .2);
+    padding: 12px 0;
+}
+
+.hero-grid {
+    display: flex;
+    overflow-x: auto;
+    gap: 3px;
+    padding: 4px 12px 20px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+}
+
+.hero-grid::-webkit-scrollbar {
+    display: none;
+}
+
+/* only the last item adds spacing at the end */
+.hero-grid .hero-option:last-child {
+    margin-right: 1px;
+    /* matches your left padding */
+}
+
+/* Each thumb as snap item */
+.hero-option {
+    position: relative;
+    flex: 0 0 145px;
+    /* fixed card width (keeps your size) */
+    height: 170px;
+    /* fixed card height */
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+
+    /* Snap settings */
+    scroll-snap-align: center;
+    /* center the card when snapping */
+    scroll-snap-stop: always;
+    /* (best effort) stop exactly on a card */
+}
+
+/* image remains unchanged */
+.hero-option img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hero-option.is-selected {
+    transform: scale(1.05);
+    z-index: 1;
+}
+
+/* Кнопки дій */
+.hero-actions {
+    width: 80%;
+    margin: 0 auto;
+    /* center the row */
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    /* center buttons inside the row */
+    margin-bottom: 6px;
+}
+
+.hero-actions .btn {
+    flex: 1;
+    /* обидві кнопки однакові по ширині */
+    padding: 12px 0;
+    border-radius: 14px;
+    border: 0 solid #E5E7EB;
+    background: #F2F4F7;
+    color: #000;
+    font-size: 17px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.hero-actions .btn.primary {
+    background-color: #1B8B59;
+    color: #fff;
+    border: none;
 }

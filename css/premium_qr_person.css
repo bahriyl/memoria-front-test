@@ -715,7 +715,7 @@ input[type="text"]::placeholder {
 }
 
 .year-list li[data-value=""] {
-    scroll-snap-align: none;
+    scroll-snap-align: center;
 }
 
 .year-list::-webkit-scrollbar {
