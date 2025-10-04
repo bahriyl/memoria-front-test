@@ -207,10 +207,6 @@
   color: #222222;
 }
 
-#relativesModal .modal-content {
-  position: absolute;
-}
-
 .people-list .years {
   text-align: left;
 }
@@ -221,4 +217,52 @@
 
 .relatives-controls {
   margin-bottom: 10px;
+}
+
+/* Relatives modal — keep the submit button fixed like on profile */
+#relativesModal .modal-content {
+  position: relative;
+  min-height: 65vh;
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* make the submit button float like on profile */
+#relativesModal .modal-submit-btn {
+  position: fixed;
+  /* fixed to viewport */
+  bottom: 48px;
+  /* uniform offset */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: 80%;
+  max-width: 480px;
+  margin: 0 !important;
+}
+
+/* ensure the overlay doesn’t clip the fixed child */
+#relativesModal {
+  overflow: visible;
+  position: fixed;
+}
+
+/* iOS safe-area support (same as profile) */
+@supports (padding: max(0px)) {
+  #relativesModal .modal-submit-btn {
+    bottom: max(60px, env(safe-area-inset-bottom));
+  }
+}
+
+/* (optional, to match profile) keep the years picker floating above */
+#relativesModal .years-panel {
+  position: fixed !important;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1100 !important;
+  width: min(92vw, 460px);
+  max-height: 80vh;
+  overflow: hidden;
 }

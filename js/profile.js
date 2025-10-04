@@ -10,20 +10,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
 
     const params = new URLSearchParams(window.location.search);
-
     const from = params.get('from');
-    const backTo = params.get('backTo');   // NEW
+    const backTo = params.get('backTo');
     const backBtn = document.querySelector('.back-button');
 
+    backBtn?.addEventListener('click', (e) => {
+        document.getElementById('avatar-menu')?.setAttribute('hidden', '');
+        e.stopPropagation();
+    });
+
     if (backBtn) {
-        if (from === 'premium') {
-            backBtn.setAttribute('href', 'premium_qr_person.html');
-        } else if (from === 'profile' && backTo) {
+        if (backTo) {
+            // always go back to the previous profile if provided
             backBtn.setAttribute('href', `profile.html?personId=${encodeURIComponent(backTo)}`);
+        } else if (from === 'premium') {
+            backBtn.setAttribute('href', 'premium_qr_person.html');
         } else {
             backBtn.setAttribute('href', 'index.html');
         }
     }
+
 
     const personId = params.get('personId');
     if (!personId) return;
@@ -37,7 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem(tokenKey);
 
     if (token) {
-        const suffix = from ? `&from=${encodeURIComponent(from)}` : '';
+        const parts = [];
+        if (from) parts.push(`from=${encodeURIComponent(from)}`);
+        if (backTo) parts.push(`backTo=${encodeURIComponent(backTo)}`);
+        const suffix = parts.length ? `&${parts.join('&')}` : '';
         window.location.replace(`/profile_edit.html?personId=${encodeURIComponent(personId)}${suffix}`);
         return;
     }
@@ -352,16 +361,27 @@ document.addEventListener('DOMContentLoaded', () => {
         avatarSpinner?.classList.remove('show');
     }
 
-    // Відкрити меню
     const handleAvatarMenuOutsideClick = (event) => {
-        if (!avatarMenu || avatarMenu.hidden) return;
+        if (!avatarMenu || avatarMenu.hasAttribute('hidden')) return;
 
         const clickedInsideMenu = event.target.closest('#avatar-menu');
-        const clickedAvatar = event.target.closest('.profile-avatar');
-        const clickedHero = event.target.closest('.profile-hero'); // NEW
+        const clickedCardButton = event.target.closest('.avatar-menu-card button');
 
-        if (clickedInsideMenu || clickedAvatar || clickedHero) return;   // ← include hero
-        closeAvatarMenu();
+        // Якщо клікнули по кнопці в меню → нічого не робимо
+        if (clickedCardButton) return;
+
+        // Якщо клікнули десь у меню (але не на кнопці) → закриваємо
+        if (clickedInsideMenu) {
+            closeAvatarMenu();
+            return;
+        }
+
+        // Якщо клікнули аватар/герой або будь-де поза меню → теж закриваємо
+        const clickedAvatar = event.target.closest('.profile-avatar');
+        const clickedHero = event.target.closest('.profile-hero');
+        if (clickedAvatar || clickedHero || !clickedInsideMenu) {
+            closeAvatarMenu();
+        }
     };
 
     function openAvatarMenu() {
@@ -394,6 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // hero click
     heroEl?.addEventListener('click', (e) => {
+        if (e.target.closest('.back-button')) return;
         if (typeof premiumLock !== 'undefined' && premiumLock && !token) return; // hardened
         const picker = document.getElementById('hero-picker');
         if (picker && !picker.hidden) return;
@@ -1087,7 +1108,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (relSelecting) {
                     toggleSelectRelative(idx);
                 } else {
-                    window.location.href = `profile.html?personId=${encodeURIComponent(relative.id)}`;
+                    const url = new URL('profile.html', location.origin);
+                    url.searchParams.set('personId', relative.id);
+                    url.searchParams.set('from', 'profile');
+                    url.searchParams.set('backTo', personId);
+                    window.location.href = url.toString();
                 }
             });
 

@@ -289,7 +289,7 @@ body {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    margin-top: 10px;
+    margin-top: 17px;
 
     /* hide scrollbar across browsers */
     scrollbar-width: none;
@@ -2368,7 +2368,8 @@ input[type="password"]::placeholder {
     color: #72767D;
 }
 
-input[type="text"] {
+input[type="text"],
+input[type="number"] {
     height: 54px;
 }
 
@@ -2607,4 +2608,38 @@ input[type="text"] {
     background-color: #1B8B59;
     color: #fff;
     border: none;
+}
+
+/* Donation modal = same layout as comment-template modal */
+#donation-modal .modal-actions {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    gap: 12px;
+    justify-content: stretch;
+    margin-top: 0;
+    padding: 0;
+}
+
+#donation-modal .modal-actions .modal-cancel,
+#donation-modal .modal-actions .modal-ok {
+    flex: 1 1 0;
+    width: auto;
+    height: 44px;
+    padding: 0;
+}
+
+/* Donation input matches #comment-user-input */
+#donation-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: #F1F3F5;
+    border: none;
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-size: 16px;
+    font-weight: 460;
+    font-family: 'Montserrat', sans-serif;
+    margin: 8px 0 24px 0;
+    outline: none;
 }

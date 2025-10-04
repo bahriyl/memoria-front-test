@@ -295,7 +295,10 @@
 
     <!-- Comment Template → Ask for User Name -->
     <div id="comment-template-modal" class="modal" hidden>
-        <button id="comment-template-close" class="modal-close" aria-label="Закрити">&times;</button>
+        <button id="comment-template-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
+                height="28" aria-hidden="true">
+                <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+            </svg></button>
         <p class="modal-text">Вкажіть ваше ім’я</p>
         <input id="comment-user-input" type="text" placeholder="Введіть Імʼя...">
         <div class="modal-actions">
@@ -327,10 +330,12 @@
 
     <!-- Custom Donation Modal -->
     <div id="donation-modal" class="modal" hidden>
-        <button id="donation-close" class="modal-close" aria-label="Закрити">&times;</button>
+        <button id="donation-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
+                height="28" aria-hidden="true">
+                <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+            </svg></button>
         <p class="modal-text">Введіть суму пожертви (грн)</p>
-        <input id="donation-input" type="number" min="1" step="1" placeholder="Сума, грн"
-            style="width:100%;box-sizing:border-box;background:#F1F3F5;border:none;border-radius:8px;padding:10px 12px;font-size:15px;outline:none;">
+        <input id="donation-input" type="number" min="1" step="1" placeholder="Сума, грн">
         <div class="modal-actions">
             <button id="donation-cancel" class="modal-cancel">Скасувати</button>
             <button id="donation-ok" class="modal-ok">Підтвердити</button>
@@ -339,7 +344,7 @@
 
     <!-- Add Relative (modal) -->
     <div id="relativesModal" class="modal-overlay" hidden>
-        <div class="modal modal-content" role="dialog" aria-modal="true" aria-labelledby="relModalTitle">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relModalTitle">
             <button class="modal-close" id="relModalClose" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
                     height="28" aria-hidden="true">
                     <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>

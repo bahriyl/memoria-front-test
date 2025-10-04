@@ -163,9 +163,7 @@ body {
 .ritual-description {
   background: #ffffff;
   margin-top: 6px;
-  padding: 20px;
-  padding-top: 10px;
-  padding-right: 10px;
+  padding: 10px 10px 18px 20px;
   border-top: 0.2px solid #bfbfbf;
   border-bottom: 0.2px solid #bfbfbf;
   border-radius: 9px;
@@ -942,4 +940,50 @@ textarea {
 #photo-desc-add {
   margin-top: 12px;
   width: 60%
+}
+
+/* Uploading overlay (mirror of profile page) */
+.ritual-item-section .image-wrap.uploading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .35);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.ritual-item-section .image-wrap.uploading::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 34px;
+  height: 34px;
+  margin-top: -17px;
+  margin-left: -17px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, .35);
+  border-top-color: #fff;
+  animation: memoria-spin 0.9s linear infinite;
+}
+
+/* tiny “uploading” hint (optional, same as profile) */
+.ritual-item-section .image-wrap.uploading .uploading-hint {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 16px;
+  color: #fff;
+  background: rgba(0, 0, 0, .45);
+}
+
+/* spinner keyframes (same name used on the profile page) */
+@keyframes memoria-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

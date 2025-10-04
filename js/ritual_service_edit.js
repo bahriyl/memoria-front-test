@@ -385,17 +385,17 @@ function renderData(data) {
       });
     }
 
-    // Upload handler
     // ==== ADD PHOTOS HANDLER with Album/Photo modal ====
     fileInput.addEventListener("change", async (e) => {
+      // collect selected files
       const files = Array.from(e.target.files || []);
       if (!files.length) return;
 
-      // local previews & temp captions
+      // create local blob previews and temp captions
       const previews = files.map(f => URL.createObjectURL(f));
       const tempCaptions = new Array(previews.length).fill("");
 
-      // modal elements (global, one per page)
+      // modal nodes
       const overlay = document.getElementById("modal-overlay");
       const dlg = document.getElementById("photo-desc-modal");
       const closeX = document.getElementById("photo-desc-close");
@@ -406,15 +406,17 @@ function renderData(data) {
       const modeAlbum = document.getElementById("mode-album");
       const modePhoto = document.getElementById("mode-photo");
 
+      // selection state within modal
       let sel = 0;
       let confirmed = false;
 
+      // persist textarea text to current selected preview
       function commitCurrent() {
-        // зберігаємо textarea у підпис поточного прев’ю
         if (!previews.length) return;
         tempCaptions[sel] = (textEl.value || "").trim();
       }
 
+      // render thumbs list; disabled=true in album mode (no per-photo edits/deletes)
       function renderThumbs(disabled) {
         thumbsEl.innerHTML = "";
         previews.forEach((src, i) => {
@@ -430,74 +432,65 @@ function renderData(data) {
         </button>`;
           if (!disabled) {
             wrap.addEventListener("click", (ev) => {
-              if (ev.target.closest(".thumb-x")) return;
-              commitCurrent();
-              sel = i;
-              renderThumbs(false);
-              textEl.value = tempCaptions[sel] || "";
+              if (ev.target.closest(".thumb-x")) return; // ignore delete button
+              commitCurrent();                            // keep text of previous
+              sel = i;                                    // set new selection
+              renderThumbs(false);                        // re-render with highlight
+              textEl.value = tempCaptions[sel] || "";     // load text for new sel
             });
           }
           thumbsEl.appendChild(wrap);
         });
-        countEl.textContent = String(previews.length);
+        countEl.textContent = String(previews.length);    // update counter
       }
 
-      // delete via X (event delegation)
+      // deletion of a preview in PHOTO mode
       thumbsEl.onclick = (ev) => {
         const btn = ev.target.closest('.thumb-x');
         if (!btn) return;
-        // у режимі "Альбом" за задумом видалення відключене
-        if (modeAlbum.checked) return;
+        if (modeAlbum.checked) return;                   // deletion disabled in album
 
         const i = Number(btn.dataset.i);
+        commitCurrent();                                 // keep current text
 
-        // зберігаємо поточний опис перед модифікацією масивів
-        commitCurrent();
-
-        // прибираємо blob preview
+        // revoke blob, remove from all arrays so it won't upload later
         try { URL.revokeObjectURL(previews[i]); } catch { }
 
-        // ⚠️ ВАЖЛИВО: видаляємо з УСІХ локальних масивів
         previews.splice(i, 1);
         tempCaptions.splice(i, 1);
-        files.splice(i, 1);            // ← тепер файл точно не завантажиться
+        files.splice(i, 1);
 
-        // підлаштовуємо індекс вибраного
+        // fix selection index
         if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
 
-        // якщо нічого не лишилось — закриваємо модал
+        // if nothing left, close modal
         if (previews.length === 0) {
           closeModal();
           return;
         }
 
-        // перемальовуємо прев’ю і відновлюємо textarea для поточного sel
+        // repaint and restore textarea
         renderThumbs(false);
         textEl.value = tempCaptions[sel] || '';
       };
 
+      // open/close helpers
       function openModal() { overlay.hidden = false; dlg.hidden = false; }
       function closeModal() { overlay.hidden = true; dlg.hidden = true; }
 
-      // switch UI by mode (album/photo)
+      // toggle UI by mode (Album → one shared description; Photo → per-photo)
       function applyModeUI() {
         if (modeAlbum.checked) {
-          // в режимі "Альбом" вибір фото не потрібен — всі мають один опис
-          renderThumbs(true);                   // без кліків і видалення
-          sel = 0;
-          // показуємо 1 textarea (загальний опис), підставляємо перший збережений або порожній
+          renderThumbs(true);                 // disable clicks/deletes
+          sel = 0;                            // irrelevant in album mode
           textEl.value = tempCaptions[0] || "";
         } else {
-          // "Фото" — індивідуальні описи
-          renderThumbs(false);
+          renderThumbs(false);                // enable per-photo selection
           textEl.value = tempCaptions[sel] || "";
         }
       }
 
-      modeAlbum.addEventListener("change", applyModeUI);
-      modePhoto.addEventListener("change", applyModeUI);
-
-      // open modal
+      // show modal and wire controls
       openModal();
       applyModeUI();
 
@@ -505,25 +498,48 @@ function renderData(data) {
       overlay.addEventListener("click", closeModal, { once: true });
 
       okBtn.onclick = () => {
-        // перед закриттям зберігаємо поточне
-        commitCurrent();
-        confirmed = true;
-        closeModal();
+        commitCurrent();      // save text of current selection
+        confirmed = true;     // mark user confirmation
+        closeModal();         // close the modal
       };
 
-      // wait until closed
+      // wait until modal actually closes
       await new Promise((r) => {
         const iv = setInterval(() => { if (dlg.hidden) { clearInterval(iv); r(); } }, 60);
       });
 
+      // if cancelled or no images, clean and exit
       if (!confirmed || previews.length === 0) {
-        // cleanup previews
         previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
         e.target.value = "";
         return;
       }
 
-      // === UPLOAD ===
+      // ensure the section has a visible grid before uploading
+      section.querySelector(".photos-empty")?.remove();         // drop empty-state
+      if (!section.contains(imagesContainer)) section.appendChild(imagesContainer);
+      imagesContainer.classList.add("one-row");                 // same as profile grid
+
+      // create temporary "uploading" tiles with spinner overlay
+      const tempWraps = [];
+      previews.forEach((src) => {
+        const wrap = document.createElement("div");
+        wrap.className = "image-wrap uploading";                // triggers overlay CSS
+
+        const img = document.createElement("img");
+        img.className = "item-image";
+        img.src = src;
+
+        const hint = document.createElement("div");
+        hint.className = "uploading-hint";
+        hint.textContent = "Завантаження…";
+
+        wrap.append(img, hint);
+        imagesContainer.prepend(wrap);                          // newest first
+        tempWraps.push(wrap);
+      });
+
+      // uploader (ImgBB)
       async function uploadToImgBB(file) {
         const formData = new FormData();
         formData.append("image", file);
@@ -533,11 +549,10 @@ function renderData(data) {
         return json.data.url;
       }
 
-      // albums — масив альбомів у поточній категорії
-      // Кожен альбом: { photos: [urls], description: "" }
+      // perform uploads in selected mode and persist
       try {
         if (modeAlbum.checked) {
-          // 1 альбом з N фото і ОДНИМ описом
+          // one album with N photos and a single shared description
           const urls = [];
           for (let i = 0; i < files.length; i++) {
             const u = await uploadToImgBB(files[i]);
@@ -546,7 +561,7 @@ function renderData(data) {
           const commonDesc = (tempCaptions[0] || "").trim();
           albums.push({ photos: urls, description: commonDesc });
         } else {
-          // Кожне фото — окремий альбом (1 фото в альбомі) зі СВОЇМ описом
+          // N albums, each with 1 photo and its own description
           for (let i = 0; i < files.length; i++) {
             const u = await uploadToImgBB(files[i]);
             const d = (tempCaptions[i] || "").trim();
@@ -554,15 +569,21 @@ function renderData(data) {
           }
         }
 
-        // оновлюємо розділ
+        // rebuild UI from canonical data (removes temp tiles)
         renderImages();
 
-        // зберігаємо на бек
+        // persist to backend
         await updateItems(ritualData.items);
+
+        // belt-and-suspenders: ensure temp tiles are gone
+        tempWraps.forEach(w => w.remove());
       } catch (err) {
         console.error("Upload failed", err);
         alert("Не вдалося завантажити фото");
+        // remove temp tiles on error
+        tempWraps.forEach(w => w.remove());
       } finally {
+        // free blobs and reset input
         previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
         e.target.value = "";
       }

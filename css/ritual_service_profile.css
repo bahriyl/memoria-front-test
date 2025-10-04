@@ -83,7 +83,7 @@ body {
 .ritual-description {
   background: #ffffff;
   margin-top: 6px;
-  padding: 20px;
+  padding: 20px 20px 18px 20px;
   border-top: 0.2px solid #bfbfbf;
   border-bottom: 0.2px solid #bfbfbf;
   border-radius: 9px;
@@ -537,6 +537,7 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.5;
+  margin-bottom: 0;
 }
 
 /* розгорнутий стан — кламп вимкнено */
