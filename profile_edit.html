@@ -25,7 +25,7 @@
             <button id="logout-btn" class="logout-btn">Вийти</button>
 
             <div class="profile-avatar-wrapper">
-                <img class="profile-avatar" src="" alt="Фото особи" />
+                <img class="profile-avatar" src="" />
                 <div class="avatar-spinner" id="avatar-spinner"></div>
                 <div id="avatar-menu" class="avatar-menu" hidden>
                     <div class="avatar-menu-card">
@@ -240,10 +240,12 @@
         <div id="avatar-cropper-overlay" class="avatar-cropper-overlay" hidden></div>
         <div id="avatar-cropper" class="avatar-cropper" hidden role="dialog" aria-modal="true"
             aria-labelledby="avatar-cropper-title">
+            <button id="avatar-cropper-cancel" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30"
+                    width="28" height="28" aria-hidden="true">
+                    <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+                </svg></button>
             <div class="avatar-cropper-header">
                 <h3 id="avatar-cropper-title">Розмістіть фото</h3>
-                <p class="avatar-cropper-subtitle">Пересуньте та змініть масштаб так, щоб обличчя було всередині кола
-                </p>
             </div>
 
             <div class="avatar-cropper-stage" id="avatar-cropper-stage">
@@ -254,7 +256,6 @@
 
             <div class="avatar-cropper-controls">
                 <div class="avatar-cropper-buttons">
-                    <button id="avatar-cropper-cancel" type="button" class="btn">Скасувати</button>
                     <button id="avatar-cropper-ok" type="button" class="btn primary">Зберегти</button>
                 </div>
             </div>
@@ -302,7 +303,6 @@
         <p class="modal-text">Вкажіть ваше ім’я</p>
         <input id="comment-user-input" type="text" placeholder="Введіть Імʼя...">
         <div class="modal-actions">
-            <button id="comment-template-cancel" class="modal-cancel">Скасувати</button>
             <button id="comment-template-ok" class="modal-ok">Підтвердити</button>
         </div>
     </div>

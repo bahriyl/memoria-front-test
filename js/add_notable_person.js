@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!li) return;
             const id = li.dataset.id;
             if (id) {
-                window.location.href = `/profile.html?personId=${encodeURIComponent(id)}`;
+                window.location.href = `profile.html?personId=${encodeURIComponent(id)}&from=add_notable_person`;
             }
         });
 
@@ -433,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const id = li.dataset.id;
             if (id) {
-                window.location.href = `/profile.html?personId=${encodeURIComponent(id)}`;
+                window.location.href = `profile.html?personId=${encodeURIComponent(id)}&from=add_notable_person`;
             }
         });
 
@@ -604,6 +604,17 @@ document.addEventListener('DOMContentLoaded', () => {
         display.id = 'activityDisplay';
         display.placeholder = select.options[0]?.text || 'Сфера діяльності';
         display.readOnly = true;
+        display.setAttribute('autocomplete', 'off');
+        display.style.width = '100%';
+        display.style.height = '49px';
+        display.style.padding = '12px 12px 12px 22px';
+        display.style.border = 'none';
+        display.style.borderRadius = '12px';
+        display.style.fontFamily = 'Montserrat, sans-serif';
+        display.style.fontSize = '16px';
+        display.style.fontWeight = '460';
+        display.style.color = '#222';
+        display.style.cursor = 'pointer';
 
         pill.insertBefore(display, select);
         select.style.display = 'none';
@@ -623,8 +634,15 @@ document.addEventListener('DOMContentLoaded', () => {
             list.innerHTML = items.join('') || `<li class="no-results">Немає опцій</li>`;
         }
 
-        function openList() { populate(); list.style.display = 'block'; }
-        function closeList() { list.style.display = 'none'; }
+        function openList() {
+            populate();
+            list.style.display = 'block';
+            display.classList.add('open');
+        }
+        function closeList() {
+            list.style.display = 'none';
+            display.classList.remove('open');
+        }
 
         display.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -658,10 +676,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (opt && opt.value) {
                 display.value = opt.text;
                 clearBtn.style.display = 'flex';
+                display.classList.add('has-value');
             } else {
                 display.value = '';
                 display.placeholder = select.options[0]?.text || 'Сфера діяльності';
                 clearBtn.style.display = 'none';
+                display.classList.remove('has-value');
             }
         });
 

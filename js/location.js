@@ -586,7 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (landmarksEl) {
                     landmarksEl.style.display = '';          // show the textarea for immediate typing
-                    landmarksEl.placeholder = 'Важливі орієнтири для полегшення пошуку...';
+                    landmarksEl.placeholder = 'Вкажіть орієнтири для полегшення пошуку місця поховання...';
                 }
             }
 
@@ -727,7 +727,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Прокручуємо до стартового слайду
         requestAnimationFrame(() => {
-            changeSlide(startIndex);
+            const prev = track.style.scrollBehavior;
+            track.style.scrollBehavior = 'auto';
+            track.scrollLeft = startIndex * track.clientWidth;
+            track.style.scrollBehavior = prev;
             updateIndicators(startIndex);
         });
     }
@@ -787,7 +790,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const latNum = parseFloat(lat);
             const lngNum = parseFloat(lng);
 
-            new mapboxgl.Marker({ color: '#a80000', anchor: 'bottom' })
+            new mapboxgl.Marker({ color: '#1B8B59', anchor: 'bottom' })
                 .setLngLat([lngNum, latNum])
                 .addTo(map);
 

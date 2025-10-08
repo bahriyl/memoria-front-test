@@ -226,7 +226,7 @@ input[type="text"]::placeholder {
 .people-list {
     list-style: none;
     padding: 0;
-    margin: 0 0 var(--spacing-md);
+    margin: 0 0 36px;
 }
 
 .people-list li {
@@ -326,7 +326,7 @@ input[type="text"]::placeholder {
 #foundList {
     list-style: none;
     margin: 0;
-    padding: 0;
+    padding: 0 0 64px;
 }
 
 #foundList li {

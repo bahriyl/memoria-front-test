@@ -212,6 +212,10 @@ p.ritual-text {
   font-family: "Montserrat", sans-serif;
   font-weight: 480;
   line-height: 23px;
+
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 textarea {
@@ -723,7 +727,7 @@ textarea {
 /* toggle як на профілі */
 .bio-toggle {
   display: inline;
-  margin-left: 6px;
+  margin-left: 0;
   padding: 0;
   background: none;
   border: 0;

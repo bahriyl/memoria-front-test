@@ -19,7 +19,7 @@ body {
     max-width: 800px;
     margin: 0 auto;
     padding: 16px;
-    padding-bottom: 25px;
+    padding-bottom: 30px;
 }
 
 /* Header */
@@ -284,6 +284,10 @@ textarea:focus {
     background: none;
     margin: 0;
     padding: 0;
+
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
 }
 
 .landmarks-text.without-menu {
@@ -395,6 +399,19 @@ textarea:focus {
     background: #1B8B59;
     color: #fff;
     border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
+    cursor: pointer;
+}
+
+.modal-cancel {
+    height: 42px;
+    padding: 0 32px;
+    background: #F2F4F7;
+    color: #222;
+    border: 0;
     border-radius: 14px;
     font-size: 17px;
     font-weight: 550;

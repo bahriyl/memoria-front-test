@@ -927,7 +927,10 @@ function openSlideshow(images, startIndex = 0, captions = []) {
   document.body.style.overflow = "hidden"; // prevent background scroll
 
   requestAnimationFrame(() => {
-    changeSlide(startIndex);
+    const prev = track.style.scrollBehavior;
+    track.style.scrollBehavior = 'auto';
+    track.scrollLeft = startIndex * track.clientWidth;
+    track.style.scrollBehavior = prev;
     updateIndicators(startIndex);
   });
 }

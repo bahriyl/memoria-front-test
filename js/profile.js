@@ -14,30 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const backTo = params.get('backTo');
     const backBtn = document.querySelector('.back-button');
 
-    backBtn?.addEventListener('click', (e) => {
-        document.getElementById('avatar-menu')?.setAttribute('hidden', '');
-        e.stopPropagation();
-    });
-
-    if (backBtn) {
-        if (backTo) {
-            // always go back to the previous profile if provided
-            backBtn.setAttribute('href', `profile.html?personId=${encodeURIComponent(backTo)}`);
-        } else if (from === 'premium') {
-            backBtn.setAttribute('href', 'premium_qr_person.html');
-        } else {
-            backBtn.setAttribute('href', 'index.html');
-        }
-    }
-
-
     const personId = params.get('personId');
     if (!personId) return;
-
-    // Scoped sessionStorage key for modal return state
-    function relReturnKey(id) {
-        return `relModalReturn:${id}`;
-    }
 
     const tokenKey = `people_token_${personId}`;
     const token = localStorage.getItem(tokenKey);
@@ -49,6 +27,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const suffix = parts.length ? `&${parts.join('&')}` : '';
         window.location.replace(`/profile_edit.html?personId=${encodeURIComponent(personId)}${suffix}`);
         return;
+    }
+
+    backBtn?.addEventListener('click', (e) => {
+        document.getElementById('avatar-menu')?.setAttribute('hidden', '');
+        e.stopPropagation();
+    });
+
+    if (backBtn) {
+        if (backTo) {
+            backBtn.setAttribute('href', `profile.html?personId=${encodeURIComponent(backTo)}`);
+        } else if (from === 'add_notable_person') {
+            backBtn.setAttribute('href', 'add_notable_person.html');
+        } else if (from === 'premium') {
+            backBtn.setAttribute('href', 'premium_qr_person.html');
+        } else {
+            backBtn.setAttribute('href', 'index.html');
+        }
+    }
+
+    // Scoped sessionStorage key for modal return state
+    function relReturnKey(id) {
+        return `relModalReturn:${id}`;
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -156,19 +156,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const box = document.querySelector('.liturgy-details');
         if (!box) return;
 
-        // remove any previous pager
-        box.nextElementSibling?.classList?.contains('liturgy-pager') && box.nextElementSibling.remove();
+        const host = box.parentElement;
+        host?.querySelectorAll('.liturgy-pager').forEach(el => el.remove());
 
         const past = isPastISO(iso);
         const existing = Array.isArray(liturgiesIndex[iso]) ? liturgiesIndex[iso] : [];
+        const sortedExisting = existing
+            .slice()
+            .sort((a, b) => new Date(b.createdAt || b.serviceDate) - new Date(a.createdAt || a.serviceDate));
 
         // Read current "compose" fields (keep your card design)
-        const pnText =
-            document.querySelector('.liturgy-details .person-name')?.textContent?.trim() ||
-            document.querySelector('.person-name')?.textContent?.trim() || '';
+        const storedName = box.dataset.personName || '';
+        const profileName = (nameEl?.textContent || '').trim();
+        let pnText =
+            profileName ||
+            storedName ||
+            box.querySelector('.person-name')?.textContent?.trim() ||
+            document.querySelector('.profile-name')?.textContent?.trim() ||
+            '';
+        if (!pnText) {
+            const entryName = sortedExisting
+                .map(it => (it.personName || '').trim())
+                .find(Boolean);
+            if (entryName) {
+                pnText = entryName;
+            }
+        }
+        if (pnText) {
+            box.dataset.personName = pnText;
+        }
+
+        const storedInfo = box.dataset.serviceInfo || '';
         const infoText =
-            document.querySelector('.liturgy-details .service-info')?.textContent?.trim() ||
+            storedInfo ||
+            box.querySelector('.service-info')?.textContent?.trim() ||
             document.querySelector('.service-info')?.textContent?.trim() || '';
+        if (infoText) {
+            box.dataset.serviceInfo = infoText;
+        }
 
         if (past) {
             // Past date → keep single non-swipe layout and no pager
@@ -179,7 +204,15 @@ document.addEventListener('DOMContentLoaded', () => {
             pnEl.textContent = pnText;
             const siEl = document.createElement('div');
             siEl.className = 'service-info';
-            siEl.textContent = infoText;
+            if (sortedExisting.length) {
+                const latest = sortedExisting[0];
+                const d = new Date(latest.serviceDate || latest.createdAt || iso);
+                const dateUa = d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const churchName = latest.churchName || 'Церква';
+                siEl.innerHTML = `Божественна Літургія за упокій відбулась у <span style="font-weight:550;">${churchName}, ${dateUa} р.</span>`;
+            } else {
+                siEl.textContent = infoText;
+            }
             box.append(pnEl, siEl);
             return;
         }
@@ -188,31 +221,36 @@ document.addEventListener('DOMContentLoaded', () => {
         box.classList.add('is-strip');
         box.innerHTML = '';
 
+        let dateUa = '';
+        if (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+            const d = new Date(iso);
+            dateUa = d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+        const composeInfo = `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву${dateUa ? `, ${dateUa} р.` : ''}</span>`;
+
         // 1) compose card (first)
         const compose = document.createElement('div');
         compose.className = 'liturgy-details';
         compose.innerHTML = `
-            <div class="person-name">${pnText}</div>
-            <div class="service-info">${infoText}</div>
+        <div class="person-name">${pnText}</div>
+        <div class="service-info">${composeInfo}</div>
         `;
         box.appendChild(compose);
 
         // 2) existing cards
-        existing
-            .slice()
-            .sort((a, b) => new Date(b.createdAt || b.serviceDate) - new Date(a.createdAt || a.serviceDate))
-            .forEach((it) => {
-                const d = new Date(it.serviceDate || it.createdAt || iso);
-                const dateUa = d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        sortedExisting.forEach((it) => {
+            const d = new Date(it.serviceDate || it.createdAt || iso);
+            const dateUa = d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const cardName = (it.personName || '').trim() || pnText;
 
-                const card = document.createElement('div');
-                card.className = 'liturgy-details';
-                card.innerHTML = `
-                    <div class="person-name">${pnText}</div>
-                    <div class="service-info">Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${it.churchName}, ${dateUa} р.</span></div>
-                `;
-                box.appendChild(card);
-            });
+            const card = document.createElement('div');
+            card.className = 'liturgy-details';
+            card.innerHTML = `
+                <div class="person-name">${cardName}</div>
+                <div class="service-info">Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${it.churchName}, ${dateUa} р.</span></div>
+            `;
+            box.appendChild(card);
+        });
 
         // --- pager (dots) under the strip, like in the mock ---
         const total = box.children.length;
@@ -904,7 +942,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.popup-menu').forEach(m => m.classList.remove('show'));
 
             if (menu) {
-                // Тимчасово робимо видимим для вимірювання
+                menu.style.display = '';
                 menu.classList.add('show');
 
                 const btnRect = btn.getBoundingClientRect();
@@ -1463,7 +1501,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(modal);
 
         requestAnimationFrame(() => {
-            changeSlide(startIndex);
+            const prev = track.style.scrollBehavior;
+            track.style.scrollBehavior = 'auto';
+            track.scrollLeft = startIndex * track.clientWidth;
+            track.style.scrollBehavior = prev;
             updateIndicators(startIndex);
         });
     }
@@ -1863,7 +1904,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (bioMenuBtn) bioMenuBtn.style.display = 'none';
 
         // Photos controls + any dots
-        document.querySelectorAll('.photos-controls, #photos-menu-btn, .dots-btn, .popup-menu')
+        document.querySelectorAll('.photos-controls, #photos-menu-btn, .dots-btn')
             .forEach(el => {
                 if (el) el.style.display = 'none';
             });
@@ -1962,6 +2003,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (liturgyPersonNameEl && nameEl) {
                 liturgyPersonNameEl.textContent = nameEl.textContent;
             }
+
+            const selectedIso = toISOFromUA(document.querySelector('.selected-date')?.textContent || '');
+            if (selectedIso) {
+                renderLiturgyDetailsStrip(selectedIso);
+            }
+            updateLiturgyDetails();
 
             // ─── ACTION BTN (location) ───
             if (data?.location?.[0]) {
@@ -2348,15 +2395,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function updateLiturgyDetails() {
-        const personNameEl = document.querySelector('.person-name');
-        const serviceInfoEl = document.querySelector('.service-info');
+        const detailsBox = document.querySelector('.profile-liturgy .liturgy-details');
+        if (!detailsBox) return;
+
         const profileNameEl = document.querySelector('.profile-name');
         const selectedChurchEl = document.querySelector('.church-btn.selected');
         const selectedDateEl = document.querySelector('.selected-date');
+        const profileName = profileNameEl?.textContent?.trim() || '';
 
-        if (personNameEl && profileNameEl) {
-            personNameEl.textContent = profileNameEl.textContent;
+        if (profileName) {
+            detailsBox.querySelectorAll('.person-name').forEach((el) => {
+                el.textContent = profileName;
+            });
+            detailsBox.dataset.personName = profileName;
         }
+
+        const serviceInfoEl = detailsBox.querySelector('.service-info');
 
         if (serviceInfoEl && selectedDateEl) {
             const selectedDate = selectedDateEl.textContent;
@@ -2364,10 +2418,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectedChurchEl) {
                 const churchName = selectedChurchEl.textContent;
                 serviceInfoEl.innerHTML =
-                    `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${churchName}</span>, <span style="font-weight:550;">${selectedDate}</span> р.`;
+                    `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${churchName}</span>, <span style="font-weight:550;">${selectedDate} р.</span>`;
             } else {
-                serviceInfoEl.innerHTML = `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву</span>, <span style="font-weight:550;">${selectedDate}</span> р.`;
+                serviceInfoEl.innerHTML = `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву</span>, <span style="font-weight:550;">${selectedDate} р.</span>`;
             }
+            detailsBox.dataset.serviceInfo = serviceInfoEl.textContent?.trim() || '';
         }
     }
 
@@ -2446,7 +2501,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const infoDiv = document.createElement('div');
             infoDiv.className = 'service-info';
-            infoDiv.innerHTML = `${phrase} у <span style="font-weight:550;">${it.churchName || 'Церква'}, ${dateUa}</span> р.`;
+            infoDiv.innerHTML = `${phrase} у <span style="font-weight:550;">${it.churchName || 'Церква'}, ${dateUa}р.</span> `;
 
             card.append(nameDiv, infoDiv);
             list.appendChild(card);
@@ -2795,6 +2850,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Relatives Add (modal) — та ж логіка, що на premium_qr_person
     // ─────────────────────────────────────────────────────────────────────────────
+    // Body scroll lock (robust on iOS/Android/Desktop)
+    const BodyScrollLock = (() => {
+        let y = 0, locked = false;
+        return {
+            lock() {
+                if (locked) return;
+                y = window.scrollY || document.documentElement.scrollTop || 0;
+                const s = document.body.style;
+                s.position = 'fixed';
+                s.top = `-${y}px`;
+                s.left = '0';
+                s.right = '0';
+                s.width = '100%';
+                s.overflow = 'hidden';
+                document.documentElement.style.overscrollBehavior = 'contain';
+                locked = true;
+            },
+            unlock() {
+                if (!locked) return;
+                const s = document.body.style;
+                s.position = '';
+                s.top = '';
+                s.left = '';
+                s.right = '';
+                s.width = '';
+                s.overflow = '';
+                document.documentElement.style.overscrollBehavior = '';
+                window.scrollTo(0, y);
+                locked = false;
+            }
+        };
+    })();
+
     (function setupRelativesModal() {
         const openers = [
             document.getElementById('rel-add-option'),
@@ -3492,6 +3580,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (areaClear) areaClear.style.display = 'none';
 
             overlay.hidden = false;
+            BodyScrollLock.lock();
+        }
+
+        function closeModal() {
+            overlay.hidden = true;
+            BodyScrollLock.unlock();
         }
 
         openers.forEach(el => el.addEventListener('click', (e) => {
@@ -3499,8 +3593,10 @@ document.addEventListener('DOMContentLoaded', () => {
             openModal();
         }));
 
-        closeBtn.addEventListener('click', () => overlay.hidden = true);
-        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.hidden = true; });
+        closeBtn.addEventListener('click', closeModal);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeModal();
+        });
 
         // Allowed roles
         const ROLE_OPTIONS = ['Батько', 'Мати', 'Брат', 'Сестра'];
@@ -3538,7 +3634,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(msg);
                 }
                 // Close modal then reload the page to reflect changes
-                overlay.hidden = true;
+                closeModal();
                 window.location.reload();
             } catch (e) {
                 console.error('Failed to save relatives:', e);

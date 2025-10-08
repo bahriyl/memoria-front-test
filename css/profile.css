@@ -11,6 +11,22 @@ body {
     background-color: #F7F7F7;
 }
 
+/* Hide page scrollbar but keep scrolling */
+html,
+body {
+    /* Firefox & old Edge/IE */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+/* Chrome / Safari / Opera / new Edge */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
 .profile-container {
     font-family: 'Montserrat', sans-serif;
     color: #222;
@@ -170,6 +186,10 @@ body {
     -webkit-box-orient: vertical;
     max-height: none;
     /* not needed with line-clamp */
+
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
 }
 
 .bio-content.expanded {
@@ -192,7 +212,7 @@ body {
 
 .bio-toggle {
     display: inline;
-    margin-left: 6px;
+    margin-left: 0;
     padding: 0;
     background: none;
     border: 0;
@@ -216,6 +236,7 @@ body {
     border-radius: 7px;
     padding: 10px 15px;
     font-size: 15px;
+    font-weight: 480;
     font-family: 'Montserrat', sans-serif;
     line-height: 24px;
     color: #1C170D;
@@ -625,7 +646,7 @@ body {
 .date-label,
 .selected-date {
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: 550 !important;
 }
 
 .selected-date {
@@ -686,13 +707,13 @@ body {
 }
 
 .liturgy-church {
-    margin-bottom: 30px;
+    margin-bottom: 25px;
 }
 
 .church-label {
     display: block;
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: 550 !important;
     margin-bottom: 1rem;
 }
 
@@ -753,14 +774,15 @@ body {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x proximity;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
     white-space: nowrap;
 
     /* reset the outer card look (the children are the real cards) */
     background: transparent;
     padding: 0;
     border-radius: 0;
-    margin-bottom: 12px;
+    margin-bottom: 23px;
 
     /* hide scrollbar */
     scrollbar-width: none;
@@ -775,6 +797,7 @@ body {
     flex: 0 0 100%;
     /* ~1 screen wide; shows a tiny peek of next */
     scroll-snap-align: start;
+    scroll-snap-stop: always;
     white-space: normal;
     /* allow text wrapping inside the card */
 
@@ -936,8 +959,9 @@ body {
 }
 
 .add-comment-title {
-    font-size: 18px;
-    font-weight: 460;
+    font-size: 16px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
     margin: 0 0 1rem;
 }
 
@@ -1152,7 +1176,7 @@ body {
     display: flex;
     gap: 12px;
     justify-content: center;
-    margin-top: 26px;
+    margin-top: 14px;
 }
 
 .modal-ok {
@@ -1197,16 +1221,26 @@ body {
     /* align with input’s edges */
 }
 
-#comment-template-modal .modal-actions .modal-cancel,
-#comment-template-modal .modal-actions .modal-ok {
-    flex: 1 1 0;
-    /* each takes 50% of the row */
-    width: auto;
-    /* don’t use fixed paddings to define width */
+/* Comment template modal: make only OK ~60% and center it */
+#comment-template-modal .modal-actions {
+    justify-content: center;
+    /* центруємо в рядку */
+    gap: 12px;
+    /* можна лишити або змінити */
+}
+
+#comment-template-ok {
+    flex: 0 0 60%;
+    /* не розтягуватися на 100% */
+    width: 60%;
     height: 44px;
-    /* match your button height */
-    padding: 0;
-    /* visual width comes from flex, not padding */
+    /* ~60% ширини модалки */
+    max-width: 360px;
+    /* опційно: верхня межа */
+    min-width: 220px;
+    /* опційно: нижня межа */
+    align-self: center;
+    /* щоб точно стояло по центру */
 }
 
 /* ——— Comments: empty state (same look as photos empty) ——— */
@@ -1511,7 +1545,7 @@ body {
 .shared-controls {
     display: flex;
     gap: .75rem;
-    margin-bottom: .75rem;
+    margin-bottom: 17px;
     align-items: center;
 }
 
@@ -2237,19 +2271,11 @@ body {
 }
 
 .avatar-cropper-header h3 {
-    margin: 0 0 4px 0;
+    margin: 12px 0 22px 0;
     font-family: 'Montserrat', sans-serif;
     font-weight: 570;
     font-size: 18px;
     color: #222;
-    text-align: center;
-}
-
-.avatar-cropper-subtitle {
-    margin: 0 0 10px 0;
-    font-size: 13px;
-    color: #666;
-    font-weight: 500;
     text-align: center;
 }
 
@@ -2397,6 +2423,7 @@ input[type="number"] {
     font-weight: 460;
     margin: 0;
     cursor: pointer;
+    margin-left: 4px;
 }
 
 /* ── Photo Description Modal (unified) ───────────────────────── */
@@ -2416,7 +2443,7 @@ input[type="number"] {
     white-space: nowrap;
     scrollbar-width: none;
     border-radius: 4px;
-    padding: 18px 0;
+    padding: 18px 4px;
 }
 
 .photo-desc-thumbs::-webkit-scrollbar {
@@ -2426,8 +2453,8 @@ input[type="number"] {
 .photo-desc-thumb {
     flex: 0 0 129px;
     scroll-snap-align: start;
-    height: 152px;
-    width: 129px;
+    height: 152px !important;
+    width: 129px !important;
     position: relative;
     border-radius: 4px;
     overflow: hidden;
@@ -2444,7 +2471,6 @@ input[type="number"] {
 
 .photo-desc-thumb.is-selected {
     transform: scale(1.04);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, .14);
     border-radius: 4px;
 }
 
@@ -2642,4 +2668,22 @@ input[type="number"] {
     font-family: 'Montserrat', sans-serif;
     margin: 8px 0 24px 0;
     outline: none;
+}
+
+/* Shared album: завжди ховаємо інлайнову кнопку "Добавити" —
+   запускатимемо її лише з меню (3 крапки) */
+#shared-add-btn {
+    display: none !important;
+}
+
+/* Про всяк випадок піднімаємо 3-крапки над контентом секції */
+#shared-menu-btn {
+    display: inline-flex !important;
+    /* гарантія, що не "inline" */
+    z-index: 10;
+    /* вище за картинки/тексти */
+}
+
+#relFoundList {
+    padding-bottom: 54px;
 }

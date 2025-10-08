@@ -120,7 +120,7 @@ body {
 
 .bio-toggle {
   display: inline;
-  margin-left: 6px;
+  margin-left: 0;
   padding: 0;
   background: none;
   border: 0;
@@ -538,6 +538,10 @@ body {
   overflow: hidden;
   line-height: 1.5;
   margin-bottom: 0;
+
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 /* розгорнутий стан — кламп вимкнено */

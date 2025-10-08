@@ -127,6 +127,7 @@
   position: absolute;
   bottom: 8px;
   left: 50%;
+  width: 60%;
   transform: translateX(-50%);
   background: #f2f4f7;
   color: #1c170d;

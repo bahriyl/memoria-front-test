@@ -843,6 +843,10 @@ main.container>.search-bar {
     flex: none;
 }
 
+main.container::-webkit-scrollbar {
+    display: none;
+}
+
 /* ─── Clear-button base ─── */
 .clear-btn {
     display: none;

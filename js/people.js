@@ -90,6 +90,7 @@ function renderFilterControls() {
       });
       // favorite-only toggle
       const favBtn = controlsEl.querySelector('.favorite-btn');
+      favBtn.classList.toggle('active', filterState.notableOnly);
       favBtn.addEventListener('click', () => {
         // flip the flag
         filterState.notableOnly = !filterState.notableOnly;
@@ -151,9 +152,22 @@ function renderFilterControls() {
 
       const updateDisplay = () => {
         const hasAny = !!(selectedBirth || selectedDeath);
-        const text = hasAny
-          ? `${selectedBirth ?? ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath ?? ''}`
-          : 'Роки життя';
+        let text;
+
+        if (selectedBirth && selectedDeath) {
+          // both years
+          text = `${selectedBirth} – ${selectedDeath}`;
+        } else if (selectedBirth) {
+          // only birth
+          text = `${selectedBirth} – `;
+        } else if (selectedDeath) {
+          // only death
+          text = ` – ${selectedDeath}`;
+        } else {
+          // none
+          text = 'Роки життя';
+        }
+
         display.textContent = text;
         display.classList.toggle('has-value', hasAny);
         picker.classList.toggle('has-value', hasAny);
@@ -554,7 +568,7 @@ function renderFilterControls() {
           data-area="${(c.area || '').replace(/"/g, '&quot;')}">
         <span class="cem-name">${c.name}</span>
       </li>`).join('')
-          : '<li class="no-results">Нічого не знайдено</li>';
+          : '<li class="no-results">Збігів не знайдено</li>';
       }
 
       // Тригеримо при фокусі/кліку на інпут (коли порожній і Area вибрана)
@@ -573,24 +587,70 @@ function renderFilterControls() {
       });
 
       // 6. Debounced fetch & render
-      cemInput.addEventListener('input', async (e) => {
-        const q = cemInput.value.trim();
+      cemInput.addEventListener('input', () => {
+        // синхронізуємо стан
+        filterState.cemetery = cemInput.value;
 
-        // тягнемо підказки з новим API
-        const url = `${CEM_API}?area=${encodeURIComponent(filterState.area || '')}&search=${encodeURIComponent(q)}`;
-        const resp = await fetch(url);
-        cemResults = await resp.json(); // [{ name, area }, ...]
+        // debounce
+        clearTimeout(suggestionTimerCem);
+        suggestionTimerCem = setTimeout(async () => {
+          // a) миттєво оновлюємо основний список людей
+          fetchAndRender();
 
-        // згенеруй список підказок
-        suggestions.innerHTML = cemResults.map(item => `
-          <li class="sugg-item" data-name="${item.name.replace(/"/g, '&quot;')}"
-                               data-area="${(item.area || '').replace(/"/g, '&quot;')}">
-            <span class="cem-name">${item.name}</span>
-          </li>
-        `).join('');
+          // b) тягнемо підказки (з урахуванням area, якщо вибрана)
+          const q = cemInput.value.trim();
+          const url = `${CEM_API}?area=${encodeURIComponent(filterState.area || '')}&search=${encodeURIComponent(q)}`;
 
-        // показати/сховати список
-        suggestions.style.display = cemResults.length ? 'block' : 'none';
+          try {
+            const resp = await fetch(url);
+            const items = await resp.json(); // очікуємо масив об’єктів: { name, area }
+
+            // c) рендеримо підказки
+            if (!Array.isArray(items) || !items.length) {
+              suggestions.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
+            } else {
+              suggestions.innerHTML = items
+                .map(item => `
+            <li class="sugg-item"
+                data-name="${(item.name || '').replace(/"/g, '&quot;')}"
+                data-area="${(item.area || '').replace(/"/g, '&quot;')}">
+              <span class="cem-name">${item.name}</span>
+            </li>
+          `)
+                .join('');
+            }
+
+            // d) показуємо/ховаємо список як у "area": якщо точний збіг — ховаємо
+            const names = (Array.isArray(items) ? items : []).map(i => (i.name || '').trim());
+            const isExact = !!q && names.includes(q);
+            suggestions.style.display = isExact ? 'none' : 'block';
+
+            // e) якщо є точний збіг — синхронізуємо таб/хедер/кнопку очистки як у "area"
+            if (isExact) {
+              cemTab.textContent = q;
+              headerEl.textContent = q;
+              clearCem.style.display = 'flex';
+
+              headerEl.classList.add('clickable');
+              headerEl.onclick = () => {
+                window.location.href = `cemetery.html?name=${encodeURIComponent(q)}`;
+              };
+            } else {
+              // без точного збігу — повертаємося до стану "за замовчуванням" (або area, якщо є)
+              cemTab.textContent = filterState.cemetery ? filterState.cemetery : 'Кладовище';
+              headerEl.textContent = filterState.area
+                ? document.querySelector('.filter[data-filter="area"]').textContent
+                : document.getElementById('pageTitle').textContent; // дефолтний заголовок
+              headerEl.classList.remove('clickable');
+              headerEl.onclick = null;
+              if (!filterState.cemetery) clearCem.style.display = 'none';
+            }
+          } catch (e) {
+            console.error('Cemetery suggestions error', e);
+            suggestions.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
+            suggestions.style.display = 'block';
+          }
+        }, 300);
       });
 
       // 7. Clicking a suggestion fills the input and blurs it
