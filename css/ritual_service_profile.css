@@ -134,7 +134,6 @@ body {
 .text-content {
   flex: 1 1 auto;
   display: -webkit-box;
-  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -153,6 +152,7 @@ body {
   background: #ffffff;
   margin-top: 6px;
   padding: 20px;
+  padding-bottom: 18px;
   padding-right: 0;
   border-top: 0.2px solid #bfbfbf;
   border-bottom: 0.2px solid #bfbfbf;
@@ -519,7 +519,6 @@ body {
 /* Кнопка-перемикач (той самий стиль, що .bio-toggle на profile) */
 .bio-toggle {
   display: inline;
-  margin-left: 6px;
   padding: 0;
   background: none;
   border: 0;

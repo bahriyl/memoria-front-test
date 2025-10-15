@@ -200,7 +200,7 @@ body {
   margin-top: 8px;
   border-radius: 8px;
   box-sizing: border-box;
-  /* ← важливо для правильного padding */
+  line-height: 24px;
 }
 
 p.ritual-text {
@@ -222,12 +222,16 @@ textarea {
   width: 300px;
   height: 105px;
   font-family: "Montserrat", sans-serif;
+  font-weight: 480;
+  font-size: 15px;
+  min-height: 150px;
 }
 
 .ritual-item-section {
   background: #ffffff;
   margin-top: 6px;
   padding: 20px;
+  padding-bottom: 18px;
   padding-top: 0;
   padding-right: 0;
   border-top: 0.2px solid #bfbfbf;
@@ -446,7 +450,7 @@ textarea {
   gap: 10px;
 }
 
-.rename-modal button {
+.rename-modal .confirm-btn {
   background: var(--accent);
   border: none;
   padding: 10px;
@@ -459,6 +463,85 @@ textarea {
 
 .rename-modal .cancel-btn {
   background: #aaa;
+}
+
+.rename-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 3px;
+  background: none;
+  border: 0;
+  color: #90959C;
+  cursor: pointer;
+}
+
+#rename-modal .modal-text,
+#newcat-modal .modal-text {
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
+  color: #222;
+  line-height: 1.4;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+#confirm-delete-modal-text {
+  font-size: 15px;
+  font-weight: 480;
+  font-family: 'Montserrat', sans-serif;
+  color: #222;
+  line-height: 1.4;
+  text-align: center;
+}
+
+#confirm-delete-modal .modal-actions {
+  gap: 12px;
+}
+
+#rename-input,
+#newCatInput {
+  height: 54px;
+  width: 100%;
+  box-sizing: border-box;
+  background: #F1F3F5;
+  border: none;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 16px;
+  font-weight: 460;
+  font-family: 'Montserrat', sans-serif;
+  margin: 8px 0 24px 0;
+  outline: none;
+}
+
+#newCatInput {
+  margin: 8px 0 8px 0;
+}
+
+#rename-modal .modal-actions {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  /* center a single button row */
+  margin-top: 0;
+  /* tuck under input like profile */
+  padding: 0;
+}
+
+#rename-ok {
+  flex: 0 0 60%;
+  width: 60%;
+  height: 44px;
+  max-width: 360px;
+  min-width: 220px;
+  align-self: center;
+}
+
+#photo-desc-modal {
+  padding: 24px 16px;
 }
 
 /* Wrap each image so we can draw selection badges */
@@ -555,9 +638,9 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 160px;
+  height: 160px;
   padding: 12px;
-  margin: 0 20px 8px 0;
+  margin: 8px 20px 8px 0;
   background: #f5f5f8;
   color: #72767d;
   border-radius: 12px;
@@ -839,6 +922,7 @@ textarea {
   scrollbar-width: none;
   border-radius: 4px;
   padding: 18px 0;
+  padding-left: 4px;
 }
 
 .photo-desc-thumbs::-webkit-scrollbar {
@@ -866,7 +950,6 @@ textarea {
 
 .photo-desc-thumb.is-selected {
   transform: scale(1.04);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .14);
 }
 
 .photo-desc-thumb .thumb-x {
@@ -898,6 +981,10 @@ textarea {
   line-height: 22px;
   min-height: 120px;
   outline: none;
+}
+
+.photo-desc-textarea::placeholder {
+  color: #72767D;
 }
 
 .photo-type {
@@ -933,6 +1020,19 @@ textarea {
   padding: 0 32px;
   background: #1B8B59;
   color: #fff;
+  border: 0;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 550;
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+}
+
+.modal-cancel {
+  height: 42px;
+  padding: 0 32px;
+  background: #F2F4F7;
+  color: #222;
   border: 0;
   border-radius: 14px;
   font-size: 17px;

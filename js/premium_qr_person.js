@@ -123,6 +123,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalSubmitBtn = document.getElementById('deliveryModalSubmit');
     const mainSubmitBtn = document.getElementById('submitBtn');
 
+    const delEmailInput = document.getElementById('delEmail');
+    const delEmailError = document.getElementById('delEmailError');
+
+    function isValidEmail(s) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+    }
+
+    // очищення помилки на ввід
+    delEmailInput?.addEventListener('input', () => {
+        delEmailInput.classList.remove('input-error');
+        if (delEmailError) { delEmailError.hidden = true; delEmailError.textContent = ''; }
+    });
+
     // ensure modal is hidden on load
     deliveryModal.hidden = true;
 
@@ -549,7 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const triggerFetch = debounce(fetchPeople, 300);
-    
+
     restoreFilters();
     triggerFetch();
 
@@ -779,9 +792,29 @@ document.addEventListener('DOMContentLoaded', () => {
         errorEl.hidden = true;
         errorEl.textContent = '';
 
+        // ✅ Вибір однієї особи (фікс, якщо локально зберігаєте у selectedPersons)
+        const selectedPerson = (typeof window.selectedPerson !== 'undefined' && window.selectedPerson)
+            ? window.selectedPerson
+            : (Array.isArray(selectedPersons) && selectedPersons[0] ? selectedPersons[0] : null);
+
+        if (!selectedPerson) {
+            errorEl.textContent = 'Будь ласка, оберіть особу перед оформленням.';
+            errorEl.hidden = false;
+            return;
+        }
+
+        // ✅ Email: обов’язковий і валідний
+        const email = (delEmailInput?.value || '').trim().toLowerCase();
+        if (!email || !isValidEmail(email)) {
+            delEmailError.textContent = 'Введіть коректний email (він буде логіном для Преміум-профілю).';
+            delEmailError.hidden = false;
+            delEmailInput.classList.add('input-error');
+            return;
+        }
+
         // Дані для вашого /api/orders
         const deliveryData = {
-            personId: selectedPerson.id,
+            personId: String(selectedPerson.id),
             personName: selectedPerson.name,
             name: document.getElementById('delName').value.trim(),
             cityRef: selectedCityRef,
@@ -789,24 +822,22 @@ document.addEventListener('DOMContentLoaded', () => {
             branchRef: selectedBranchRef,
             branchDesc: selectedBranchDescription,
             phone: document.getElementById('delPhone').value.trim(),
+            email,                       // ⬅️ додаємо email
             paymentMethod: paymentMethod
         };
 
         try {
             if (paymentMethod === 'online') {
-                // 1) Створюємо інвойс через Monopay (через ваш бекенд)
+                // 1) Створення інвойсу через бекенд
                 const invoiceRes = await fetch(`${API_URL}/api/merchant/invoice/create`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        amount: 100,        // сума в копійках
-                        ccy: 980,           // UAH
-                        // Після оплати Monopay поверне юзера сюди з invoiceId у query
+                        amount: 100,     // копійки
+                        ccy: 980,        // UAH
                         redirectUrl: `${window.location.origin}/?invoiceQr=true`,
                         webHookUrl: `${API_URL}/api/monopay/webhook`,
                         merchantPaymInfo: {
-                            // тут можна передати довільну зовнішню референцію,
-                            // або залишити порожнім, якщо не потрібна
                             destination: 'Оплата QR-заявки',
                             comment: `Замовлення ${selectedPerson.name}`
                         }
@@ -815,36 +846,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!invoiceRes.ok) throw new Error('Не вдалось створити інвойс');
                 const { invoiceId, pageUrl } = await invoiceRes.json();
 
-                // 2) Створюємо запис у MongoDB зі статусом pending і додаємо invoiceId
-                const orderPayload = {
-                    ...deliveryData,
-                    invoiceId,             // додаємо поле invoiceId
-                    status: 'pending'      // за потреби
-                };
+                // 2) Створюємо заявку у БД зі статусом pending + invoiceId + email
+                const orderPayload = { ...deliveryData, invoiceId, status: 'pending' };
                 const orderRes = await fetch(`${API_URL}/api/orders`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(orderPayload)
                 });
                 if (!orderRes.ok) throw new Error('Не вдалось створити заявку');
+
                 const { orderId } = await orderRes.json();
 
-                // 3) Редіректимо клієнта на сторінку оплати
-                // Щоб Monopay повернув correct invoiceId, можна формувати redirectUrl з уже відомим invoiceId:
-                window.location.href = `${pageUrl}?redirectUrl=${encodeURIComponent(`${window.location.origin}/order-success?orderId=${orderId}&invoiceId=${invoiceId}`)}`;
+                // 3) Редірект на сторінку оплати
+                window.location.href =
+                    `${pageUrl}?redirectUrl=${encodeURIComponent(`${window.location.origin}/order-success?orderId=${orderId}&invoiceId=${invoiceId}`)}`;
+
             } else {
-                // COD: просто створюємо заявку й закриваємо модалку
+                // Накладний платіж: просто створюємо заявку з email
                 const codRes = await fetch(`${API_URL}/api/orders`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(deliveryData)
                 });
                 if (!codRes.ok) throw new Error('Не вдалось створити заявку');
+
                 deliveryModal.hidden = true;
                 alert('Заявку прийнято! Менеджер з вами зв’яжеться.');
             }
         } catch (err) {
-            errorEl.textContent = err.message;
+            errorEl.textContent = err.message || 'Сталася помилка під час оформлення.';
             errorEl.hidden = false;
             console.error(err);
         }

@@ -11,6 +11,80 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  function renderListWithToggle(el, rawItems, opts = {}) {
+    const { prefix = "", joiner = "; " } = opts;
+
+    // Normalize to array of strings
+    const items = Array.isArray(rawItems)
+      ? rawItems.map(String).map(s => s.trim()).filter(Boolean)
+      : (rawItems ? [String(rawItems).trim()] : []);
+
+    // Reset container
+    el.innerHTML = "";
+    if (!items.length) return;
+
+    // Single inline span holds everything to keep in one line
+    const contentSpan = document.createElement("span");
+    contentSpan.className = "text-content";
+    el.appendChild(contentSpan);
+
+    // Prefix (e.g., "тел. ") stays inline too
+    if (prefix) {
+      const prefixNode = document.createElement("span");
+      prefixNode.textContent = prefix;
+      contentSpan.appendChild(prefixNode);
+    }
+
+    // If ≤2 items — just render joined in one line
+    if (items.length <= 2) {
+      const textNode = document.createElement("span");
+      textNode.textContent = items.join(joiner);
+      contentSpan.appendChild(textNode);
+      return;
+    }
+
+    // >2 items — add inline toggle inside the same span
+    let expanded = false;
+
+    // Create the text holder so we can re-render easily
+    const listText = document.createElement("span");
+    contentSpan.appendChild(listText);
+
+    // Inline toggle button
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "bio-toggle";
+    toggle.textContent = "Більше";
+    // force inline layout in case CSS sets it to block
+    toggle.style.display = "inline"; // or "inline-block" if you prefer
+    // small non-breaking space before toggle to separate from text
+    contentSpan.appendChild(document.createTextNode(" "));
+    contentSpan.appendChild(toggle);
+
+    const renderCollapsed = () => {
+      listText.textContent = items.slice(0, 2).join(joiner) + " … ";
+      toggle.textContent = "Більше";
+    };
+
+    const renderExpanded = () => {
+      listText.textContent = items.join(joiner) + " ";
+      toggle.textContent = "Менше";
+    };
+
+    const onToggle = () => {
+      expanded = !expanded;
+      expanded ? renderExpanded() : renderCollapsed();
+    };
+
+    // Initial state — collapsed
+    renderCollapsed();
+
+    toggle.addEventListener("click", onToggle);
+    toggle.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); }
+    });
+  }
+
   try {
     // 1) Отримуємо дані
     const response = await fetch(`${API_BASE}/${ritualId}`);
@@ -20,8 +94,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 2) Заповнюємо шапку
     document.querySelector(".ritual-banner").src = data.banner;
     document.querySelector(".ritual-name").textContent = data.name;
-    document.querySelector(".ritual-address").textContent = data.address;
-    document.querySelector(".ritual-phone").textContent = `тел. ${data.phone}`;
+    const addressEl = document.querySelector(".ritual-address");
+    const phoneEl = document.querySelector(".ritual-phone");
+
+    // address: масив адрес (або один рядок), префікс не потрібен
+    renderListWithToggle(addressEl, data.address);
+
+    // phone: масив телефонів (або один рядок), з префіксом
+    renderListWithToggle(phoneEl, data.phone);
 
     // 3) Опис із "більше/менше" — як на profile (bio-body)
     const fullText = (data.description || "").trim();
@@ -162,12 +242,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (Array.isArray(x)) return { photos: x, description: "" }; // safety
         // assume new shape
         return {
-          photos: Array.isArray(x?.photos) ? x.photos : [],
+          ...(x?.video?.player
+            ? { video: { player: x.video.player, poster: x.video.poster || "" } }
+            : { photos: Array.isArray(x?.photos) ? x.photos : [] }),
           description: (x?.description || "").toString(),
         };
       });
 
       albums.forEach((album) => {
+        // --- VIDEO tile ---
+        if (album.video?.player) {
+          const wrapper = document.createElement("div");
+          wrapper.className = "image-wrapper";
+          const img = document.createElement("img");
+          img.src = album.video.poster || "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect width='100%25' height='100%25' fill='%23e9eef3'/%3E%3Cpolygon points='160,110 160,190 230,150' fill='%23888'/%3E%3C/svg%3E";
+          img.alt = title;
+          img.classList.add("preview-img");
+          const play = document.createElement("div");
+          play.className = "image-counter";
+          play.textContent = "▶";
+          img.addEventListener("click", () => openVideoPlayer(album.video.player));
+          wrapper.appendChild(img);
+          wrapper.appendChild(play);
+          imagesContainer.appendChild(wrapper);
+          return;
+        }
+        // --- PHOTO tile ---
         if (!album.photos?.length) return;
         const coverUrl = album.photos[0];
 
@@ -287,6 +387,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  function openVideoPlayer(src) {
+    const modal = document.createElement("div");
+    modal.className = "slideshow-modal";
+    const closeBtn = document.createElement("span");
+    closeBtn.textContent = "✕";
+    closeBtn.className = "close-slideshow";
+    closeBtn.onclick = () => { document.body.style.overflow = ""; modal.remove(); };
+    const video = document.createElement("video");
+    video.src = src;
+    video.controls = true;
+    video.playsInline = true;
+    video.style.width = "100%";
+    video.style.height = "70vh";
+    modal.append(closeBtn, video);
+    document.body.style.overflow = "hidden";
+    document.body.appendChild(modal);
+  }
+
   /** Open slideshow with swipe (same behavior as profile page) */
   function openSlideshow(images, startIndex = 0, captions = []) {
     const modal = document.createElement("div");
@@ -351,18 +469,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Dots
     const indicator = document.createElement("div");
     indicator.className = "slideshow-indicators";
-    images.forEach((_, idx) => {
-      const dot = document.createElement("span");
-      dot.className = "slideshow-indicator";
-      dot.addEventListener("click", () => changeSlide(idx));
-      indicator.appendChild(dot);
-    });
+
+    if (images.length > 1) {
+      images.forEach((_, idx) => {
+        const dot = document.createElement("span");
+        dot.className = "slideshow-indicator";
+        dot.addEventListener("click", () => changeSlide(idx));
+        indicator.appendChild(dot);
+      });
+    }
 
     function updateIndicators(index) {
-      indicator
-        .querySelectorAll(".slideshow-indicator")
-        .forEach((dot, i) => dot.classList.toggle("active", i === index));
+      if (images.length > 1) {
+        indicator
+          .querySelectorAll(".slideshow-indicator")
+          .forEach((dot, i) => dot.classList.toggle("active", i === index));
+      }
     }
+
     function changeSlide(newIndex) {
       const slides = track.querySelectorAll(".slideshow-slide");
       if (slides[newIndex]) {

@@ -221,12 +221,15 @@ document.addEventListener('DOMContentLoaded', () => {
         box.classList.add('is-strip');
         box.innerHTML = '';
 
+        const selectedChurch = document.querySelector('.church-btn.selected')?.textContent?.trim();
         let dateUa = '';
         if (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
             const d = new Date(iso);
             dateUa = d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
         }
-        const composeInfo = `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву${dateUa ? `, ${dateUa} р.` : ''}</span>`;
+        const composeInfo = selectedChurch
+            ? `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${selectedChurch}</span>${dateUa ? `, <span style="font-weight:550;">${dateUa} р.</span>` : ''}`
+            : `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву</span>${dateUa ? `, <span style="font-weight:550;">${dateUa} р.</span>` : ''}`;
 
         // 1) compose card (first)
         const compose = document.createElement('div');
@@ -996,9 +999,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────────
     // Гість: показуємо тільки “Добавити”, ховаємо “Вибрати”
-    if (sharedMenu) {
-        sharedMenu.querySelector('#shared-choose-option')?.classList.add('hidden');
-    }
+    document.getElementById('shared-choose-option')?.setAttribute('hidden', '');
     if (sharedDeleteBtn) sharedDeleteBtn.style.display = 'none';
 
     const sharedRealPhotos = () =>
@@ -1945,6 +1946,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && loginModal.style.display === 'flex') close(); });
     }
 
+    let selectedChurchName = null;
+
     // ─────────────────────────────────────────────────────────────────────────────
     // Load person
     // ─────────────────────────────────────────────────────────────────────────────
@@ -2385,12 +2388,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const formattedDate = `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
             if (selectedDateEl) selectedDateEl.textContent = formattedDate;
+
+            if (selectedChurchName) {
+                const churchBtns = document.querySelectorAll('.church-btn');
+                churchBtns.forEach(b => {
+                    const isMatch = b.textContent.trim() === selectedChurchName;
+                    b.classList.toggle('selected', isMatch);
+                });
+            }
+
             updateLiturgyDetails();
 
-            // NEW: apply effects (past-date visibility + history render)
             const iso = toISOFromParts(year, month, day);
             applyDateSelectionEffects(iso);
             renderLiturgyDetailsStrip(iso);
+            updateLiturgyDetails();
         }
     });
 
@@ -2399,14 +2411,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!detailsBox) return;
 
         const profileNameEl = document.querySelector('.profile-name');
-        const selectedChurchEl = document.querySelector('.church-btn.selected');
+        let selectedChurchEl = document.querySelector('.church-btn.selected'); // може бути null
         const selectedDateEl = document.querySelector('.selected-date');
         const profileName = profileNameEl?.textContent?.trim() || '';
 
         if (profileName) {
-            detailsBox.querySelectorAll('.person-name').forEach((el) => {
-                el.textContent = profileName;
-            });
+            detailsBox.querySelectorAll('.person-name').forEach((el) => { el.textContent = profileName; });
             detailsBox.dataset.personName = profileName;
         }
 
@@ -2415,13 +2425,30 @@ document.addEventListener('DOMContentLoaded', () => {
         if (serviceInfoEl && selectedDateEl) {
             const selectedDate = selectedDateEl.textContent;
 
+            // 🔸 fallback: немає підсвіченого елемента, але назва збережена
+            if (!selectedChurchEl && selectedChurchName) {
+                const btn = Array.from(document.querySelectorAll('.church-btn'))
+                    .find(b => b.textContent.trim() === selectedChurchName);
+                if (btn) {
+                    document.querySelectorAll('.church-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    selectedChurchEl = btn;
+                }
+            }
+
             if (selectedChurchEl) {
-                const churchName = selectedChurchEl.textContent;
+                const churchName = selectedChurchEl.textContent.trim();
                 serviceInfoEl.innerHTML =
                     `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${churchName}</span>, <span style="font-weight:550;">${selectedDate} р.</span>`;
+            } else if (selectedChurchName) {
+                // якщо кнопки не знайшли, але маємо назву — теж підставимо її
+                serviceInfoEl.innerHTML =
+                    `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${selectedChurchName}</span>, <span style="font-weight:550;">${selectedDate} р.</span>`;
             } else {
-                serviceInfoEl.innerHTML = `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву</span>, <span style="font-weight:550;">${selectedDate} р.</span>`;
+                serviceInfoEl.innerHTML =
+                    `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву</span>, <span style="font-weight:550;">${selectedDate} р.</span>`;
             }
+
             detailsBox.dataset.serviceInfo = serviceInfoEl.textContent?.trim() || '';
         }
     }
@@ -2529,6 +2556,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
             churchBtns.forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
+            selectedChurchName = btn.textContent.trim();
             updateLiturgyDetails();
         });
     });

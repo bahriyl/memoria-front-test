@@ -113,7 +113,6 @@ function haversine(lat1, lon1, lat2, lon2) {
 
 // 4) Show/hide no-results
 function showNoResults(loc, hasNearest) {
-  noLocSpan.textContent = loc;
   // знаходимо другий <p> ("Найближчі до вас:")
   const nearestLabel = noResultsBlock.querySelectorAll("p")[1];
   if (hasNearest) {

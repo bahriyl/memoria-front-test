@@ -71,6 +71,20 @@
     <!-- overlay, спільний для модалок -->
     <div id="modal-overlay" hidden></div>
 
+    <!-- Confirm Delete Photos (match profile) -->
+    <div id="confirm-delete-modal" class="modal" hidden>
+        <button id="confirm-delete-close" class="modal-close" aria-label="Закрити">
+            <svg viewBox="0 0 30 30" width="28" height="28" aria-hidden="true">
+                <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+            </svg>
+        </button>
+        <p id="confirm-delete-modal-text" class="modal-text">Видалити вибрані фотографії?</p>
+        <div class="modal-actions">
+            <button id="confirm-delete-cancel" class="modal-cancel">Скасувати</button>
+            <button id="confirm-delete-ok" class="modal-ok">Видалити</button>
+        </div>
+    </div>
+
     <!-- Photo Description Modal (Album / Photo) -->
     <div id="photo-desc-modal" class="modal" hidden>
         <button id="photo-desc-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
@@ -89,11 +103,11 @@
         <div class="photo-type">
             <label class="radio">
                 <input type="radio" name="photoMode" id="mode-album" value="album">
-                <span>Альбом</span>
+                <span>Обʼєднати в альбом</span>
             </label>
             <label class="radio">
                 <input type="radio" name="photoMode" id="mode-photo" value="photo" checked>
-                <span>Фото</span>
+                <span>Окремі фото</span>
             </label>
         </div>
 

@@ -1390,8 +1390,10 @@ body::-webkit-scrollbar {
 
 .error-message {
     color: red;
-    font-size: 14px;
-    margin: 0
+    font-size: 12px;
+    font-family: 'Montserrat', sans-serif;
+    margin: 0;
+    margin-left: 4px;
 }
 
 /* === Slideshow === */

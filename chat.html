@@ -36,7 +36,7 @@
                 <line x1="2" y1="20" x2="14" y2="20" />
             </svg>
         </button>
-        <h1 class="title" onclick="window.location.reload()">Memoria</h1>
+        <h1 class="title" onclick="window.location.href='index.html'">Memoria</h1>
     </header>
 
     <!-- Main chat area -->
@@ -52,7 +52,9 @@
                 </button>
                 <div id="previewContainer" class="preview-container"></div>
                 <input type="file" id="fileInput" accept="image/*" hidden />
-                <input id="msgInput" autocomplete="off" placeholder="Повідомлення…" />
+                <div class="msg-input-wrapper">
+                    <textarea id="msgInput" rows="1" autocomplete="off" placeholder="Повідомлення…"></textarea>
+                </div>
                 <button type="submit" class="icon-btn send-btn" aria-label="Відправити">
                     <img class="send-icon" src="/img/send-msg-btn.png" alt="Відправити" />
                 </button>

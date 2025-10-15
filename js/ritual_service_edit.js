@@ -37,7 +37,9 @@ function normalizeItems(struct) {
         if (typeof x === "string") return { photos: [x], description: "" };
         if (Array.isArray(x)) return { photos: x, description: "" };
         return {
-          photos: Array.isArray(x?.photos) ? x.photos : [],
+          ...(x?.video?.player
+            ? { video: { player: x.video.player, poster: x.video.poster || "" } }
+            : { photos: Array.isArray(x?.photos) ? x.photos : [] }),
           description: (x?.description || "").toString(),
         };
       })
@@ -58,6 +60,80 @@ async function fetchRitualService() {
   }
 }
 
+function renderListWithToggle(el, rawItems, opts = {}) {
+  const { prefix = "", joiner = "; " } = opts;
+
+  // Normalize to array of strings
+  const items = Array.isArray(rawItems)
+    ? rawItems.map(String).map(s => s.trim()).filter(Boolean)
+    : (rawItems ? [String(rawItems).trim()] : []);
+
+  // Reset container
+  el.innerHTML = "";
+  if (!items.length) return;
+
+  // Single inline span holds everything to keep in one line
+  const contentSpan = document.createElement("span");
+  contentSpan.className = "text-content";
+  el.appendChild(contentSpan);
+
+  // Prefix (e.g., "тел. ") stays inline too
+  if (prefix) {
+    const prefixNode = document.createElement("span");
+    prefixNode.textContent = prefix;
+    contentSpan.appendChild(prefixNode);
+  }
+
+  // If ≤2 items — just render joined in one line
+  if (items.length <= 2) {
+    const textNode = document.createElement("span");
+    textNode.textContent = items.join(joiner);
+    contentSpan.appendChild(textNode);
+    return;
+  }
+
+  // >2 items — add inline toggle inside the same span
+  let expanded = false;
+
+  // Create the text holder so we can re-render easily
+  const listText = document.createElement("span");
+  contentSpan.appendChild(listText);
+
+  // Inline toggle button
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "bio-toggle";
+  toggle.textContent = "Більше";
+  // force inline layout in case CSS sets it to block
+  toggle.style.display = "inline"; // or "inline-block" if you prefer
+  // small non-breaking space before toggle to separate from text
+  contentSpan.appendChild(document.createTextNode(" "));
+  contentSpan.appendChild(toggle);
+
+  const renderCollapsed = () => {
+    listText.textContent = items.slice(0, 2).join(joiner) + " … ";
+    toggle.textContent = "Більше";
+  };
+
+  const renderExpanded = () => {
+    listText.textContent = items.join(joiner) + " ";
+    toggle.textContent = "Менше";
+  };
+
+  const onToggle = () => {
+    expanded = !expanded;
+    expanded ? renderExpanded() : renderCollapsed();
+  };
+
+  // Initial state — collapsed
+  renderCollapsed();
+
+  toggle.addEventListener("click", onToggle);
+  toggle.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); }
+  });
+}
+
 async function uploadToImgBB(file) {
   const formData = new FormData();
   formData.append("image", file);
@@ -73,6 +149,27 @@ async function uploadToImgBB(file) {
   const url = json?.data?.url;
   if (!url) throw new Error("IMGBB: no url");
   return url;
+}
+
+async function getSpacesUploadUrl(filename, contentType) {
+  const params = new URLSearchParams({ filename, contentType });
+  const r = await fetch(`${API}/spaces/video-upload-url?` + params, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!r.ok) throw new Error("Failed to get Spaces upload URL");
+  return r.json(); // { uploadUrl, objectUrl, key, expiresIn }
+}
+
+async function uploadVideoToSpaces(file) {
+  const meta = await getSpacesUploadUrl(file.name || `video_${Date.now()}.mp4`, file.type || "video/mp4");
+  const put = await fetch(meta.uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type || "video/mp4" },
+    body: file
+  });
+  if (!put.ok) throw new Error(`Spaces upload failed: ${put.status}`);
+  // meta.objectUrl is the public MP4 URL
+  return { player: meta.objectUrl, poster: "" }; // poster optional; see note below
 }
 
 function applyAbout(text) {
@@ -165,10 +262,16 @@ function applyAbout(text) {
 function renderData(data) {
   document.querySelector(".ritual-banner").src = data.banner;
   document.querySelector(".ritual-name").textContent = data.name;
-  document.querySelector(".ritual-address").textContent = data.address;
-  document.querySelector(".ritual-phone").textContent = `тел. ${data.phone}`;
   document.querySelector(".ritual-link-btn").href = data.link;
   document.querySelector(".ritual-link-text").textContent = data.link;
+  const addressEl = document.querySelector(".ritual-address");
+  const phoneEl = document.querySelector(".ritual-phone");
+
+  // address: масив адрес (або один рядок), префікс не потрібен
+  renderListWithToggle(addressEl, data.address);
+
+  // phone: масив телефонів (або один рядок), з префіксом
+  renderListWithToggle(phoneEl, data.phone);
 
   applyAbout((data.description || "").trim());
 
@@ -220,7 +323,7 @@ function renderData(data) {
     // Hidden file input for "Добавити"
     const fileInput = document.createElement("input");
     fileInput.type = "file";
-    fileInput.accept = "image/*";
+    fileInput.accept = "image/*,video/*";
     fileInput.multiple = true;
     fileInput.style.display = "none";
 
@@ -243,11 +346,38 @@ function renderData(data) {
       }
 
       albums.forEach((album) => {
+        // --- VIDEO tile ---
+        if (album.video?.player) {
+          const wrap = document.createElement("div");
+          wrap.className = "image-wrap";
+          // use poster if present, else fallback to a generic play tile
+          const img = document.createElement("img");
+          img.src = album.video.poster || "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect width='100%25' height='100%25' fill='%23e9eef3'/%3E%3Cpolygon points='160,110 160,190 230,150' fill='%23888'/%3E%3C/svg%3E";
+          img.alt = title;
+          img.className = "item-image";
+          const badge = document.createElement("span");
+          badge.className = "select-badge";
+          const play = document.createElement("div");
+          play.className = "image-counter";
+          play.textContent = "▶";
+          // mark a stable key for deletion matching
+          wrap.dataset.coverKey = `video:${album.video.player}`;
+          wrap.addEventListener("click", (e) => {
+            e.preventDefault();
+            if (isSelecting) { toggleSelect(wrap); return; }
+            openVideoPlayer(album.video.player);
+          });
+          wrap.append(img, badge, play);
+          imagesContainer.appendChild(wrap);
+          return;
+        }
+        // --- PHOTO tile ---
         if (!album.photos?.length) return;
         const cover = album.photos[0];
 
         const wrap = document.createElement("div");
         wrap.className = "image-wrap";
+        wrap.dataset.coverKey = `photo:${cover}`;
 
         const img = document.createElement("img");
         img.src = cover;
@@ -338,21 +468,57 @@ function renderData(data) {
       btnRow.append(cancelBtn, deleteBtn);
 
       cancelBtn.addEventListener("click", exitSelectionMode);
-      deleteBtn.addEventListener("click", async () => {
+      deleteBtn.addEventListener("click", () => {
         if (selectedOrder.length === 0) {
           exitSelectionMode();
           return;
         }
-        const toRemove = new Set(
-          selectedOrder.map((w) => w.querySelector("img").src)
-        );
-        ritualData.items[index][1] = ritualData.items[index][1].filter(
-          (album) => {
-            const cover = album?.photos?.[0];
-            return !toRemove.has(cover);
-          }
-        );
-        await updateItems(ritualData.items);
+
+        // use the same modal UX as on profile page
+        const overlay = document.getElementById('modal-overlay');
+        const dlg = document.getElementById('confirm-delete-modal');
+        const closeX = document.getElementById('confirm-delete-close');
+        const cancelBtn = document.getElementById('confirm-delete-cancel');
+        const okBtn = document.getElementById('confirm-delete-ok');
+
+        const openConfirm = () => { if (overlay && dlg) { overlay.hidden = false; dlg.hidden = false; } };
+        const closeConfirm = () => { if (overlay && dlg) { overlay.hidden = true; dlg.hidden = true; } };
+
+        // open dialog
+        openConfirm();
+
+        // close on X / Cancel / overlay (bind once per open)
+        const closeOnce = () => {
+          closeConfirm();
+          // clean temporary listeners so we don't stack them on repeated opens
+          closeX && closeX.removeEventListener('click', closeOnce);
+          cancelBtn && cancelBtn.removeEventListener('click', closeOnce);
+          overlay && overlay.removeEventListener('click', overlayCloser, true);
+          okBtn && (okBtn.onclick = null);
+        };
+        const overlayCloser = (e) => { if (e.target === overlay) closeOnce(); };
+
+        closeX && closeX.addEventListener('click', closeOnce);
+        cancelBtn && cancelBtn.addEventListener('click', closeOnce);
+        overlay && overlay.addEventListener('click', overlayCloser, true);
+
+        // confirm deletion
+        if (okBtn) {
+          okBtn.onclick = async () => {
+            const toRemove = new Set(selectedOrder.map(w => w.dataset.coverKey));
+            ritualData.items[index][1] = ritualData.items[index][1].filter(album => {
+              const key = album?.video?.player ? `video:${album.video.player}`
+                : album?.photos?.[0] ? `photo:${album.photos[0]}`
+                  : "";
+              return key && !toRemove.has(key);
+            });
+
+            selectedOrder = [];
+            await updateItems(ritualData.items);  // persists and refreshes
+            closeOnce();
+            exitSelectionMode();
+          };
+        }
       });
 
       updateBadges();
@@ -387,15 +553,14 @@ function renderData(data) {
 
     // ==== ADD PHOTOS HANDLER with Album/Photo modal ====
     fileInput.addEventListener("change", async (e) => {
-      // collect selected files
-      const files = Array.from(e.target.files || []);
-      if (!files.length) return;
+      const all = Array.from(e.target.files || []);
+      if (!all.length) return;
 
-      // create local blob previews and temp captions
-      const previews = files.map(f => URL.createObjectURL(f));
-      const tempCaptions = new Array(previews.length).fill("");
+      // split by MIME
+      const imageFiles = all.filter(f => f.type.startsWith("image/"));
+      const videoFiles = all.filter(f => f.type.startsWith("video/"));
 
-      // modal nodes
+      // --- modal nodes (IMAGES only, unchanged UX) ---
       const overlay = document.getElementById("modal-overlay");
       const dlg = document.getElementById("photo-desc-modal");
       const closeX = document.getElementById("photo-desc-close");
@@ -406,140 +571,123 @@ function renderData(data) {
       const modeAlbum = document.getElementById("mode-album");
       const modePhoto = document.getElementById("mode-photo");
 
-      // selection state within modal
-      let sel = 0;
-      let confirmed = false;
-
-      // persist textarea text to current selected preview
-      function commitCurrent() {
-        if (!previews.length) return;
-        tempCaptions[sel] = (textEl.value || "").trim();
-      }
-
-      // render thumbs list; disabled=true in album mode (no per-photo edits/deletes)
-      function renderThumbs(disabled) {
-        thumbsEl.innerHTML = "";
-        previews.forEach((src, i) => {
-          const wrap = document.createElement("div");
-          wrap.className = "photo-desc-thumb" + (i === sel ? " is-selected" : "");
-          wrap.innerHTML = `
-        <img src="${src}" alt="">
-        <button class="thumb-x" data-i="${i}" ${disabled ? "disabled" : ""}>
-          <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>`;
-          if (!disabled) {
-            wrap.addEventListener("click", (ev) => {
-              if (ev.target.closest(".thumb-x")) return; // ignore delete button
-              commitCurrent();                            // keep text of previous
-              sel = i;                                    // set new selection
-              renderThumbs(false);                        // re-render with highlight
-              textEl.value = tempCaptions[sel] || "";     // load text for new sel
-            });
-          }
-          thumbsEl.appendChild(wrap);
-        });
-        countEl.textContent = String(previews.length);    // update counter
-      }
-
-      // deletion of a preview in PHOTO mode
-      thumbsEl.onclick = (ev) => {
-        const btn = ev.target.closest('.thumb-x');
-        if (!btn) return;
-        if (modeAlbum.checked) return;                   // deletion disabled in album
-
-        const i = Number(btn.dataset.i);
-        commitCurrent();                                 // keep current text
-
-        // revoke blob, remove from all arrays so it won't upload later
-        try { URL.revokeObjectURL(previews[i]); } catch { }
-
-        previews.splice(i, 1);
-        tempCaptions.splice(i, 1);
-        files.splice(i, 1);
-
-        // fix selection index
-        if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
-
-        // if nothing left, close modal
-        if (previews.length === 0) {
-          closeModal();
-          return;
-        }
-
-        // repaint and restore textarea
-        renderThumbs(false);
-        textEl.value = tempCaptions[sel] || '';
-      };
-
-      // open/close helpers
-      function openModal() { overlay.hidden = false; dlg.hidden = false; }
-      function closeModal() { overlay.hidden = true; dlg.hidden = true; }
-
-      // toggle UI by mode (Album → one shared description; Photo → per-photo)
-      function applyModeUI() {
-        if (modeAlbum.checked) {
-          renderThumbs(true);                 // disable clicks/deletes
-          sel = 0;                            // irrelevant in album mode
-          textEl.value = tempCaptions[0] || "";
-        } else {
-          renderThumbs(false);                // enable per-photo selection
-          textEl.value = tempCaptions[sel] || "";
-        }
-      }
-
-      // show modal and wire controls
-      openModal();
-      applyModeUI();
-
-      closeX.onclick = () => { closeModal(); };
-      overlay.addEventListener("click", closeModal, { once: true });
-
-      okBtn.onclick = () => {
-        commitCurrent();      // save text of current selection
-        confirmed = true;     // mark user confirmation
-        closeModal();         // close the modal
-      };
-
-      // wait until modal actually closes
-      await new Promise((r) => {
-        const iv = setInterval(() => { if (dlg.hidden) { clearInterval(iv); r(); } }, 60);
-      });
-
-      // if cancelled or no images, clean and exit
-      if (!confirmed || previews.length === 0) {
-        previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
-        e.target.value = "";
-        return;
-      }
-
-      // ensure the section has a visible grid before uploading
-      section.querySelector(".photos-empty")?.remove();         // drop empty-state
+      // Ensure grid visible
+      section.querySelector(".photos-empty")?.remove();
       if (!section.contains(imagesContainer)) section.appendChild(imagesContainer);
-      imagesContainer.classList.add("one-row");                 // same as profile grid
+      imagesContainer.classList.add("one-row");
 
-      // create temporary "uploading" tiles with spinner overlay
+      // --- Temporary "uploading" tiles (for all selected) ---
       const tempWraps = [];
-      previews.forEach((src) => {
+      const previewsImg = imageFiles.map(f => URL.createObjectURL(f));
+      const previewsVid = videoFiles.map(f => URL.createObjectURL(f));
+      function addTempTile(node) {
         const wrap = document.createElement("div");
-        wrap.className = "image-wrap uploading";                // triggers overlay CSS
-
-        const img = document.createElement("img");
-        img.className = "item-image";
-        img.src = src;
-
+        wrap.className = "image-wrap uploading";
         const hint = document.createElement("div");
         hint.className = "uploading-hint";
         hint.textContent = "Завантаження…";
-
-        wrap.append(img, hint);
-        imagesContainer.prepend(wrap);                          // newest first
+        wrap.append(node, hint);
+        imagesContainer.prepend(wrap);
         tempWraps.push(wrap);
+      }
+      // images as <img>
+      previewsImg.forEach(src => {
+        const img = document.createElement("img");
+        img.className = "item-image";
+        img.src = src;
+        addTempTile(img);
+      });
+      // videos as <video> (quick visual while uploading)
+      previewsVid.forEach(src => {
+        const v = document.createElement("video");
+        v.className = "item-image";
+        v.src = src;
+        v.muted = true; v.playsInline = true;
+        addTempTile(v);
       });
 
-      // uploader (ImgBB)
+      // IMAGES: your existing modal flow (unchanged, just scoped to imageFiles)
+      let confirmed = true;
+      let captions = [];
+      let albumCommonDesc = "";
+      if (imageFiles.length) {
+        let sel = 0;
+        const previews = [...previewsImg];
+        const tempCaptions = new Array(previews.length).fill("");
+
+        function commitCurrent() { if (previews.length) tempCaptions[sel] = (textEl.value || "").trim(); }
+
+        function renderThumbs(disabled) {
+          thumbsEl.innerHTML = "";
+          previews.forEach((src, i) => {
+            const wrap = document.createElement("div");
+            wrap.className = "photo-desc-thumb" + (i === sel ? " is-selected" : "");
+            wrap.innerHTML = `
+          <img src="${src}" alt="">
+          <button class="thumb-x" data-i="${i}" ${disabled ? "disabled" : ""}>
+            <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>`;
+            if (!disabled) {
+              wrap.addEventListener("click", (ev) => {
+                if (ev.target.closest(".thumb-x")) return;
+                commitCurrent();
+                sel = i;
+                renderThumbs(false);
+                textEl.value = tempCaptions[sel] || "";
+              });
+            }
+            thumbsEl.appendChild(wrap);
+          });
+          countEl.textContent = String(previews.length);
+        }
+
+        thumbsEl.onclick = (ev) => {
+          const btn = ev.target.closest('.thumb-x');
+          if (!btn || modeAlbum.checked) return;
+          const i = Number(btn.dataset.i);
+          commitCurrent();
+          try { URL.revokeObjectURL(previews[i]); } catch { }
+          previews.splice(i, 1);
+          tempCaptions.splice(i, 1);
+          imageFiles.splice(i, 1);
+          if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
+          if (!previews.length) { closeModal(); return; }
+          renderThumbs(false);
+          textEl.value = tempCaptions[sel] || "";
+        };
+
+        function openModal() { overlay.hidden = false; dlg.hidden = false; }
+        function closeModal() { overlay.hidden = true; dlg.hidden = true; }
+
+        function applyModeUI() {
+          if (modeAlbum.checked) { renderThumbs(true); sel = 0; textEl.value = tempCaptions[0] || ""; }
+          else { renderThumbs(false); textEl.value = tempCaptions[sel] || ""; }
+        }
+
+        openModal(); applyModeUI();
+        closeX.onclick = () => { closeModal(); };
+        overlay.addEventListener("click", closeModal, { once: true });
+        okBtn.onclick = () => { commitCurrent(); confirmed = true; closeModal(); };
+
+        await new Promise((r) => {
+          const iv = setInterval(() => { if (dlg.hidden) { clearInterval(iv); r(); } }, 60);
+        });
+
+        if (!confirmed || previews.length === 0) {
+          previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
+          // remove just the image temp tiles
+          for (let i = 0; i < previewsImg.length; i++) tempWraps[i]?.remove();
+          previewsImg.length = 0; imageFiles.length = 0;
+        } else {
+          if (modeAlbum.checked) albumCommonDesc = (tempCaptions[0] || "").trim();
+          else captions = tempCaptions.map(v => (v || "").trim());
+        }
+      }
+
+      // uploader (ImgBB stays the same)
       async function uploadToImgBB(file) {
         const formData = new FormData();
         formData.append("image", file);
@@ -549,42 +697,42 @@ function renderData(data) {
         return json.data.url;
       }
 
-      // perform uploads in selected mode and persist
       try {
-        if (modeAlbum.checked) {
-          // one album with N photos and a single shared description
-          const urls = [];
-          for (let i = 0; i < files.length; i++) {
-            const u = await uploadToImgBB(files[i]);
-            urls.push(u);
-          }
-          const commonDesc = (tempCaptions[0] || "").trim();
-          albums.push({ photos: urls, description: commonDesc });
-        } else {
-          // N albums, each with 1 photo and its own description
-          for (let i = 0; i < files.length; i++) {
-            const u = await uploadToImgBB(files[i]);
-            const d = (tempCaptions[i] || "").trim();
-            albums.push({ photos: [u], description: d });
+        // 1) Images → ImgBB (exactly your old logic)
+        if (imageFiles.length) {
+          if (modeAlbum.checked) {
+            const urls = [];
+            for (let i = 0; i < imageFiles.length; i++) {
+              urls.push(await uploadToImgBB(imageFiles[i]));
+            }
+            albums.push({ photos: urls, description: albumCommonDesc });
+          } else {
+            for (let i = 0; i < imageFiles.length; i++) {
+              const u = await uploadToImgBB(imageFiles[i]);
+              const d = captions[i] || "";
+              albums.push({ photos: [u], description: d });
+            }
           }
         }
 
-        // rebuild UI from canonical data (removes temp tiles)
+        // 2) Videos → Spaces (each video becomes its own album)
+        if (videoFiles.length) {
+          const descForVideos = modeAlbum.checked ? albumCommonDesc : "";
+          for (let i = 0; i < videoFiles.length; i++) {
+            const { player, poster } = await uploadVideoToSpaces(videoFiles[i]);
+            albums.push({ video: { player, poster }, description: descForVideos });
+          }
+        }
+
         renderImages();
-
-        // persist to backend
         await updateItems(ritualData.items);
-
-        // belt-and-suspenders: ensure temp tiles are gone
         tempWraps.forEach(w => w.remove());
       } catch (err) {
         console.error("Upload failed", err);
-        alert("Не вдалося завантажити фото");
-        // remove temp tiles on error
+        alert("Не вдалося завантажити медіа");
         tempWraps.forEach(w => w.remove());
       } finally {
-        // free blobs and reset input
-        previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
+        [...previewsImg, ...previewsVid].forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
         e.target.value = "";
       }
     });
@@ -694,10 +842,14 @@ async function updateDescription(newDescription) {
     // оновлюємо джерело правди в пам’яті
     ritualData.description = newDescription;
 
-    applyAbout((newDescription || "").trim());
-
+    // 1) одразу показуємо <p>, ховаємо textarea
     p.style.display = "block";
     textarea.style.display = "none";
+
+    // 2) кламапимо на наступному кадрі, коли лейаут уже актуальний
+    requestAnimationFrame(() => {
+      applyAbout((newDescription || "").trim());
+    });
   } catch (e) {
     console.error(e);
     alert("Помилка при оновленні опису");
@@ -751,88 +903,162 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// Rename modal (kept as in your version)
+function ensureOverlay() {
+  // Prefer unified overlay used by photo-desc modal
+  let overlay = document.getElementById("modal-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "modal-overlay";
+    overlay.hidden = true; // CSS: #modal-overlay[hidden] { display:none }
+    document.body.appendChild(overlay);
+  }
+  // Remove legacy overlay to avoid style conflicts
+  const legacy = document.querySelector(".modal-overlay");
+  if (legacy && legacy !== overlay) legacy.remove();
+  return overlay;
+}
+
 function openRenameModal(titleEl) {
-  let modal = document.querySelector(".modal-overlay");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.className = "modal-overlay";
-    modal.innerHTML = `
-      <div class="rename-modal">
-        <h2>Змінити назву</h2>
-        <input type="text" id="renameInput" />
-        <div class="modal-actions">
-          <button class="confirm-btn">Підтвердити</button>
-          <button class="cancel-btn">Скасувати</button>
-        </div>
+  const overlay = ensureOverlay();
+
+  let dlg = document.getElementById("rename-modal");
+  if (!dlg) {
+    dlg = document.createElement("div");
+    dlg.id = "rename-modal";
+    dlg.className = "modal";
+    dlg.hidden = true; // CSS handles [hidden]
+
+    dlg.innerHTML = `
+      <button class="modal-close" aria-label="Закрити">
+        <svg viewBox="0 0 30 30" width="28" height="28" aria-hidden="true">
+          <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+        </svg>
+      </button>
+      <p class="modal-text">Змінити назву</p>
+      <input id="rename-input" type="text" placeholder="Нова назва..." />
+      <div class="modal-actions">
+        <button id="rename-ok" class="modal-ok">Підтвердити</button>
       </div>
     `;
-    document.body.appendChild(modal);
+    document.body.appendChild(dlg);
   }
 
-  modal.querySelector("#renameInput").value = titleEl.textContent;
-  modal.style.display = "flex";
+  const input = dlg.querySelector("#rename-input");
+  const closeBtn = dlg.querySelector(".modal-close");
+  const okBtn = dlg.querySelector("#rename-ok");
 
-  modal.querySelector(".confirm-btn").onclick = () => {
-    titleEl.textContent = modal.querySelector("#renameInput").value.trim();
-    modal.style.display = "none";
+  if (!input || !closeBtn || !okBtn) {
+    console.error("Rename modal structure missing required nodes");
+    return;
+  }
+
+  // Open + prefill
+  input.value = (titleEl.textContent || "").trim();
+  overlay.hidden = false;
+  dlg.hidden = false;
+  input.focus();
+
+  const close = () => { dlg.hidden = true; overlay.hidden = true; };
+
+  // Close handlers
+  closeBtn.onclick = close;
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  const onKey = (ev) => { if (ev.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey, { once: true });
+
+  // Confirm → update DOM + model + persist
+  okBtn.onclick = async () => {
+    const v = (input.value || "").trim();
+    if (!v) { input.focus(); return; }
+
+    // 1) update title immediately
+    titleEl.textContent = v;
+
+    // 2) update data & persist
+    const section = titleEl.closest(".ritual-item-section");
+    const all = [...document.querySelectorAll(".ritual-item-section")];
+    const idx = all.indexOf(section);
+    close();
+    if (idx > -1) {
+      ritualData.items[idx][0] = v;
+      await updateItems(ritualData.items); // server save + reload
+    }
   };
 
-  modal.querySelector(".cancel-btn").onclick = () => {
-    modal.style.display = "none";
+  // Enter to submit
+  input.onkeydown = (e) => {
+    if (e.key === "Enter") { e.preventDefault(); okBtn.click(); }
   };
 }
 
 function openAddCategoryModal() {
-  let modal = document.querySelector(".modal-overlay");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.className = "modal-overlay";
-    document.body.appendChild(modal);
-  }
+  const overlay = ensureOverlay();
 
-  modal.innerHTML = `
-    <div class="rename-modal">
-      <h2>Нова категорія</h2>
+  let dlg = document.getElementById("newcat-modal");
+  if (!dlg) {
+    dlg = document.createElement("div");
+    dlg.id = "newcat-modal";
+    dlg.className = "modal";
+    dlg.hidden = true;
+    dlg.innerHTML = `
+      <button class="modal-close" aria-label="Закрити">
+        <svg viewBox="0 0 30 30" width="28" height="28" aria-hidden="true">
+          <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+        </svg>
+      </button>
+      <p class="modal-text">Нова категорія</p>
       <input type="text" id="newCatInput" placeholder="Введіть назву категорії" />
       <div class="modal-actions">
-        <button class="confirm-btn">Створити</button>
-        <button class="cancel-btn">Скасувати</button>
+        <button id="newcat-ok" class="modal-ok">Створити</button>
       </div>
-    </div>
-  `;
-  modal.style.display = "flex";
+    `;
+    document.body.appendChild(dlg);
+  }
 
-  const input = modal.querySelector("#newCatInput");
+  const input = dlg.querySelector("#newCatInput");
+  const closeBtn = dlg.querySelector(".modal-close");
+  const okBtn = dlg.querySelector("#newcat-ok");
+
+  const close = () => { dlg.hidden = true; overlay.hidden = true; };
+
+  overlay.hidden = false;
+  dlg.hidden = false;
+  input.value = "";
   input.focus();
 
-  const close = () => {
-    modal.style.display = "none";
-  };
+  closeBtn.onclick = close;
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") close(); }, { once: true });
 
-  // Close handlers
-  modal.querySelector(".cancel-btn").onclick = close;
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) close();
-  });
-  document.addEventListener("keydown", function escClose(ev) {
-    if (ev.key === "Escape") {
-      close();
-      document.removeEventListener("keydown", escClose);
-    }
-  });
-
-  // Create category
-  modal.querySelector(".confirm-btn").onclick = async () => {
+  okBtn.onclick = async () => {
     const title = (input.value || "").trim();
-    if (!title) {
-      input.focus();
-      return;
-    }
-    ritualData.items.push([title, []]); // add empty category with the given name
+    if (!title) { input.focus(); return; }
+    ritualData.items.push([title, []]);
     close();
-    await updateItems(ritualData.items); // saves and reloads
+    await updateItems(ritualData.items);
   };
+
+  input.onkeydown = (e) => {
+    if (e.key === "Enter") { e.preventDefault(); okBtn.click(); }
+  };
+}
+
+function openVideoPlayer(src) {
+  const modal = document.createElement("div");
+  modal.className = "slideshow-modal";
+  const closeBtn = document.createElement("span");
+  closeBtn.textContent = "✕";
+  closeBtn.className = "close-slideshow";
+  closeBtn.onclick = () => { document.body.style.overflow = ""; modal.remove(); };
+  const video = document.createElement("video");
+  video.src = src;
+  video.controls = true;
+  video.playsInline = true;
+  video.style.width = "100%";
+  video.style.height = "70vh";
+  modal.append(closeBtn, video);
+  document.body.style.overflow = "hidden";
+  document.body.appendChild(modal);
 }
 
 function openSlideshow(images, startIndex = 0, captions = []) {
@@ -898,18 +1124,24 @@ function openSlideshow(images, startIndex = 0, captions = []) {
   // Dots
   const indicator = document.createElement("div");
   indicator.className = "slideshow-indicators";
-  images.forEach((_, idx) => {
-    const dot = document.createElement("span");
-    dot.className = "slideshow-indicator";
-    dot.addEventListener("click", () => changeSlide(idx));
-    indicator.appendChild(dot);
-  });
+
+  if (images.length > 1) {
+    images.forEach((_, idx) => {
+      const dot = document.createElement("span");
+      dot.className = "slideshow-indicator";
+      dot.addEventListener("click", () => changeSlide(idx));
+      indicator.appendChild(dot);
+    });
+  }
 
   function updateIndicators(index) {
-    indicator
-      .querySelectorAll(".slideshow-indicator")
-      .forEach((dot, i) => dot.classList.toggle("active", i === index));
+    if (images.length > 1) {
+      indicator
+        .querySelectorAll(".slideshow-indicator")
+        .forEach((dot, i) => dot.classList.toggle("active", i === index));
+    }
   }
+
   function changeSlide(newIndex) {
     const slides = track.querySelectorAll(".slideshow-slide");
     if (slides[newIndex]) {
