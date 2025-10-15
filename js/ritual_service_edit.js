@@ -161,15 +161,81 @@ async function getSpacesUploadUrl(filename, contentType) {
 }
 
 async function uploadVideoToSpaces(file) {
-  const meta = await getSpacesUploadUrl(file.name || `video_${Date.now()}.mp4`, file.type || "video/mp4");
+  // Normalize name & content type
+  const contentType = file.type || "video/mp4";
+  const filename = (file.name ? file.name.replace(/\s+/g, "_") : `video_${Date.now()}.mp4`);
+
+  // 1) Get presigned PUT URL + key
+  const meta = await getSpacesUploadUrl(filename, contentType);
+
+  // 2) Upload video bytes directly to Spaces
   const put = await fetch(meta.uploadUrl, {
     method: "PUT",
-    headers: { "Content-Type": file.type || "video/mp4" },
-    body: file
+    headers: { "Content-Type": contentType },
+    body: file,
   });
   if (!put.ok) throw new Error(`Spaces upload failed: ${put.status}`);
-  // meta.objectUrl is the public MP4 URL
-  return { player: meta.objectUrl, poster: "" }; // poster optional; see note below
+
+  // 3) Make video public (server-side ACL)
+  const makePublicRes = await fetch(`${API}/spaces/make-public`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ key: meta.key }),
+  });
+  if (!makePublicRes.ok) throw new Error(`make-public failed: ${makePublicRes.status}`);
+  const { objectUrl: playerUrlFromServer } = await makePublicRes.json();
+  const player = playerUrlFromServer || meta.objectUrl;
+
+  // 4) Generate poster from the local file and upload it (ImgBB)
+  let poster = "";
+  try {
+    const posterBlob = await capturePosterFromVideoFile(file, 0.8); // first ~second
+    // imgBB wants a File; wrap blob to preserve filename
+    const posterFile = new File([posterBlob], (filename.replace(/\.[^.]+$/, "") || "poster") + ".jpg", { type: "image/jpeg" });
+    poster = await uploadToImgBB(posterFile);
+  } catch (e) {
+    console.warn("Poster generation failed, using empty poster", e);
+  }
+
+  return { player, poster };
+}
+
+async function capturePosterFromVideoFile(file, atSeconds = 0.8) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.src = url;
+    video.muted = true;
+    video.playsInline = true;
+    video.crossOrigin = "anonymous";
+    video.addEventListener("loadedmetadata", () => {
+      const target = Math.min(Math.max(0.01, atSeconds), Math.max(0.01, (video.duration || 1) - 0.01));
+      const seekTo = isFinite(target) ? target : 0.5;
+      const onSeeked = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth || 800;
+          canvas.height = video.videoHeight || 450;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(url);
+            if (!blob) return reject(new Error("poster toBlob failed"));
+            resolve(blob);
+          }, "image/jpeg", 0.85);
+        } catch (err) {
+          URL.revokeObjectURL(url);
+          reject(err);
+        }
+      };
+      video.currentTime = seekTo;
+      video.addEventListener("seeked", onSeeked, { once: true });
+    }, { once: true });
+    video.addEventListener("error", (e) => {
+      URL.revokeObjectURL(url);
+      reject(new Error("video load error"));
+    }, { once: true });
+  });
 }
 
 function applyAbout(text) {
@@ -347,27 +413,36 @@ function renderData(data) {
 
       albums.forEach((album) => {
         // --- VIDEO tile ---
+        // --- VIDEO tile ---
         if (album.video?.player) {
           const wrap = document.createElement("div");
           wrap.className = "image-wrap";
-          // use poster if present, else fallback to a generic play tile
+          wrap.dataset.coverKey = `video:${album.video.player}`;
+
           const img = document.createElement("img");
-          img.src = album.video.poster || "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect width='100%25' height='100%25' fill='%23e9eef3'/%3E%3Cpolygon points='160,110 160,190 230,150' fill='%23888'/%3E%3C/svg%3E";
+          img.src = album.video.poster || ""; // will be real poster after upload; empty shows broken? fallback below
           img.alt = title;
           img.className = "item-image";
+          if (!album.video.poster) {
+            // gentle neutral fallback bg (keeps layout)
+            img.src = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect width='100%25' height='100%25' fill='%23e9eef3'/%3E%3C/svg%3E";
+          }
+
           const badge = document.createElement("span");
           badge.className = "select-badge";
-          const play = document.createElement("div");
-          play.className = "image-counter";
-          play.textContent = "▶";
-          // mark a stable key for deletion matching
-          wrap.dataset.coverKey = `video:${album.video.player}`;
+
+          // small play badge (top-right)
+          const playBadge = document.createElement("span");
+          playBadge.className = "video-play-badge";
+          playBadge.innerHTML = `<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M96 52v408l320-204L96 52z"/></svg>`;
+
           wrap.addEventListener("click", (e) => {
             e.preventDefault();
             if (isSelecting) { toggleSelect(wrap); return; }
-            openVideoPlayer(album.video.player);
+            openPremiumPlayer(album.video.player, album.video.poster || "");
           });
-          wrap.append(img, badge, play);
+
+          wrap.append(img, badge, playBadge);
           imagesContainer.appendChild(wrap);
           return;
         }
@@ -1043,22 +1118,96 @@ function openAddCategoryModal() {
   };
 }
 
-function openVideoPlayer(src) {
-  const modal = document.createElement("div");
-  modal.className = "slideshow-modal";
-  const closeBtn = document.createElement("span");
-  closeBtn.textContent = "✕";
-  closeBtn.className = "close-slideshow";
-  closeBtn.onclick = () => { document.body.style.overflow = ""; modal.remove(); };
-  const video = document.createElement("video");
+function openPremiumPlayer(src, poster = "") {
+  const modal = document.getElementById("rs-video-modal");
+  const backdrop = modal.querySelector(".rs-video-backdrop");
+  const video = document.getElementById("rsVideo");
+  const overlayPlay = document.getElementById("rsOverlayPlay");
+  const playPause = document.getElementById("rsPlayPause");
+  const progress = document.getElementById("rsProgress");
+  const timeLabel = document.getElementById("rsTimeLabel");
+  const controls = document.getElementById("rsControls");
+  const btnClose = document.getElementById("rsClose");
+
+  // set src/poster and show
   video.src = src;
-  video.controls = true;
-  video.playsInline = true;
-  video.style.width = "100%";
-  video.style.height = "70vh";
-  modal.append(closeBtn, video);
+  video.poster = poster || video.poster || "";
+  modal.hidden = false;
   document.body.style.overflow = "hidden";
-  document.body.appendChild(modal);
+
+  // match premium_qr logic
+  video.controls = false;
+
+  function setSmallIcon(isPlaying) {
+    playPause.innerHTML = isPlaying
+      ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  }
+
+  function showPausedUI() {
+    overlayPlay.style.display = 'flex';
+    controls.classList.remove('is-playing');
+    setSmallIcon(false);
+  }
+
+  // events (from premium_qr.js)
+  video.addEventListener('play', () => {
+    overlayPlay.style.display = 'none';
+    controls.classList.add('is-playing');
+    setSmallIcon(true);
+  });
+  video.addEventListener('pause', showPausedUI);
+  video.addEventListener('ended', showPausedUI);
+
+  video.addEventListener('click', () => {
+    if (video.paused) video.play(); else video.pause();
+  });
+
+  // init state
+  overlayPlay.style.display = 'flex';
+  playPause.style.display = 'none';
+
+  overlayPlay.addEventListener('click', () => {
+    if (video.paused) video.play(); else video.pause();
+  });
+  playPause.addEventListener('click', () => {
+    if (video.paused) video.play(); else video.pause();
+  });
+
+  video.addEventListener('play', () => {
+    overlayPlay.style.display = 'none';
+    playPause.style.display = 'flex';
+    setSmallIcon(true);
+  });
+  video.addEventListener('pause', () => {
+    overlayPlay.style.display = 'flex';
+    playPause.style.display = 'none';
+    setSmallIcon(false);
+  });
+
+  video.addEventListener('timeupdate', () => {
+    const pct = video.duration ? (video.currentTime / video.duration) * 100 : 0;
+    progress.value = pct;
+    const m = Math.floor(video.currentTime / 60);
+    const s = String(Math.floor(video.currentTime % 60)).padStart(2, '0');
+    timeLabel.textContent = `${m}:${s}`;
+  });
+
+  progress.addEventListener('input', () => {
+    if (!video.duration) return;
+    video.currentTime = (progress.value / 100) * video.duration;
+  });
+
+  function close() {
+    try { video.pause(); } catch { }
+    modal.hidden = true;
+    document.body.style.overflow = "";
+    // clean src so iOS releases decoder
+    video.removeAttribute('src');
+    video.load();
+  }
+  btnClose.addEventListener('click', close, { once: true });
+  backdrop.addEventListener('click', close, { once: true });
 }
 
 function openSlideshow(images, startIndex = 0, captions = []) {
