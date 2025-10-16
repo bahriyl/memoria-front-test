@@ -1,5 +1,3 @@
-// js/profile.js
-
 document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Config
@@ -7,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // const API_URL = 'http://0.0.0.0:5000'
     const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
     const API_BASE = `${API_URL}/api/people`;
+    const PREMIUM_AUTH = `${API_URL}/api/premium`;
+
     const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
 
     const params = new URLSearchParams(window.location.search);
@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const choosePhotoBtn = document.getElementById('choose-photo-btn');
     const deletePhotoBtn = document.getElementById('delete-photo-btn');
     const fileInput = document.getElementById('photo-input'); // hidden <input type="file" multiple>, may be absent in older HTML
+    if (fileInput) fileInput.accept = 'image/*';
     const photosScrollEl = document.querySelector('.profile-photos .photos-scroll');
 
     // ─── Relatives state ───
@@ -991,8 +992,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const nonBlobPhotos = () =>
         (photos || []).filter((u) => typeof u === 'string' && u && !u.startsWith('blob:'));
     const isBlobUrl = (u) => typeof u === 'string' && u.startsWith('blob:');
-    const realPhotos = () => (photos || []).filter(p => p && typeof p.url === 'string' && !isBlobUrl(p.url));
-    const realPhotoUrls = () => realPhotos().map(p => p.url);
+    function normalizeMediaItem(item) {
+        if (!item) return null;
+        if (typeof item === 'string') {
+            const url = item.trim();
+            return url ? { url, description: '' } : null;
+        }
+        const description =
+            typeof item.description === 'string'
+                ? item.description
+                : item.description != null
+                    ? String(item.description)
+                    : '';
+        if (typeof item.url === 'string' && item.url.trim()) {
+            const url = item.url.trim();
+            if (isBlobUrl(url)) return null;
+            return { url, description };
+        }
+        const video = item.video;
+        if (video && typeof video.player === 'string' && video.player.trim()) {
+            const player = video.player.trim();
+            const out = { player };
+            if (typeof video.poster === 'string' && video.poster.trim()) {
+                out.poster = video.poster.trim();
+            }
+            return { video: out, description };
+        }
+        return null;
+    }
+    const persistedMedia = () =>
+        (photos || [])
+            .map(normalizeMediaItem)
+            .filter(Boolean);
     function isBlob(u) { return typeof u === 'string' && u.startsWith('blob:'); }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -1252,96 +1283,49 @@ document.addEventListener('DOMContentLoaded', () => {
     // Клік “Добавити” → file input
     sharedAddBtn?.addEventListener('click', () => sharedInput?.click());
 
-    // File input → миттєві превʼю → аплоад → POST як pending
+    // --- SHARED: keep photos-only (backend shared/offer expects {url}) ---
+    if (sharedInput) sharedInput.accept = 'image/*';
+
     sharedInput?.addEventListener('change', async (e) => {
-        const files = Array.from(e.target.files || []);
+        const files = Array.from(sharedInput.files || []);
         if (!files.length) return;
 
-        const previews = files.map(f => URL.createObjectURL(f));
-        const tempCaptions = new Array(previews.length).fill('');
+        // Block videos here (until backend supports shared video)
+        const hasVideo = files.some(f => f.type.startsWith('video/'));
+        if (hasVideo) {
+            alert('Відео поки що не підтримується у Спільному альбомі.');
+        }
+        const imageFiles = files.filter(f => f.type.startsWith('image/'));
+        if (!imageFiles.length) { sharedInput.value = ''; return; }
 
-        const overlay = document.getElementById('modal-overlay');
-        const dlg = document.getElementById('photo-desc-modal');
-        const closeX = document.getElementById('photo-desc-close');
-        const thumbsEl = document.getElementById('photo-desc-thumbs');
-        const textEl = document.getElementById('photo-desc-text');
-        const countEl = document.getElementById('photo-desc-count');
-        const okBtn = document.getElementById('photo-desc-add');
-
-        let sel = 0, confirmed = false;
-
-        function commitCurrent() { if (previews.length) { tempCaptions[sel] = (textEl.value || '').trim(); } }
-        function renderThumbs() {
-            thumbsEl.innerHTML = '';
-            previews.forEach((src, i) => {
-                const wrap = document.createElement('div');
-                wrap.className = 'photo-desc-thumb' + (i === sel ? ' is-selected' : '');
-                wrap.innerHTML = `
-        <img src="${src}" alt="">
-        <button class="thumb-x" data-i="${i}">
-          <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>`;
-                wrap.addEventListener('click', (ev) => {
-                    if (ev.target.closest('.thumb-x')) return;
-                    commitCurrent(); sel = i; renderThumbs(); textEl.value = tempCaptions[sel] || '';
-                    thumbsEl.querySelector('.photo-desc-thumb.is-selected')
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                });
-                thumbsEl.appendChild(wrap);
+        async function uploadToImgBB(file) {
+            const form = new FormData();
+            form.append('image', file);
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                method: 'POST',
+                body: form
             });
-            countEl.textContent = String(previews.length);
+            const json = await res.json();
+            if (!json.success) throw new Error('Upload failed');
+            return json.data.url;
         }
-
-        // delete → also remove from files so it won't upload
-        thumbsEl.onclick = (ev) => {
-            const btn = ev.target.closest('.thumb-x'); if (!btn) return;
-            const i = Number(btn.dataset.i);
-            commitCurrent();
-            try { URL.revokeObjectURL(previews[i]); } catch { }
-            previews.splice(i, 1);
-            tempCaptions.splice(i, 1);
-            files.splice(i, 1);
-            if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
-            if (!previews.length) { closeModal(); return; }
-            renderThumbs(); textEl.value = tempCaptions[sel] || '';
-        };
-
-        function openModal() { overlay.hidden = false; dlg.hidden = false; }
-        function closeModal() { overlay.hidden = true; dlg.hidden = true; }
-
-        openModal(); renderThumbs(); textEl.value = tempCaptions[sel] || '';
-        closeX.onclick = () => { commitCurrent(); closeModal(); };
-        overlay.addEventListener('click', () => { commitCurrent(); closeModal(); }, { once: true });
-        okBtn.onclick = () => { commitCurrent(); confirmed = true; closeModal(); };
-
-        await new Promise(r => { const iv = setInterval(() => { if (!dlg || dlg.hidden) { clearInterval(iv); r(); } }, 60); });
-
-        if (!confirmed || !previews.length || !files.length) {
-            previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
-            e.target.value = '';
-            return;
-        }
-
-        // Show optimistic pending tiles with captions (public page uses sharedPending for local blobs)
-        const start = sharedPending.length;
-        previews.forEach((url, i) => sharedPending.push({ url, description: tempCaptions[i] || '' }));
-        refreshSharedUI();
 
         try {
-            for (let i = 0; i < files.length; i++) {
-                const hosted = await uploadToImgBB(files[i]);
-                // replace blob tile with hosted, keep caption
-                sharedPending[start + i] = { url: hosted, description: tempCaptions[i] || '' };
-                refreshSharedUI();
-                await submitSharedOffer(hosted, tempCaptions[i] || '');
-                showToast("Успішно відправлено на модерацію! Ми сповістимо вас коли буде готово");
+            // Upload one-by-one and offer each
+            for (const img of imageFiles) {
+                const url = await uploadToImgBB(img);
+                await fetch(`${API_BASE}/${personId}/shared/offer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
             }
+            showToast('Надіслано на модерацію');
+        } catch (err) {
+            console.error('Shared upload failed', err);
+            alert('Не вдалося надіслати у Спільний альбом');
         } finally {
-            previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
-            e.target.value = '';
+            sharedInput.value = '';
         }
     });
 
@@ -1510,22 +1494,360 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function openMediaSlideshow(startIndex = 0) {
+        if (!Array.isArray(photos) || !photos.length) return;
+
+        const mediaEntries = (photos || [])
+            .map((item, idx) => ({ idx, media: normalizeMediaItem(item) }))
+            .filter(entry => entry.media);
+        if (!mediaEntries.length) return;
+
+        const overlaySvg = `
+      <svg viewBox="0 0 24 24" fill="white">
+        <path d="M8 5v14l11-7z"></path>
+      </svg>`;
+        const pauseIcon = `
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+        <rect x="6" y="5" width="4" height="14"></rect>
+        <rect x="14" y="5" width="4" height="14"></rect>
+      </svg>`;
+        const fmt = (t) => (!isFinite(t) ? '00:00'
+            : `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`);
+
+        const modal = document.createElement('div');
+        modal.className = 'slideshow-modal';
+        modal.classList.add('slideshow-modal-media');
+
+        const closeBtnX = document.createElement('span');
+        closeBtnX.textContent = '✕';
+        closeBtnX.className = 'close-slideshow';
+
+        const track = document.createElement('div');
+        track.className = 'slideshow-track';
+
+        const indicator = document.createElement('div');
+        indicator.className = 'slideshow-indicators';
+
+        const videoRefs = [];
+
+        mediaEntries.forEach(({ media }, slideIdx) => {
+            const slide = document.createElement('div');
+            slide.className = 'slideshow-slide';
+            slide.dataset.slideIndex = String(slideIdx);
+
+            if (media.video) {
+                slide.classList.add('is-video');
+                const videoWrapper = document.createElement('div');
+                videoWrapper.className = 'slideshow-video-wrapper';
+
+                const video = document.createElement('video');
+                video.src = media.video.player;
+                video.poster = media.video.poster || '';
+                video.controls = false;
+                video.preload = 'metadata';
+                video.playsInline = true;
+                video.setAttribute('playsinline', '');
+                video.setAttribute('webkit-playsinline', '');
+                video.className = 'slideshow-video';
+                videoRefs.push({ el: video, slideIdx });
+                videoWrapper.appendChild(video);
+
+                const overlayBtn = document.createElement('button');
+                overlayBtn.type = 'button';
+                overlayBtn.className = 'overlay-play';
+                overlayBtn.innerHTML = overlaySvg;
+                videoWrapper.appendChild(overlayBtn);
+
+                const controlsBar = document.createElement('div');
+                controlsBar.className = 'slideshow-controls';
+
+                const pauseBtn = document.createElement('button');
+                pauseBtn.type = 'button';
+                pauseBtn.className = 'hud-pill hud-left';
+                pauseBtn.innerHTML = pauseIcon;
+                controlsBar.appendChild(pauseBtn);
+
+                const timeLabel = document.createElement('span');
+                timeLabel.className = 'hud-pill hud-right';
+                timeLabel.textContent = '00:00 / 00:00';
+                controlsBar.appendChild(timeLabel);
+
+                const progress = document.createElement('input');
+                progress.type = 'range';
+                progress.className = 'slideshow-progress';
+                progress.min = '0';
+                progress.max = '100';
+                progress.step = '0.1';
+                progress.value = '0';
+                controlsBar.appendChild(progress);
+
+                controlsBar.style.display = 'none';
+                videoWrapper.appendChild(controlsBar);
+
+                video.addEventListener('play', () => {
+                    videoRefs.forEach(ref => {
+                        if (ref.el !== video) ref.el.pause();
+                    });
+                });
+
+                const syncProgress = () => {
+                    if (!progress) return;
+                    const ratio = (video.duration || 0) ? (video.currentTime / video.duration) : 0;
+                    const pct = Math.min(100, Math.max(0, ratio * 100));
+                    progress.value = String(pct);
+                    progress.style.setProperty('--p', `${pct}%`);
+                };
+                const syncTime = () => {
+                    if (timeLabel) timeLabel.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration || 0)}`;
+                };
+                const syncState = () => {
+                    const paused = video.paused;
+                    overlayBtn.hidden = !paused;
+                    if (controlsBar) controlsBar.style.display = paused ? 'none' : 'flex';
+                };
+
+                overlayBtn.addEventListener('click', () => {
+                    if (video.paused) video.play(); else video.pause();
+                });
+                pauseBtn.addEventListener('click', () => video.pause());
+                progress.addEventListener('input', (ev) => {
+                    if (!video.duration) return;
+                    const val = Number(ev.target.value);
+                    if (!Number.isFinite(val)) return;
+                    const clamped = Math.min(100, Math.max(0, val));
+                    video.currentTime = (clamped / 100) * video.duration;
+                    syncProgress();
+                    syncTime();
+                });
+
+                video.addEventListener('play', () => { syncState(); });
+                video.addEventListener('pause', () => { syncState(); });
+                video.addEventListener('timeupdate', () => { syncProgress(); syncTime(); });
+                video.addEventListener('loadedmetadata', () => { syncProgress(); syncTime(); });
+                video.addEventListener('ended', () => {
+                    video.pause();
+                    video.currentTime = 0;
+                    syncProgress();
+                    syncTime();
+                    syncState();
+                });
+
+                syncProgress();
+                syncTime();
+                syncState();
+
+                slide.appendChild(videoWrapper);
+            } else {
+                const slideImg = document.createElement('img');
+                slideImg.src = media.url;
+                slideImg.className = 'slideshow-img';
+                slide.appendChild(slideImg);
+            }
+
+            const text = media.description || '';
+            if (text && text.trim()) {
+                const cap = document.createElement('div');
+                cap.className = 'slideshow-caption';
+
+                const span = document.createElement('span');
+                span.className = 'caption-text';
+                span.textContent = text;
+
+                const toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.className = 'caption-toggle';
+                toggle.textContent = '… більше';
+
+                cap.append(span, toggle);
+                slide.appendChild(cap);
+
+                requestAnimationFrame(() => {
+                    const overflowing = span.scrollHeight > span.clientHeight + 1;
+                    if (overflowing) {
+                        cap.classList.add('has-toggle');
+                        toggle.addEventListener('click', () => {
+                            const expanded = cap.classList.toggle('expanded');
+                            toggle.textContent = expanded ? 'менше' : '… більше';
+                        });
+                    } else {
+                        toggle.remove();
+                    }
+                });
+            }
+
+            track.appendChild(slide);
+
+            const dot = document.createElement('span');
+            dot.className = 'slideshow-indicator';
+            dot.addEventListener('click', () => changeSlide(slideIdx));
+            indicator.appendChild(dot);
+        });
+
+        function updateIndicators(index) {
+            indicator.querySelectorAll('.slideshow-indicator').forEach((dot, i) =>
+                dot.classList.toggle('active', i === index)
+            );
+        }
+
+        function syncVideos(activeIndex) {
+            videoRefs.forEach(({ el, slideIdx }) => {
+                if (slideIdx !== activeIndex) el.pause();
+            });
+        }
+
+        function changeSlide(newIndex) {
+            const slides = track.querySelectorAll('.slideshow-slide');
+            if (slides[newIndex]) {
+                slides[newIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+                syncVideos(newIndex);
+                updateIndicators(newIndex);
+            }
+        }
+
+        track.addEventListener('scroll', () => {
+            const slideWidth = track.clientWidth || 1;
+            const index = Math.round(track.scrollLeft / slideWidth);
+            updateIndicators(index);
+            syncVideos(index);
+        });
+
+        closeBtnX.onclick = () => {
+            videoRefs.forEach(({ el }) => el.pause());
+            modal.remove();
+        };
+
+        modal.append(closeBtnX, track, indicator);
+        document.body.appendChild(modal);
+
+        let initialIndex = mediaEntries.findIndex(entry => entry.idx === startIndex);
+        if (initialIndex < 0) initialIndex = 0;
+
+        requestAnimationFrame(() => {
+            const prev = track.style.scrollBehavior;
+            track.style.scrollBehavior = 'auto';
+            track.scrollLeft = initialIndex * track.clientWidth;
+            track.style.scrollBehavior = prev;
+            updateIndicators(initialIndex);
+            syncVideos(initialIndex);
+        });
+    }
+
+    // --- VIDEO MODAL (same UI as premium_qr) ---
+    function openProfileVideoModal(src, poster) {
+        const modal = document.getElementById('ppVideoModal') || document.getElementById('rs-video-modal');
+        // Support either markup id: pp* (your newer one) or rs* (existing premium modal)
+        const v = document.getElementById('ppVideo') || document.getElementById('rsVideo');
+        const playBtn = document.getElementById('ppPlayPause') || document.getElementById('rsPlayPause');
+        const ov = document.getElementById('ppOverlayPlay') || document.getElementById('rsOverlayPlay');
+        const time = document.getElementById('ppTime') || document.getElementById('rsTimeLabel');
+        const progress = document.getElementById('ppProgress') || document.getElementById('rsProgress');
+        const controls = document.getElementById('ppControls') || document.getElementById('rsControls');
+        const closeX = document.getElementById('ppClose') || (modal && modal.querySelector('.close-slideshow'));
+
+        if (!modal || !v) return;
+
+        const pauseIcon = `
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+        <rect x="6" y="5" width="4" height="14"></rect>
+        <rect x="14" y="5" width="4" height="14"></rect>
+      </svg>`;
+
+        if (controls) controls.style.display = 'none';
+
+        v.src = src;
+        v.poster = poster || '';
+
+        modal.hidden = false;
+
+        if (playBtn) {
+            playBtn.innerHTML = pauseIcon;
+            playBtn.setAttribute('aria-label', 'Pause');
+        }
+
+        if (progress) {
+            progress.value = '0';
+            progress.style.setProperty('--p', '0%');
+            progress.oninput = (ev) => {
+                if (!v.duration) return;
+                const val = Number(ev.target.value);
+                if (!Number.isFinite(val)) return;
+                const clamped = Math.min(100, Math.max(0, val));
+                v.currentTime = (clamped / 100) * v.duration;
+            };
+        }
+
+        const fmt = (t) => (!isFinite(t) ? '00:00'
+            : `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`);
+
+        const syncTime = () => { if (time) time.textContent = `${fmt(v.currentTime)} / ${fmt(v.duration || 0)}`; };
+        const syncBtn = () => {
+            const paused = v.paused;
+            if (playBtn) {
+                playBtn.classList.toggle('is-paused', paused);
+                if (!paused) playBtn.innerHTML = pauseIcon;
+            }
+            if (ov) ov.hidden = !paused;
+            if (controls) controls.style.display = paused ? 'none' : 'flex';
+        };
+        const syncProgress = () => {
+            if (!progress) return;
+            const ratio = (v.duration || 0) ? (v.currentTime / v.duration) : 0;
+            const pct = Math.min(100, Math.max(0, ratio * 100));
+            progress.value = String(pct);
+            progress.style.setProperty('--p', `${pct}%`);
+        };
+
+        const onClickPlay = () => { if (v.paused) v.play(); else v.pause(); };
+        if (playBtn) playBtn.onclick = onClickPlay;
+        if (ov) ov.onclick = onClickPlay;
+
+        v.onplay = v.onpause = () => { syncBtn(); };
+        v.ontimeupdate = () => { syncTime(); syncProgress(); };
+        v.onloadedmetadata = () => { syncTime(); syncProgress(); };
+
+        const close = () => {
+            v.pause(); v.removeAttribute('src'); v.load();
+            modal.hidden = true;
+            if (playBtn) playBtn.onclick = null;
+            if (ov) ov.onclick = null;
+            if (closeX) closeX.onclick = null;
+            if (progress) progress.oninput = null;
+            if (controls) controls.style.display = 'none';
+            if (progress) {
+                progress.value = '0';
+                progress.style.setProperty('--p', '0%');
+            }
+            v.onplay = v.onpause = v.ontimeupdate = v.onloadedmetadata = null;
+        };
+        if (closeX) closeX.onclick = close;
+
+        // start paused with overlay visible
+        syncBtn(); syncTime(); syncProgress();
+    }
+
+    function isVideoEntry(item) {
+        return item && typeof item === 'object' && item.video && typeof item.video.player === 'string';
+    }
+    function videoThumbSrc(item) {
+        return (item.video && item.video.poster) ? item.video.poster : 'img/video_placeholder.jpg';
+    }
+
+    // --- RENDERER: photos (and now videos) ---
     function refreshPhotosUI() {
         if (!photosListEl) return;
 
         // clear previous list
         photosListEl.innerHTML = '';
         photosListEl.classList.remove('rows-1', 'rows-2');
-        if (photosListEl.style) photosListEl.style.display = ''; // ensure visible
+        if (photosListEl.style) photosListEl.style.display = '';
 
         // remove old empty-state, if any
         photosScrollEl?.querySelector('.photos-empty')?.remove();
 
-        const hasPhotos = photos.length > 0;
-        setPhotosControlsVisibility();
+        const hasItems = photos && photos.length > 0;
+        setPhotosControlsVisibility?.();
 
-        // 0) Empty state
-        if (!hasPhotos) {
+        if (!hasItems) {
             if (photosListEl.style) photosListEl.style.display = 'none';
             const empty = document.createElement('div');
             empty.className = 'photos-empty';
@@ -1534,21 +1856,24 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 1) One row if >= 5 photo, otherwise two rows
         photosListEl.classList.add(photos.length <= 5 ? 'rows-1' : 'rows-2');
 
         // render items
         photos.forEach((p, idx) => {
-            const url = p.url;
+            const media = normalizeMediaItem(p);
+            const isTempVideo = !media && p && p._temp && p._kind === 'video';
+            if (!media && !isTempVideo) return;
 
+            const isVideo = Boolean(media?.video);
             const li = document.createElement('li');
             li.dataset.index = String(idx);
+            li.classList.toggle('video-tile', isVideo);
 
             const img = document.createElement('img');
-            img.src = url;
+            img.src = isVideo ? videoThumbSrc(media) : (media?.url || (typeof p?.url === 'string' ? p.url : ''));
+            img.alt = '';
 
-            // If this is a local preview (blob:), show uploading overlay + hint
-            if (typeof url === 'string' && url.startsWith('blob:')) {
+            if ((typeof p?.url === 'string' && p.url.startsWith('blob:')) || isTempVideo) {
                 li.classList.add('uploading');
                 const hint = document.createElement('div');
                 hint.className = 'uploading-hint';
@@ -1556,36 +1881,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.appendChild(hint);
             }
 
-            // NEW: numbered selection badge (matches Location page)
             const badge = document.createElement('span');
             badge.className = 'select-badge';
-
-            // Reflect selection state + number
             const orderPos = selectedOrder.indexOf(idx);
             const isSel = orderPos > -1;
             li.classList.toggle('is-selected', isSel);
-            li.classList.toggle('selected', isSel); // backward compatibility
+            li.classList.toggle('selected', isSel);
             badge.textContent = isSel ? String(orderPos + 1) : '';
 
-            // click behavior (open slideshow vs select)
+            if (isVideo) {
+                const play = document.createElement('span');
+                play.className = 'video-play-small';
+                play.innerHTML = `
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="white" aria-hidden="true">
+        <path d="M8 5v14l11-7z"></path>
+      </svg>`;
+                play.style.display = isSelecting ? 'none' : '';
+                li.appendChild(play);
+            }
+
             li.addEventListener('click', () => {
                 if (isSelecting) {
                     toggleSelectPhoto(idx);
-                } else {
-                    // We only show real (uploaded) photos in slideshow
-                    const images = realPhotoUrls();               // array of urls
-                    const captions = realPhotos().map(x => x.description || '');
-                    const startIndex = images.indexOf(url);
-                    const safeIndex = Math.max(0, startIndex);
-                    openSlideshow(
-                        images.length ? images : [url],
-                        images.length ? safeIndex : 0,
-                        images.length ? captions : [p.description || '']
-                    );
+                    return;
                 }
+                if (!media) return;
+                openMediaSlideshow(idx);
             });
 
-            li.append(img, badge);
+            li.append(img);
+            li.append(badge);
             photosListEl.appendChild(li);
         });
 
@@ -1594,7 +1919,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function saveProfilePhotos() {
         try {
-            const clean = realPhotos().map(p => ({ url: p.url, description: p.description || '' }));
+            const clean = persistedMedia().map(item => {
+                if (item.video) {
+                    const video = { player: item.video.player };
+                    if (item.video.poster) video.poster = item.video.poster;
+                    return { video, description: item.description || '' };
+                }
+                return { url: item.url, description: item.description || '' };
+            });
             const body = JSON.stringify({ photos: clean });
             const res = await fetch(`${API_BASE}/${personId}`, {
                 method: 'PUT',
@@ -1656,8 +1988,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (fileInput)
             fileInput.addEventListener('change', async (e) => {
-                const files = Array.from(e.target.files || []);
+                let files = Array.from(e.target.files || []);
                 if (!files.length) return;
+
+                const videoFiles = files.filter(f => f.type.startsWith('video/'));
+                if (videoFiles.length) {
+                    alert('Відео можна завантажити лише на сторінці редагування профілю.');
+                    files = files.filter(f => !f.type.startsWith('video/'));
+                }
+                if (!files.length) {
+                    e.target.value = '';
+                    return;
+                }
 
                 // 0) add instant previews to photos
                 const startIndex = photos.length;
@@ -2185,9 +2527,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ─── PHOTOS (звичайні) ───
             photos = Array.isArray(data.photos)
-                ? data.photos
-                    .filter(p => p && typeof p.url === 'string' && p.url.trim())
-                    .map(p => ({ url: p.url.trim(), description: (p.description ?? '').toString() }))
+                ? data.photos.map(normalizeMediaItem).filter(Boolean)
                 : [];
             hookPhotoButtons?.();
             refreshPhotosUI?.();
@@ -2788,28 +3128,197 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Handle click "Увійти" – same UX as ritual_service pages
-    document.getElementById('loginSubmit')?.addEventListener('click', () => {
-        const login = document.getElementById('loginInput').value.trim();
-        const pass = document.getElementById('passwordInput').value.trim();
-        const errEl = document.getElementById('loginError');
-        errEl.textContent = '';
+    (() => {
+        // Grab login modal pieces
+        const modal = document.getElementById('loginModal');
+        const box = modal?.querySelector('.login-box');
+        const titleEl = box?.querySelector('h2');
+        const loginEl = document.getElementById('loginInput');     // login (email)
+        const passEl = document.getElementById('passwordInput');  // password
+        const submitBtn = document.getElementById('loginSubmit');    // main button
+        const errEl = document.getElementById('loginError');     // error text
+        const forgotEl = document.getElementById('forgotPassword'); // "Забули…"
 
-        if (!premiumLock || !premiumCreds) {
-            errEl.textContent = 'Авторизація недоступна';
-            return;
+        if (!modal || !box || !titleEl || !loginEl || !passEl || !submitBtn || !forgotEl) return;
+
+        // Modes: login (default), reset1 (enter email), reset2 (enter code+new pw)
+        let authMode = 'login';
+        let resetEmailEl = null;
+        let resetCodeEl = null;
+        let resetNewPassEl = null;
+        let backToLoginEl = null;
+
+        function clearMsg() { if (errEl) { errEl.textContent = ''; errEl.style.color = ''; } }
+
+        function ensureBackLink() {
+            if (backToLoginEl) return;
+            backToLoginEl = document.createElement('p');
+            backToLoginEl.className = 'forgot-password';
+            backToLoginEl.textContent = '← Повернутися до входу';
+            backToLoginEl.style.textAlign = 'center';
+            backToLoginEl.style.marginTop = '4px';
+            backToLoginEl.addEventListener('click', switchToLogin);
+            errEl?.before(backToLoginEl);
         }
 
-        if (login === premiumCreds.login && pass === premiumCreds.password) {
-            // Persist a token – mirror ritual_service flow but scoped per person
-            const tokenKey = `people_token_${personId}`;
-            localStorage.setItem(tokenKey, btoa(`${personId}:${Date.now()}`));
-
-            // Redirect to edit page (token read there)
-            window.location.href = `/profile_edit.html?personId=${personId}`;
-        } else {
-            errEl.textContent = 'Невірний логін або пароль';
+        function removeResetFields() {
+            resetEmailEl?.remove(); resetEmailEl = null;
+            resetCodeEl?.remove(); resetCodeEl = null;
+            resetNewPassEl?.remove(); resetNewPassEl = null;
+            backToLoginEl?.remove(); backToLoginEl = null;
         }
-    });
+
+        function switchToLogin() {
+            authMode = 'login';
+            clearMsg();
+            titleEl.textContent = 'Авторизація';
+            loginEl.hidden = false;
+            passEl.hidden = false;
+            forgotEl.hidden = false;
+            submitBtn.textContent = 'Увійти';
+            removeResetFields();
+        }
+
+        function switchToResetStep1() {
+            authMode = 'reset1';
+            clearMsg();
+            titleEl.textContent = 'Скидання паролю';
+            // hide default fields
+            loginEl.hidden = true;
+            passEl.hidden = true;
+            forgotEl.hidden = true;
+
+            // create email input (same look as your modal inputs)
+            resetEmailEl = document.createElement('input');
+            resetEmailEl.type = 'email';
+            resetEmailEl.id = 'resetEmail';
+            resetEmailEl.placeholder = 'Електронна пошта';
+            resetEmailEl.autocomplete = 'email';
+            resetEmailEl.className = loginEl.className;
+            passEl.after(resetEmailEl);
+
+            submitBtn.textContent = 'Надіслати код';
+            ensureBackLink();
+        }
+
+        function switchToResetStep2() {
+            authMode = 'reset2';
+            clearMsg();
+            titleEl.textContent = 'Введіть код та новий пароль';
+
+            if (!resetEmailEl) switchToResetStep1();
+
+            resetCodeEl = document.createElement('input');
+            resetCodeEl.type = 'text';
+            resetCodeEl.id = 'resetCode';
+            resetCodeEl.placeholder = 'Код підтвердження';
+            resetCodeEl.className = loginEl.className;
+
+            resetNewPassEl = document.createElement('input');
+            resetNewPassEl.type = 'password';
+            resetNewPassEl.id = 'resetNewPassword';
+            resetNewPassEl.placeholder = 'Новий пароль';
+            resetNewPassEl.className = passEl.className;
+
+            resetEmailEl.after(resetCodeEl);
+            resetCodeEl.after(resetNewPassEl);
+
+            submitBtn.textContent = 'Змінити пароль';
+            ensureBackLink();
+        }
+
+        // Hook the "forgot password" link
+        forgotEl.addEventListener('click', switchToResetStep1);
+
+        // Reuse the same submit button for all modes
+        submitBtn.addEventListener('click', async () => {
+            clearMsg();
+
+            try {
+                if (authMode === 'login') {
+                    // keep your login request behavior: redirect to /profile_edit.html?personId=...
+                    const login = loginEl.value.trim();
+                    const password = passEl.value.trim();
+                    if (!login || !password) { errEl.textContent = 'Вкажіть логін і пароль'; return; }
+
+                    const res = await fetch(`${API_BASE}/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ person_id: personId, login, password })
+                    });
+                    if (!res.ok) throw new Error('Невірні дані');
+                    const result = await res.json();
+
+                    const parts = [];
+                    const params = new URLSearchParams(window.location.search);
+                    const from = params.get('from');
+                    const backTo = params.get('backTo');
+                    if (from) parts.push(`from=${encodeURIComponent(from)}`);
+                    if (backTo) parts.push(`backTo=${encodeURIComponent(backTo)}`);
+                    const suffix = parts.length ? `&${parts.join('&')}` : '';
+
+                    // Persist token scoped per person (you already use this pattern above)
+                    const tokenKey = `people_token_${personId}`;
+                    localStorage.setItem(tokenKey, result.token);
+
+                    window.location.href = `/profile_edit.html?personId=${encodeURIComponent(personId)}${suffix}`;
+                    return;
+                }
+
+                if (authMode === 'reset1') {
+                    const email = resetEmailEl?.value.trim();
+                    if (!email) { errEl.textContent = 'Вкажіть електронну пошту'; return; }
+
+                    const res = await fetch(`${PREMIUM_AUTH}/request-reset`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email })
+                    });
+                    if (!res.ok) throw new Error('Не вдалося надіслати код');
+
+                    // success → step 2
+                    switchToResetStep2();
+                    errEl.style.color = '#1B8B59';
+                    errEl.textContent = 'Код надіслано на вашу пошту.';
+                    setTimeout(() => { clearMsg(); }, 3000);
+                    return;
+                }
+
+                if (authMode === 'reset2') {
+                    const email = resetEmailEl?.value.trim();
+                    const code = resetCodeEl?.value.trim();
+                    const newPassword = resetNewPassEl?.value.trim();
+                    if (!email || !code || !newPassword) {
+                        errEl.textContent = 'Заповніть всі поля';
+                        return;
+                    }
+
+                    const res = await fetch(`${PREMIUM_AUTH}/reset`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, code, newPassword })
+                    });
+                    if (!res.ok) {
+                        const t = await res.text().catch(() => '');
+                        throw new Error(t || 'Не вдалося змінити пароль');
+                    }
+
+                    // back to login with success message
+                    switchToLogin();
+                    errEl.style.color = '#1B8B59';
+                    errEl.textContent = 'Пароль змінено. Увійдіть з новим паролем.';
+                    setTimeout(() => { clearMsg(); }, 3000);
+                    return;
+                }
+            } catch (e) {
+                errEl.style.color = '#e11d48';
+                errEl.textContent = (e && e.message) ? e.message : 'Сталася помилка';
+            }
+        });
+
+        // Ensure the modal always opens in login mode
+        switchToLogin();
+    })();
 
     // Dots → Relatives “Добавити / Вибрати”
     document.getElementById('rel-add-option')?.addEventListener('click', () => addRelBtn?.click());

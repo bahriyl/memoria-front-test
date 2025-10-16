@@ -103,7 +103,7 @@
             <!-- Інлайнових кнопок для “Вибрати” немає; все через dots -->
             <div class="shared-controls">
                 <button id="shared-delete-btn" class="btn photo-btn">Видалити</button>
-                <input type="file" id="shared-input" accept="image/*" multiple hidden />
+                <input type="file" id="shared-input" accept="image/*,video/*" multiple hidden />
             </div>
 
             <div class="shared-scroll">
@@ -132,7 +132,7 @@
                 <button id="delete-photo-btn" class="btn photo-btn">Видалити</button>
 
                 <!-- Hidden file input instead of modal -->
-                <input type="file" id="photo-input" accept="image/*" multiple hidden />
+                <input type="file" id="photo-input" accept="image/*,video/*" multiple hidden />
             </div>
             <div class="photos-scroll">
                 <ul class="photos-list"></ul>
@@ -431,6 +431,30 @@
 
             <!-- Submit -->
             <button id="relSubmit" class="modal-submit-btn" style="margin-top:14px">Додати родича</button>
+        </div>
+    </div>
+
+    <!-- Premium player modal -->
+    <div id="rs-video-modal" class="rs-video-modal" hidden>
+        <span class="close-slideshow">✕</span>
+        <div class="rs-video-backdrop"></div>
+        <div class="video-wrapper">
+            <video id="rsVideo" playsinline webkit-playsinline preload="metadata"
+                controlsList="nodownload noremoteplayback" disablePictureInPicture src="" poster=""></video>
+
+            <!-- big play overlay -->
+            <button class="overlay-play" id="rsOverlayPlay" aria-label="Play">
+                <svg viewBox="0 0 24 24" fill="white">
+                    <path d="M8 5v14l11-7z"></path>
+                </svg>
+            </button>
+
+            <!-- custom controls -->
+            <div class="controls" id="rsControls">
+                <button id="rsPlayPause" class="hud-pill hud-left" aria-label="Pause"></button>
+                <span id="rsTimeLabel" class="hud-pill hud-right">0:00</span>
+                <input type="range" id="rsProgress" min="0" max="100" value="0" />
+            </div>
         </div>
     </div>
 

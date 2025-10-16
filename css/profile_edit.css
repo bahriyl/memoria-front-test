@@ -267,3 +267,256 @@
   max-height: 80vh;
   overflow: hidden;
 }
+
+/* ===== Premium player (modal) ===== */
+.rs-video-modal[hidden] {
+  display: none;
+}
+
+.rs-video-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.rs-video-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .7);
+}
+
+.video-wrapper {
+  /* copied from premium_qr.css */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 420px);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  overflow: hidden;
+}
+
+.video-wrapper video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* big center play button */
+.overlay-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 89px;
+  height: 61px;
+  background: #168251;
+  border-radius: 15px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.overlay-play svg {
+  width: 47px;
+  height: 47px;
+}
+
+/* hide native controls (as in premium) */
+.video-wrapper video::-internal-media-controls,
+.video-wrapper video::-webkit-media-controls {
+  display: none !important;
+}
+
+video::-webkit-media-controls,
+video::-webkit-media-controls-enclosure,
+video::-webkit-media-controls-panel,
+video::-webkit-media-controls-overlay-play-button,
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* custom controls bar */
+#rs-video-modal .controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  /* enough room for pills + slider */
+  padding: 0 12px 8px;
+  display: flex;
+  align-items: flex-end;
+  /* slider sits at the bottom */
+  justify-content: center;
+  gap: 0;
+  pointer-events: auto;
+  /* controls are clickable */
+}
+
+/* Progress spans the full width */
+#rsProgress {
+  width: 100%;
+  appearance: none;
+  height: 4px;
+  background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)) padding-box,
+    rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(2px);
+  border-radius: 999px;
+  outline: none;
+  margin: 0;
+  /* no extra gaps */
+}
+
+#rsProgress::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+}
+
+#rsProgress::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+}
+
+/* Green HUD pills sitting ABOVE the progress, left/right */
+#rs-video-modal .hud-pill {
+  position: absolute;
+  bottom: 28px;
+  /* sits over the track like screenshot */
+  height: 28px;
+  padding: 0 12px;
+  background: #1b8b59;
+  /* your accent green */
+  color: #fff;
+  font: 600 12px/28px "Montserrat", sans-serif;
+  border: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+#rs-video-modal .hud-left {
+  left: 12px;
+}
+
+#rs-video-modal .hud-right {
+  right: 12px;
+}
+
+/* Icon inside play/pause pill */
+#rsPlayPause svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+/* Hide the big green overlay while paused/played as your logic dictates (unchanged) */
+#rs-video-modal .overlay-play {
+  /* keep from premium */
+  /* unchanged; still centered big button */
+}
+
+.slideshow-modal-media .slideshow-slide.is-video {
+  background: #000;
+}
+
+.slideshow-video-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slideshow-modal-media .slideshow-video {
+  width: 100vw;
+  height: auto;
+  max-height: 100vh;
+  object-fit: contain;
+  background: #000;
+}
+
+.slideshow-modal-media .slideshow-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  padding: 0 12px 12px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0;
+  pointer-events: auto;
+}
+
+.slideshow-modal-media .slideshow-progress {
+  width: 100%;
+  appearance: none;
+  height: 4px;
+  background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)) padding-box,
+    rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(2px);
+  border-radius: 999px;
+  outline: none;
+  margin: 0;
+}
+
+.slideshow-modal-media .slideshow-progress::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+}
+
+.slideshow-modal-media .slideshow-progress::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+}
+
+.slideshow-modal-media .hud-pill {
+  position: absolute;
+  bottom: 28px;
+  height: 28px;
+  padding: 0 12px;
+  background: #1b8b59;
+  color: #fff;
+  font: 600 12px/28px "Montserrat", sans-serif;
+  border: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.slideshow-modal-media .hud-left {
+  left: 12px;
+}
+
+.slideshow-modal-media .hud-right {
+  right: 12px;
+}

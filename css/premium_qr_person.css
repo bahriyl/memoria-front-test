@@ -875,3 +875,50 @@ input[type="text"]::placeholder {
     pointer-events: none;
     cursor: default;
 }
+
+/* === Delivery modal inputs: unify look + fix invisible text === */
+.modal-form input[type="text"],
+.modal-form input[type="tel"],
+.modal-form input[type="email"] {
+    width: 100%;
+    height: 54px;
+    /* match the rest of the app */
+    box-sizing: border-box;
+    background: #F1F3F5;
+    /* light grey like on profile/login */
+    border: none;
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 16px;
+    font-weight: 460;
+    font-family: 'Montserrat', sans-serif;
+    color: #1C170D;
+    /* dark text so it’s readable */
+    outline: none;
+}
+
+/* placeholders */
+.modal-form input::placeholder {
+    color: #9CA3AF;
+    opacity: 1;
+    font-family: 'Montserrat', sans-serif;
+}
+
+/* error state already exists; just ensure it’s visible with the new bg */
+.modal-form .input-error {
+    border: 1px solid #E5484D;
+}
+
+/* iOS/Safari autofill + typing visibility fix */
+.modal-form input:-webkit-autofill,
+.modal-form input:-webkit-autofill:hover,
+.modal-form input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #1C170D;
+    box-shadow: 0 0 0px 1000px #F1F3F5 inset;
+    border-radius: 14px;
+}
+
+/* caret color for consistency */
+.modal-form input {
+    caret-color: #1C170D;
+}

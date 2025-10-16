@@ -71,7 +71,7 @@ function renderCompanies(list) {
         <img src="${c.logo}" alt="${c.name}" />
         <div class="company-info">
           <div class="company-name">${c.name}</div>
-          <div class="company-address">${c.address}</div>
+          <div class="company-address">${c.address[0]}</div>
         </div>`;
 
       a.appendChild(li);

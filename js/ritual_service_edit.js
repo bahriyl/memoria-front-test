@@ -37,9 +37,7 @@ function normalizeItems(struct) {
         if (typeof x === "string") return { photos: [x], description: "" };
         if (Array.isArray(x)) return { photos: x, description: "" };
         return {
-          ...(x?.video?.player
-            ? { video: { player: x.video.player, poster: x.video.poster || "" } }
-            : { photos: Array.isArray(x?.photos) ? x.photos : [] }),
+          photos: Array.isArray(x?.photos) ? x.photos : [],
           description: (x?.description || "").toString(),
         };
       })
@@ -149,93 +147,6 @@ async function uploadToImgBB(file) {
   const url = json?.data?.url;
   if (!url) throw new Error("IMGBB: no url");
   return url;
-}
-
-async function getSpacesUploadUrl(filename, contentType) {
-  const params = new URLSearchParams({ filename, contentType });
-  const r = await fetch(`${API}/spaces/video-upload-url?` + params, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  if (!r.ok) throw new Error("Failed to get Spaces upload URL");
-  return r.json(); // { uploadUrl, objectUrl, key, expiresIn }
-}
-
-async function uploadVideoToSpaces(file) {
-  // Normalize name & content type
-  const contentType = file.type || "video/mp4";
-  const filename = (file.name ? file.name.replace(/\s+/g, "_") : `video_${Date.now()}.mp4`);
-
-  // 1) Get presigned PUT URL + key
-  const meta = await getSpacesUploadUrl(filename, contentType);
-
-  // 2) Upload video bytes directly to Spaces
-  const put = await fetch(meta.uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: file,
-  });
-  if (!put.ok) throw new Error(`Spaces upload failed: ${put.status}`);
-
-  // 3) Make video public (server-side ACL)
-  const makePublicRes = await fetch(`${API}/spaces/make-public`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ key: meta.key }),
-  });
-  if (!makePublicRes.ok) throw new Error(`make-public failed: ${makePublicRes.status}`);
-  const { objectUrl: playerUrlFromServer } = await makePublicRes.json();
-  const player = playerUrlFromServer || meta.objectUrl;
-
-  // 4) Generate poster from the local file and upload it (ImgBB)
-  let poster = "";
-  try {
-    const posterBlob = await capturePosterFromVideoFile(file, 0.8); // first ~second
-    // imgBB wants a File; wrap blob to preserve filename
-    const posterFile = new File([posterBlob], (filename.replace(/\.[^.]+$/, "") || "poster") + ".jpg", { type: "image/jpeg" });
-    poster = await uploadToImgBB(posterFile);
-  } catch (e) {
-    console.warn("Poster generation failed, using empty poster", e);
-  }
-
-  return { player, poster };
-}
-
-async function capturePosterFromVideoFile(file, atSeconds = 0.8) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    video.src = url;
-    video.muted = true;
-    video.playsInline = true;
-    video.crossOrigin = "anonymous";
-    video.addEventListener("loadedmetadata", () => {
-      const target = Math.min(Math.max(0.01, atSeconds), Math.max(0.01, (video.duration || 1) - 0.01));
-      const seekTo = isFinite(target) ? target : 0.5;
-      const onSeeked = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = video.videoWidth || 800;
-          canvas.height = video.videoHeight || 450;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob((blob) => {
-            URL.revokeObjectURL(url);
-            if (!blob) return reject(new Error("poster toBlob failed"));
-            resolve(blob);
-          }, "image/jpeg", 0.85);
-        } catch (err) {
-          URL.revokeObjectURL(url);
-          reject(err);
-        }
-      };
-      video.currentTime = seekTo;
-      video.addEventListener("seeked", onSeeked, { once: true });
-    }, { once: true });
-    video.addEventListener("error", (e) => {
-      URL.revokeObjectURL(url);
-      reject(new Error("video load error"));
-    }, { once: true });
-  });
 }
 
 function applyAbout(text) {
@@ -389,7 +300,7 @@ function renderData(data) {
     // Hidden file input for "Добавити"
     const fileInput = document.createElement("input");
     fileInput.type = "file";
-    fileInput.accept = "image/*,video/*";
+    fileInput.accept = "image/*";
     fileInput.multiple = true;
     fileInput.style.display = "none";
 
@@ -412,47 +323,11 @@ function renderData(data) {
       }
 
       albums.forEach((album) => {
-        // --- VIDEO tile ---
-        // --- VIDEO tile ---
-        if (album.video?.player) {
-          const wrap = document.createElement("div");
-          wrap.className = "image-wrap";
-          wrap.dataset.coverKey = `video:${album.video.player}`;
-
-          const img = document.createElement("img");
-          img.src = album.video.poster || ""; // will be real poster after upload; empty shows broken? fallback below
-          img.alt = title;
-          img.className = "item-image";
-          if (!album.video.poster) {
-            // gentle neutral fallback bg (keeps layout)
-            img.src = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect width='100%25' height='100%25' fill='%23e9eef3'/%3E%3C/svg%3E";
-          }
-
-          const badge = document.createElement("span");
-          badge.className = "select-badge";
-
-          // small play badge (top-right)
-          const playBadge = document.createElement("span");
-          playBadge.className = "video-play-badge";
-          playBadge.innerHTML = `<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M96 52v408l320-204L96 52z"/></svg>`;
-
-          wrap.addEventListener("click", (e) => {
-            e.preventDefault();
-            if (isSelecting) { toggleSelect(wrap); return; }
-            openPremiumPlayer(album.video.player, album.video.poster || "");
-          });
-
-          wrap.append(img, badge, playBadge);
-          imagesContainer.appendChild(wrap);
-          return;
-        }
-        // --- PHOTO tile ---
         if (!album.photos?.length) return;
         const cover = album.photos[0];
 
         const wrap = document.createElement("div");
         wrap.className = "image-wrap";
-        wrap.dataset.coverKey = `photo:${cover}`;
 
         const img = document.createElement("img");
         img.src = cover;
@@ -580,12 +455,10 @@ function renderData(data) {
         // confirm deletion
         if (okBtn) {
           okBtn.onclick = async () => {
-            const toRemove = new Set(selectedOrder.map(w => w.dataset.coverKey));
+            const toRemove = new Set(selectedOrder.map(w => w.querySelector('img').src));
             ritualData.items[index][1] = ritualData.items[index][1].filter(album => {
-              const key = album?.video?.player ? `video:${album.video.player}`
-                : album?.photos?.[0] ? `photo:${album.photos[0]}`
-                  : "";
-              return key && !toRemove.has(key);
+              const cover = album?.photos?.[0];
+              return !toRemove.has(cover);
             });
 
             selectedOrder = [];
@@ -628,14 +501,15 @@ function renderData(data) {
 
     // ==== ADD PHOTOS HANDLER with Album/Photo modal ====
     fileInput.addEventListener("change", async (e) => {
-      const all = Array.from(e.target.files || []);
-      if (!all.length) return;
+      // collect selected files
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
 
-      // split by MIME
-      const imageFiles = all.filter(f => f.type.startsWith("image/"));
-      const videoFiles = all.filter(f => f.type.startsWith("video/"));
+      // create local blob previews and temp captions
+      const previews = files.map(f => URL.createObjectURL(f));
+      const tempCaptions = new Array(previews.length).fill("");
 
-      // --- modal nodes (IMAGES only, unchanged UX) ---
+      // modal nodes
       const overlay = document.getElementById("modal-overlay");
       const dlg = document.getElementById("photo-desc-modal");
       const closeX = document.getElementById("photo-desc-close");
@@ -646,123 +520,140 @@ function renderData(data) {
       const modeAlbum = document.getElementById("mode-album");
       const modePhoto = document.getElementById("mode-photo");
 
-      // Ensure grid visible
-      section.querySelector(".photos-empty")?.remove();
-      if (!section.contains(imagesContainer)) section.appendChild(imagesContainer);
-      imagesContainer.classList.add("one-row");
+      // selection state within modal
+      let sel = 0;
+      let confirmed = false;
 
-      // --- Temporary "uploading" tiles (for all selected) ---
-      const tempWraps = [];
-      const previewsImg = imageFiles.map(f => URL.createObjectURL(f));
-      const previewsVid = videoFiles.map(f => URL.createObjectURL(f));
-      function addTempTile(node) {
-        const wrap = document.createElement("div");
-        wrap.className = "image-wrap uploading";
-        const hint = document.createElement("div");
-        hint.className = "uploading-hint";
-        hint.textContent = "Завантаження…";
-        wrap.append(node, hint);
-        imagesContainer.prepend(wrap);
-        tempWraps.push(wrap);
+      // persist textarea text to current selected preview
+      function commitCurrent() {
+        if (!previews.length) return;
+        tempCaptions[sel] = (textEl.value || "").trim();
       }
-      // images as <img>
-      previewsImg.forEach(src => {
+
+      // render thumbs list; disabled=true in album mode (no per-photo edits/deletes)
+      function renderThumbs(disabled) {
+        thumbsEl.innerHTML = "";
+        previews.forEach((src, i) => {
+          const wrap = document.createElement("div");
+          wrap.className = "photo-desc-thumb" + (i === sel ? " is-selected" : "");
+          wrap.innerHTML = `
+        <img src="${src}" alt="">
+        <button class="thumb-x" data-i="${i}" ${disabled ? "disabled" : ""}>
+          <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>`;
+          if (!disabled) {
+            wrap.addEventListener("click", (ev) => {
+              if (ev.target.closest(".thumb-x")) return; // ignore delete button
+              commitCurrent();                            // keep text of previous
+              sel = i;                                    // set new selection
+              renderThumbs(false);                        // re-render with highlight
+              textEl.value = tempCaptions[sel] || "";     // load text for new sel
+            });
+          }
+          thumbsEl.appendChild(wrap);
+        });
+        countEl.textContent = String(previews.length);    // update counter
+      }
+
+      // deletion of a preview in PHOTO mode
+      thumbsEl.onclick = (ev) => {
+        const btn = ev.target.closest('.thumb-x');
+        if (!btn) return;
+        if (modeAlbum.checked) return;                   // deletion disabled in album
+
+        const i = Number(btn.dataset.i);
+        commitCurrent();                                 // keep current text
+
+        // revoke blob, remove from all arrays so it won't upload later
+        try { URL.revokeObjectURL(previews[i]); } catch { }
+
+        previews.splice(i, 1);
+        tempCaptions.splice(i, 1);
+        files.splice(i, 1);
+
+        // fix selection index
+        if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
+
+        // if nothing left, close modal
+        if (previews.length === 0) {
+          closeModal();
+          return;
+        }
+
+        // repaint and restore textarea
+        renderThumbs(false);
+        textEl.value = tempCaptions[sel] || '';
+      };
+
+      // open/close helpers
+      function openModal() { overlay.hidden = false; dlg.hidden = false; }
+      function closeModal() { overlay.hidden = true; dlg.hidden = true; }
+
+      // toggle UI by mode (Album → one shared description; Photo → per-photo)
+      function applyModeUI() {
+        if (modeAlbum.checked) {
+          renderThumbs(true);                 // disable clicks/deletes
+          sel = 0;                            // irrelevant in album mode
+          textEl.value = tempCaptions[0] || "";
+        } else {
+          renderThumbs(false);                // enable per-photo selection
+          textEl.value = tempCaptions[sel] || "";
+        }
+      }
+
+      // show modal and wire controls
+      openModal();
+      applyModeUI();
+
+      closeX.onclick = () => { closeModal(); };
+      overlay.addEventListener("click", closeModal, { once: true });
+
+      okBtn.onclick = () => {
+        commitCurrent();      // save text of current selection
+        confirmed = true;     // mark user confirmation
+        closeModal();         // close the modal
+      };
+
+      // wait until modal actually closes
+      await new Promise((r) => {
+        const iv = setInterval(() => { if (dlg.hidden) { clearInterval(iv); r(); } }, 60);
+      });
+
+      // if cancelled or no images, clean and exit
+      if (!confirmed || previews.length === 0) {
+        previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
+        e.target.value = "";
+        return;
+      }
+
+      // ensure the section has a visible grid before uploading
+      section.querySelector(".photos-empty")?.remove();         // drop empty-state
+      if (!section.contains(imagesContainer)) section.appendChild(imagesContainer);
+      imagesContainer.classList.add("one-row");                 // same as profile grid
+
+      // create temporary "uploading" tiles with spinner overlay
+      const tempWraps = [];
+      previews.forEach((src) => {
+        const wrap = document.createElement("div");
+        wrap.className = "image-wrap uploading";                // triggers overlay CSS
+
         const img = document.createElement("img");
         img.className = "item-image";
         img.src = src;
-        addTempTile(img);
+
+        const hint = document.createElement("div");
+        hint.className = "uploading-hint";
+        hint.textContent = "Завантаження…";
+
+        wrap.append(img, hint);
+        imagesContainer.prepend(wrap);                          // newest first
+        tempWraps.push(wrap);
       });
-      // videos as <video> (quick visual while uploading)
-      previewsVid.forEach(src => {
-        const v = document.createElement("video");
-        v.className = "item-image";
-        v.src = src;
-        v.muted = true; v.playsInline = true;
-        addTempTile(v);
-      });
 
-      // IMAGES: your existing modal flow (unchanged, just scoped to imageFiles)
-      let confirmed = true;
-      let captions = [];
-      let albumCommonDesc = "";
-      if (imageFiles.length) {
-        let sel = 0;
-        const previews = [...previewsImg];
-        const tempCaptions = new Array(previews.length).fill("");
-
-        function commitCurrent() { if (previews.length) tempCaptions[sel] = (textEl.value || "").trim(); }
-
-        function renderThumbs(disabled) {
-          thumbsEl.innerHTML = "";
-          previews.forEach((src, i) => {
-            const wrap = document.createElement("div");
-            wrap.className = "photo-desc-thumb" + (i === sel ? " is-selected" : "");
-            wrap.innerHTML = `
-          <img src="${src}" alt="">
-          <button class="thumb-x" data-i="${i}" ${disabled ? "disabled" : ""}>
-            <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>`;
-            if (!disabled) {
-              wrap.addEventListener("click", (ev) => {
-                if (ev.target.closest(".thumb-x")) return;
-                commitCurrent();
-                sel = i;
-                renderThumbs(false);
-                textEl.value = tempCaptions[sel] || "";
-              });
-            }
-            thumbsEl.appendChild(wrap);
-          });
-          countEl.textContent = String(previews.length);
-        }
-
-        thumbsEl.onclick = (ev) => {
-          const btn = ev.target.closest('.thumb-x');
-          if (!btn || modeAlbum.checked) return;
-          const i = Number(btn.dataset.i);
-          commitCurrent();
-          try { URL.revokeObjectURL(previews[i]); } catch { }
-          previews.splice(i, 1);
-          tempCaptions.splice(i, 1);
-          imageFiles.splice(i, 1);
-          if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
-          if (!previews.length) { closeModal(); return; }
-          renderThumbs(false);
-          textEl.value = tempCaptions[sel] || "";
-        };
-
-        function openModal() { overlay.hidden = false; dlg.hidden = false; }
-        function closeModal() { overlay.hidden = true; dlg.hidden = true; }
-
-        function applyModeUI() {
-          if (modeAlbum.checked) { renderThumbs(true); sel = 0; textEl.value = tempCaptions[0] || ""; }
-          else { renderThumbs(false); textEl.value = tempCaptions[sel] || ""; }
-        }
-
-        openModal(); applyModeUI();
-        closeX.onclick = () => { closeModal(); };
-        overlay.addEventListener("click", closeModal, { once: true });
-        okBtn.onclick = () => { commitCurrent(); confirmed = true; closeModal(); };
-
-        await new Promise((r) => {
-          const iv = setInterval(() => { if (dlg.hidden) { clearInterval(iv); r(); } }, 60);
-        });
-
-        if (!confirmed || previews.length === 0) {
-          previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
-          // remove just the image temp tiles
-          for (let i = 0; i < previewsImg.length; i++) tempWraps[i]?.remove();
-          previewsImg.length = 0; imageFiles.length = 0;
-        } else {
-          if (modeAlbum.checked) albumCommonDesc = (tempCaptions[0] || "").trim();
-          else captions = tempCaptions.map(v => (v || "").trim());
-        }
-      }
-
-      // uploader (ImgBB stays the same)
+      // uploader (ImgBB)
       async function uploadToImgBB(file) {
         const formData = new FormData();
         formData.append("image", file);
@@ -772,42 +663,42 @@ function renderData(data) {
         return json.data.url;
       }
 
+      // perform uploads in selected mode and persist
       try {
-        // 1) Images → ImgBB (exactly your old logic)
-        if (imageFiles.length) {
-          if (modeAlbum.checked) {
-            const urls = [];
-            for (let i = 0; i < imageFiles.length; i++) {
-              urls.push(await uploadToImgBB(imageFiles[i]));
-            }
-            albums.push({ photos: urls, description: albumCommonDesc });
-          } else {
-            for (let i = 0; i < imageFiles.length; i++) {
-              const u = await uploadToImgBB(imageFiles[i]);
-              const d = captions[i] || "";
-              albums.push({ photos: [u], description: d });
-            }
+        if (modeAlbum.checked) {
+          // one album with N photos and a single shared description
+          const urls = [];
+          for (let i = 0; i < files.length; i++) {
+            const u = await uploadToImgBB(files[i]);
+            urls.push(u);
+          }
+          const commonDesc = (tempCaptions[0] || "").trim();
+          albums.push({ photos: urls, description: commonDesc });
+        } else {
+          // N albums, each with 1 photo and its own description
+          for (let i = 0; i < files.length; i++) {
+            const u = await uploadToImgBB(files[i]);
+            const d = (tempCaptions[i] || "").trim();
+            albums.push({ photos: [u], description: d });
           }
         }
 
-        // 2) Videos → Spaces (each video becomes its own album)
-        if (videoFiles.length) {
-          const descForVideos = modeAlbum.checked ? albumCommonDesc : "";
-          for (let i = 0; i < videoFiles.length; i++) {
-            const { player, poster } = await uploadVideoToSpaces(videoFiles[i]);
-            albums.push({ video: { player, poster }, description: descForVideos });
-          }
-        }
-
+        // rebuild UI from canonical data (removes temp tiles)
         renderImages();
+
+        // persist to backend
         await updateItems(ritualData.items);
+
+        // belt-and-suspenders: ensure temp tiles are gone
         tempWraps.forEach(w => w.remove());
       } catch (err) {
         console.error("Upload failed", err);
-        alert("Не вдалося завантажити медіа");
+        alert("Не вдалося завантажити фото");
+        // remove temp tiles on error
         tempWraps.forEach(w => w.remove());
       } finally {
-        [...previewsImg, ...previewsVid].forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
+        // free blobs and reset input
+        previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
         e.target.value = "";
       }
     });
@@ -1116,98 +1007,6 @@ function openAddCategoryModal() {
   input.onkeydown = (e) => {
     if (e.key === "Enter") { e.preventDefault(); okBtn.click(); }
   };
-}
-
-function openPremiumPlayer(src, poster = "") {
-  const modal = document.getElementById("rs-video-modal");
-  const backdrop = modal.querySelector(".rs-video-backdrop");
-  const video = document.getElementById("rsVideo");
-  const overlayPlay = document.getElementById("rsOverlayPlay");
-  const playPause = document.getElementById("rsPlayPause");
-  const progress = document.getElementById("rsProgress");
-  const timeLabel = document.getElementById("rsTimeLabel");
-  const controls = document.getElementById("rsControls");
-  const btnClose = document.getElementById("rsClose");
-
-  // set src/poster and show
-  video.src = src;
-  video.poster = poster || video.poster || "";
-  modal.hidden = false;
-  document.body.style.overflow = "hidden";
-
-  // match premium_qr logic
-  video.controls = false;
-
-  function setSmallIcon(isPlaying) {
-    playPause.innerHTML = isPlaying
-      ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>'
-      : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-  }
-
-  function showPausedUI() {
-    overlayPlay.style.display = 'flex';
-    controls.classList.remove('is-playing');
-    setSmallIcon(false);
-  }
-
-  // events (from premium_qr.js)
-  video.addEventListener('play', () => {
-    overlayPlay.style.display = 'none';
-    controls.classList.add('is-playing');
-    setSmallIcon(true);
-  });
-  video.addEventListener('pause', showPausedUI);
-  video.addEventListener('ended', showPausedUI);
-
-  video.addEventListener('click', () => {
-    if (video.paused) video.play(); else video.pause();
-  });
-
-  // init state
-  overlayPlay.style.display = 'flex';
-  playPause.style.display = 'none';
-
-  overlayPlay.addEventListener('click', () => {
-    if (video.paused) video.play(); else video.pause();
-  });
-  playPause.addEventListener('click', () => {
-    if (video.paused) video.play(); else video.pause();
-  });
-
-  video.addEventListener('play', () => {
-    overlayPlay.style.display = 'none';
-    playPause.style.display = 'flex';
-    setSmallIcon(true);
-  });
-  video.addEventListener('pause', () => {
-    overlayPlay.style.display = 'flex';
-    playPause.style.display = 'none';
-    setSmallIcon(false);
-  });
-
-  video.addEventListener('timeupdate', () => {
-    const pct = video.duration ? (video.currentTime / video.duration) * 100 : 0;
-    progress.value = pct;
-    const m = Math.floor(video.currentTime / 60);
-    const s = String(Math.floor(video.currentTime % 60)).padStart(2, '0');
-    timeLabel.textContent = `${m}:${s}`;
-  });
-
-  progress.addEventListener('input', () => {
-    if (!video.duration) return;
-    video.currentTime = (progress.value / 100) * video.duration;
-  });
-
-  function close() {
-    try { video.pause(); } catch { }
-    modal.hidden = true;
-    document.body.style.overflow = "";
-    // clean src so iOS releases decoder
-    video.removeAttribute('src');
-    video.load();
-  }
-  btnClose.addEventListener('click', close, { once: true });
-  backdrop.addEventListener('click', close, { once: true });
 }
 
 function openSlideshow(images, startIndex = 0, captions = []) {

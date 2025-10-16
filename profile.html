@@ -103,7 +103,7 @@
             <div class="shared-controls">
                 <button id="shared-add-btn" class="btn photo-btn">Добавити</button>
                 <button id="shared-delete-btn" class="btn photo-btn">Видалити</button>
-                <input type="file" id="shared-input" accept="image/*" multiple hidden />
+                <input type="file" id="shared-input" accept="image/*,video/*" multiple hidden />
             </div>
 
             <div class="shared-scroll">
@@ -240,10 +240,10 @@
         <div id="avatar-cropper-overlay" class="avatar-cropper-overlay" hidden></div>
         <div id="avatar-cropper" class="avatar-cropper" hidden role="dialog" aria-modal="true"
             aria-labelledby="avatar-cropper-title">
-            <button id="avatar-cropper-cancel" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
-                height="28" aria-hidden="true">
-                <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
-            </svg></button>
+            <button id="avatar-cropper-cancel" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30"
+                    width="28" height="28" aria-hidden="true">
+                    <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+                </svg></button>
             <div class="avatar-cropper-header">
                 <h3 id="avatar-cropper-title">Розмістіть фото</h3>
             </div>
@@ -451,6 +451,30 @@
 
             <!-- Submit -->
             <button id="relSubmit" class="modal-submit-btn" style="margin-top:14px">Додати родича</button>
+        </div>
+    </div>
+
+    <!-- Premium player modal -->
+    <div id="rs-video-modal" class="rs-video-modal" hidden>
+        <span class="close-slideshow">✕</span>
+        <div class="rs-video-backdrop"></div>
+        <div class="video-wrapper">
+            <video id="rsVideo" playsinline webkit-playsinline preload="metadata"
+                controlsList="nodownload noremoteplayback" disablePictureInPicture src="" poster=""></video>
+
+            <!-- big play overlay -->
+            <button class="overlay-play" id="rsOverlayPlay" aria-label="Play">
+                <svg viewBox="0 0 24 24" fill="white">
+                    <path d="M8 5v14l11-7z"></path>
+                </svg>
+            </button>
+
+            <!-- custom controls -->
+            <div class="controls" id="rsControls">
+                <button id="rsPlayPause" class="hud-pill hud-left" aria-label="Pause"></button>
+                <span id="rsTimeLabel" class="hud-pill hud-right">0:00</span>
+                <input type="range" id="rsProgress" min="0" max="100" value="0" />
+            </div>
         </div>
     </div>
 
