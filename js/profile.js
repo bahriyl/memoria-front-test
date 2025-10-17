@@ -1584,6 +1584,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 controlsBar.style.display = 'none';
                 videoWrapper.appendChild(controlsBar);
 
+                // position controls to the bottom edge of the rendered video (object-fit: contain)
+                const updateControlsOffset = () => {
+                    // межі врапера і самого відео
+                    const wrapRect = videoWrapper.getBoundingClientRect();
+                    const vidRect = video.getBoundingClientRect();
+                    if (!wrapRect.width || !vidRect.width) return;
+
+                    // скільки «чорного поля» знизу (або 0, якщо відео торкається низу)
+                    const gap = Math.max(0, Math.round(wrapRect.bottom - vidRect.bottom));
+
+                    // піднімаємо панель рівно до низу відео
+                    controlsBar.style.bottom = `${gap}px`;
+                };
+
+                // реагуємо на всі зміни, що можуть вплинути на layout
+                const ro = new ResizeObserver(updateControlsOffset);
+                ro.observe(videoWrapper);
+                ro.observe(video);
+                window.addEventListener('resize', updateControlsOffset, { passive: true });
+                video.addEventListener('loadedmetadata', updateControlsOffset);
+                video.addEventListener('loadeddata', updateControlsOffset);
+                requestAnimationFrame(updateControlsOffset);
+
+                // (не обов'язково, але акуратно) прибрати спостерігач при закритті модалки:
+                closeBtnX?.addEventListener('click', () => ro.disconnect(), { once: true });
+
                 video.addEventListener('play', () => {
                     videoRefs.forEach(ref => {
                         if (ref.el !== video) ref.el.pause();
