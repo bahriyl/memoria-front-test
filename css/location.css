@@ -741,10 +741,6 @@ textarea:focus {
     /* щоб меню випливало під шапкою */
 }
 
-.section-landmarks .section-titlebar {
-    margin-top: 8px;
-}
-
 .section-titlebar h1,
 .section-titlebar h2 {
     margin: 0;

@@ -547,6 +547,8 @@ body {
   border: 0;
   color: #000;
   font-weight: 600;
+  font-size: 15px;
+  font-family: 'Montserrat', sans-serif;
   white-space: nowrap;
   cursor: pointer;
   vertical-align: baseline;

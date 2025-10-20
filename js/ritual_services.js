@@ -196,10 +196,12 @@ suggestionsList.addEventListener("click", (e) => {
 
   // тепер фільтруємо лише ті компанії, в яких є і місто, і область
   const direct = allCompanies.filter((c) => {
-    const addr = c.address.toLowerCase();
+    const addr = Array.isArray(c.address)
+      ? c.address.join(" ").toLowerCase()
+      : String(c.address || "").toLowerCase();
+
     const cityMatch = cityName && addr.includes(cityName.toLowerCase());
     const regionMatch = regionName && addr.includes(regionName.toLowerCase());
-    // якщо область не вказана (parts.length<2), просто перевіряємо по місту
     return regionName ? cityMatch && regionMatch : cityMatch;
   });
 

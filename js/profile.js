@@ -3272,7 +3272,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ person_id: personId, login, password })
                     });
-                    if (!res.ok) throw new Error('Невірні дані');
+                    if (!res.ok) throw new Error('Невірний логін або пароль');
                     const result = await res.json();
 
                     const parts = [];

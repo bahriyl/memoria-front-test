@@ -190,13 +190,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 || Boolean((textSource || '').trim());
             titleEl.style.setProperty('margin-bottom', hasLandmarksText ? '0' : '', 'important');
         }
+
+        // Add margin-top if location already exists
+        const titlebarEl = document.querySelector('.section-landmarks .section-titlebar');
+        if (titlebarEl) {
+            const hasLocation = Boolean(currentLocation.coords);
+            titlebarEl.style.marginTop = hasLocation ? '20px' : '';
+        }
     }
 
     function updatePhotosHeaderSpacing() {
         const titlebar = document.querySelector('.section-photos .section-titlebar');
         if (!titlebar) return;
         const hasCoords = Boolean(currentLocation.coords);
-        titlebar.style.marginTop = hasCoords ? '' : '28px';
+        titlebar.style.marginTop = hasCoords ? '' : '24px';
     }
 
     updatePhotosHeaderSpacing();

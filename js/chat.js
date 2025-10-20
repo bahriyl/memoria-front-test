@@ -12,7 +12,8 @@
   function updateSpacer() {
     const bar = document.querySelector(".input-bar");
     const spacer = document.getElementById("bottomSpacer");
-    if (bar && spacer) spacer.style.height = (bar.offsetHeight + 10) + "px";
+    // if (bar && spacer) spacer.style.height = (bar.offsetHeight + 10) + "px";
+    if (bar && spacer) spacer.style.height = 0 + "px";
   }
 
   function autosize(el) {

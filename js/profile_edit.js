@@ -2137,7 +2137,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2) upload bytes
         const put = await fetch(meta.uploadUrl, {
             method: "PUT",
-            headers: { "Content-Type": contentType },
             body: file,
         });
         if (!put.ok) throw new Error(`Spaces upload failed: ${put.status}`);

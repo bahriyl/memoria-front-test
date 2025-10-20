@@ -356,7 +356,7 @@ textarea {
   border: none;
   cursor: pointer;
   padding: 4px;
-  padding-top: 20px;
+  padding-top: 16px;
   padding-right: 14px;
 }
 
@@ -839,6 +839,8 @@ textarea {
   border: 0;
   color: #000;
   font-weight: 600;
+  font-size: 15px;
+  font-family: 'Montserrat', sans-serif;
   white-space: nowrap;
   cursor: pointer;
   vertical-align: baseline;

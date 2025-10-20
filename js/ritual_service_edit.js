@@ -901,7 +901,7 @@ function openRenameModal(titleEl) {
         </svg>
       </button>
       <p class="modal-text">Змінити назву</p>
-      <input id="rename-input" type="text" placeholder="Нова назва..." />
+      <input id="rename-input" type="text" placeholder="Введіть назву категорії…" />
       <div class="modal-actions">
         <button id="rename-ok" class="modal-ok">Підтвердити</button>
       </div>
@@ -973,7 +973,7 @@ function openAddCategoryModal() {
         </svg>
       </button>
       <p class="modal-text">Нова категорія</p>
-      <input type="text" id="newCatInput" placeholder="Введіть назву категорії" />
+      <input type="text" id="newCatInput" placeholder="Введіть назву категорії..." />
       <div class="modal-actions">
         <button id="newcat-ok" class="modal-ok">Створити</button>
       </div>
