@@ -16,6 +16,8 @@
     --spacing-lg: 1.5rem;
     --spacing-xs: 0.5rem;
     --radius-md: 14px;
+    --header-h: 56px;
+    --inputbar-h: 64px;
 }
 
 /* 2) Reset and Base */
@@ -59,7 +61,7 @@ header {
     padding: var(--spacing-sm);
     padding-top: 5px;
     padding-bottom: 2px;
-    height: 56px;
+    height: var(--header-h);
 }
 
 .title {
@@ -176,12 +178,12 @@ header {
 main.container {
     display: flex;
     flex-direction: column;
-    padding-top: 56px;
+    padding-top: var(--header-h);
     height: 100vh;
 }
 
 .chat-title {
-    margin: 0 0 10px;
+    margin: 20px 0 10px;
     text-align: center;
     font-family: var(--font-base);
     font-size: 24px;
@@ -197,10 +199,7 @@ main.container {
 }
 
 .messages {
-    flex: 1;
-    padding: 0 var(--spacing-md);
-    padding-bottom: calc(50px + 2 * var(--spacing-sm) + 20px);
-    /* щоб останнє повідомлення не перекривалося input-баром */
+    padding: 0;
 }
 
 /* Sender label above bubble */
@@ -389,12 +388,17 @@ main.container {
 }
 
 .chat-scroll-wrapper {
-    flex: 1;
+    position: fixed;
+    top: var(--header-h);
+    bottom: calc(var(--inputbar-h) + env(safe-area-inset-bottom));
+    left: 0;
+    right: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    position: relative;
-    padding-top: 30px;
-    /* відступ під fixed header */
+    overscroll-behavior: contain;
+    /* prevent scroll chaining to page */
+    touch-action: pan-y;
+    padding: 8px var(--spacing-md) 12px;
 }
 
 #bottomSpacer {
@@ -515,4 +519,8 @@ main.container {
     font-weight: 460;
     font-size: 16px;
     line-height: 26px;
+}
+
+.messages p {
+    margin-bottom: 4px;
 }

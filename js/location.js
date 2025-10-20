@@ -767,7 +767,16 @@ document.addEventListener('DOMContentLoaded', () => {
         routeBtn.textContent = 'Прокласти маршрут';
         routeBtn.className = 'floating-route-btn';
 
-        mapWrap.append(mapDiv, routeBtn);
+        const helpBtn = document.createElement('button');
+        helpBtn.type = 'button';
+        helpBtn.className = 'route-help-btn';
+        helpBtn.textContent = 'Не можете прокласти маршрут';
+        helpBtn.style.display = 'none';
+        helpBtn.addEventListener('click', () => {
+            window.location.href = '/route-instructions.html';
+        });
+
+        mapWrap.append(mapDiv, routeBtn, helpBtn);
         if (geoCard && geoCard.parentNode) {
             geoCard.parentNode.insertBefore(mapChangeBtn, geoCard.nextSibling);
             geoCard.parentNode.insertBefore(mapWrap, mapChangeBtn.nextSibling);
@@ -834,6 +843,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            helpBtn.style.display = 'none';
+
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     const origin = [pos.coords.longitude, pos.coords.latitude];
@@ -892,6 +903,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                 },
                 (err) => {
+                    // Show help only when the user DENIES permission
+                    if (err && (err.code === 1 || /denied/i.test(err.message))) {
+                        helpBtn.style.display = '';
+                        helpBtn.scrollIntoView({block:'nearest'});
+                    }
                     alert('Не вдалося визначити ваше місцезнаходження: ' + err.message);
                 }
             );

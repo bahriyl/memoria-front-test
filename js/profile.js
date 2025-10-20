@@ -197,12 +197,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (past) {
-            // Past date → keep single non-swipe layout and no pager
             box.classList.remove('is-strip');
             box.innerHTML = '';
+
+            const wrap = document.createElement('div');
+            wrap.className = 'liturgy-details';
+
+            const status = document.createElement('span');
+            status.className = 'liturgy-status is-done';
+            status.textContent = 'Завершено';
+
             const pnEl = document.createElement('div');
             pnEl.className = 'person-name';
             pnEl.textContent = pnText;
+
             const siEl = document.createElement('div');
             siEl.className = 'service-info';
             if (sortedExisting.length) {
@@ -214,7 +222,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 siEl.textContent = infoText;
             }
-            box.append(pnEl, siEl);
+
+            wrap.append(status, pnEl, siEl);
+            box.appendChild(wrap);
             return;
         }
 
@@ -244,15 +254,26 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2) existing cards
         sortedExisting.forEach((it) => {
             const d = new Date(it.serviceDate || it.createdAt || iso);
+            const dateIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const isPast = isPastISO(dateIso);
+
             const dateUa = d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const cardName = (it.personName || '').trim() || pnText;
 
             const card = document.createElement('div');
             card.className = 'liturgy-details';
+
+            const status = document.createElement('span');
+            status.className = 'liturgy-status' + (isPast ? ' is-done' : '');
+            status.textContent = isPast ? 'Завершено' : 'На черзі';
+
             card.innerHTML = `
-                <div class="person-name">${cardName}</div>
-                <div class="service-info">Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${it.churchName}, ${dateUa} р.</span></div>
-            `;
+    <div class="person-name">${cardName}</div>
+    <div class="service-info">Божественна Літургія за упокій відбудеться у
+      <span style="font-weight:550;">${it.churchName}, ${dateUa} р.</span>
+    </div>
+  `;
+            card.prepend(status);
             box.appendChild(card);
         });
 
@@ -2888,6 +2909,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'liturgy-details liturgy-history-item';
 
+            const status = document.createElement('span');
+            status.className = 'liturgy-status is-done';
+            status.textContent = 'Завершено';
+            card.appendChild(status);
+
             const nameDiv = document.createElement('div');
             nameDiv.className = 'person-name';
             nameDiv.textContent = currentPersonName;
@@ -3180,7 +3206,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (backToLoginEl) return;
             backToLoginEl = document.createElement('p');
             backToLoginEl.className = 'forgot-password';
-            backToLoginEl.textContent = '← Повернутися до входу';
+            backToLoginEl.textContent = 'Повернутися до входу';
             backToLoginEl.style.textAlign = 'center';
             backToLoginEl.style.marginTop = '4px';
             backToLoginEl.addEventListener('click', switchToLogin);
@@ -3293,21 +3319,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (authMode === 'reset1') {
                     const email = resetEmailEl?.value.trim();
-                    if (!email) { errEl.textContent = 'Вкажіть електронну пошту'; return; }
+                    if (!email) {
+                        errEl.textContent = 'Вкажіть електронну пошту';
+                        return;
+                    }
 
-                    const res = await fetch(`${PREMIUM_AUTH}/request-reset`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email })
-                    });
-                    if (!res.ok) throw new Error('Не вдалося надіслати код');
+                    try {
+                        const res = await fetch(`${PREMIUM_AUTH}/request-reset`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email })
+                        });
 
-                    // success → step 2
-                    switchToResetStep2();
-                    errEl.style.color = '#1B8B59';
-                    errEl.textContent = 'Код надіслано на вашу пошту.';
-                    setTimeout(() => { clearMsg(); }, 3000);
-                    return;
+                        const data = await res.json().catch(() => ({}));
+
+                        if (!res.ok || data.ok === false) {
+                            // If backend sends error message
+                            const msg = data.error || 'Не вдалося надіслати код';
+                            errEl.style.color = '#e11d48';
+                            errEl.textContent = msg;
+                            return;
+                        }
+
+                        // Success → go to step 2
+                        switchToResetStep2();
+                        errEl.style.color = '#1B8B59';
+                        errEl.textContent = 'Код надіслано на вашу пошту.';
+                        setTimeout(() => { clearMsg(); }, 3000);
+                        return;
+
+                    } catch (e) {
+                        errEl.style.color = '#e11d48';
+                        errEl.textContent = 'Помилка з’єднання з сервером';
+                    }
                 }
 
                 if (authMode === 'reset2') {

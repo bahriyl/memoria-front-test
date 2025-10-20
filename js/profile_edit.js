@@ -227,12 +227,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (past) {
-            // Past date → keep single non-swipe layout and no pager
             box.classList.remove('is-strip');
             box.innerHTML = '';
+
+            const wrap = document.createElement('div');
+            wrap.className = 'liturgy-details';
+
+            const status = document.createElement('span');
+            status.className = 'liturgy-status is-done';
+            status.textContent = 'Завершено';
+
             const pnEl = document.createElement('div');
             pnEl.className = 'person-name';
             pnEl.textContent = pnText;
+
             const siEl = document.createElement('div');
             siEl.className = 'service-info';
             if (sortedExisting.length) {
@@ -244,7 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 siEl.textContent = infoText;
             }
-            box.append(pnEl, siEl);
+
+            wrap.append(status, pnEl, siEl);
+            box.appendChild(wrap);
             return;
         }
 
@@ -271,15 +281,26 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2) existing cards
         sortedExisting.forEach((it) => {
             const d = new Date(it.serviceDate || it.createdAt || iso);
+            const dateIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const isPast = isPastISO(dateIso);
+
             const dateUa = d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const cardName = (it.personName || '').trim() || pnText;
 
             const card = document.createElement('div');
             card.className = 'liturgy-details';
+
+            const status = document.createElement('span');
+            status.className = 'liturgy-status' + (isPast ? ' is-done' : '');
+            status.textContent = isPast ? 'Завершено' : 'На черзі';
+
             card.innerHTML = `
                 <div class="person-name">${cardName}</div>
-                <div class="service-info">Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${it.churchName}, ${dateUa} р.</span></div>
+                <div class="service-info">Божественна Літургія за упокій відбудеться у
+                <span style="font-weight:550;">${it.churchName}, ${dateUa} р.</span>
+                </div>
             `;
+            card.prepend(status);
             box.appendChild(card);
         });
 
@@ -3264,6 +3285,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const card = document.createElement('div');
             card.className = 'liturgy-details liturgy-history-item';
+
+            const status = document.createElement('span');
+            status.className = 'liturgy-status is-done';
+            status.textContent = 'Завершено';
+            card.appendChild(status);
 
             const nameDiv = document.createElement('div');
             nameDiv.className = 'person-name';

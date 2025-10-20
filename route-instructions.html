@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Як прокласти маршрут</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@480;510;550;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            margin: 0;
+            background: #fff;
+            color: #1C170D;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .header {
+            position: relative;
+            height: 48px;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 6px;
+            left: 0;
+            background: none;
+            border: 0;
+            cursor: pointer;
+        }
+
+        .back-btn svg {
+            width: 30px;
+            height: 30px;
+        }
+
+        h1 {
+            font-size: 19px;
+            font-weight: 570;
+            font-family: 'Montserrat', sans-serif;
+            margin: 8px 0 24px;
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 19px;
+            font-weight: 570;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .hero-shot {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #F2F4F7;
+            margin-bottom: 18px;
+        }
+
+        .hero-shot img {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .os-switch {
+            display: flex;
+            gap: 8px;
+            margin: 6px 0 16px;
+        }
+
+        .pill {
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: #EFF2F5;
+            color: #1C170D;
+            font-weight: 510;
+            font-size: 15px;
+            font-family: 'Montserrat', sans-serif;
+            cursor: pointer;
+            border: 0;
+        }
+
+        .pill.active {
+            background: #1B8B59;
+            color: #fff;
+        }
+
+        .content {
+            font-size: 15px;
+            font-weight: 480;
+            line-height: 1.55;
+        }
+
+        .content p {
+            margin: 0 0 12px;
+        }
+
+        .content ul {
+            margin: 0 0 12px 18px;
+            padding: 0;
+        }
+
+        .content li {
+            margin: 0 0 8px;
+        }
+
+        .note {
+            background: #F7F7F7;
+            border: 1px solid #E6E6E6;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            color: #303030;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="back-btn" type="button" aria-label="Назад" onclick="history.back()">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <polyline points="15 18 9 12 15 6" fill="none" stroke="#312816" stroke-width="1.4"
+                        stroke-linecap="round" stroke-linejoin="round"></polyline>
+                </svg>
+            </button>
+        </div>
+
+        <h1>Як прокласти маршрут</h1>
+
+        <div class="hero-shot">
+            <img src="/img/location_error.png" alt="">
+        </div>
+
+        <h2>Операційна система</h2>
+
+        <div class="os-switch">
+            <button class="pill active" id="tab-ios">iOS</button>
+            <button class="pill" id="tab-android">Android</button>
+        </div>
+
+        <div class="content" id="content-ios">
+            <p>Щоб прокласти маршрут на iPhone:</p>
+            <ul>
+                <li>Переконайтеся, що надано дозвіл на геолокацію для браузера (Safari/Chrome): <em>Налаштування →
+                        Приватність і безпека → Геолокація</em>.</li>
+                <li>На сторінці локації натисніть <strong>«Прокласти маршрут»</strong>.</li>
+                <li>Якщо браузер запитує доступ до місцезнаходження — дозвольте.</li>
+                <li>Після побудови маршруту ви побачите лінію й кнопку визначення вашої позиції.</li>
+            </ul>
+            <div class="note">Якщо з’являється повідомлення “User denied Geolocation”, дайте доступ до геолокації у
+                налаштуваннях браузера та повторіть спробу.</div>
+        </div>
+
+        <div class="content" id="content-android" style="display:none">
+            <p>Щоб прокласти маршрут на Android:</p>
+            <ul>
+                <li>Увімкніть службу геолокації на пристрої.</li>
+                <li>Переконайтеся, що браузеру дозволено визначати місцезнаходження.</li>
+                <li>На сторінці локації натисніть <strong>«Прокласти маршрут»</strong> і підтвердіть дозвіл.</li>
+            </ul>
+            <div class="note">Якщо геолокація вимкнена або заборонена, маршрут не може бути побудовано — увімкніть
+                доступ і спробуйте знову.</div>
+        </div>
+    </div>
+
+    <script>
+        const iosBtn = document.getElementById('tab-ios');
+        const androidBtn = document.getElementById('tab-android');
+        const cIOS = document.getElementById('content-ios');
+        const cAndroid = document.getElementById('content-android');
+
+        iosBtn.addEventListener('click', () => {
+            iosBtn.classList.add('active'); androidBtn.classList.remove('active');
+            cIOS.style.display = ''; cAndroid.style.display = 'none';
+        });
+        androidBtn.addEventListener('click', () => {
+            androidBtn.classList.add('active'); iosBtn.classList.remove('active');
+            cAndroid.style.display = ''; cIOS.style.display = 'none';
+        });
+    </script>
+</body>
+
+</html>

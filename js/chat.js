@@ -49,10 +49,8 @@
   socket.emit("joinRoom", chatId);
 
   function scrollToBottom() {
-    const spacer = document.getElementById("bottomSpacer");
-    if (spacer) {
-      spacer.scrollIntoView({ behavior: "auto", block: "end" });
-    }
+    const scroller = document.querySelector('.chat-scroll-wrapper');
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
   }
 
   // 3) Render helper
@@ -151,15 +149,6 @@
     const msgs = await (await fetch(`${API}/chats/${chatId}/messages`)).json();
     msgsDiv.innerHTML = "";
     msgs.forEach(render);
-
-    // Remove existing spacer if any
-    let oldSpacer = document.getElementById("bottomSpacer");
-    if (oldSpacer) oldSpacer.remove();
-
-    // Add new spacer at the very end
-    const spacer = document.createElement("div");
-    spacer.id = "bottomSpacer";
-    msgsDiv.append(spacer);
   }
 
   await loadHistory();
