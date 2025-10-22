@@ -3045,3 +3045,8 @@ video::-webkit-media-controls-start-playback-button {
     stroke: #72767D;
     fill: none;
 }
+
+.password-wrapper #resetEmail,
+.password-wrapper #resetCode {
+    margin-bottom: 12px;
+}

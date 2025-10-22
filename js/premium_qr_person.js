@@ -853,6 +853,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const delBranchVal = (document.getElementById('delBranch')?.value || '').trim();
         const delPhoneVal = (document.getElementById('delPhone')?.value || '').trim();
 
+        const email = (delEmailInput?.value || '').trim().toLowerCase();
+
         if (!delNameVal || !delCityVal || !delBranchVal || !delPhoneVal || !email) {
             errorEl.textContent = 'Введіть всі дані';
             errorEl.hidden = false;
@@ -871,7 +873,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // ✅ Email: обов’язковий і валідний
-        const email = (delEmailInput?.value || '').trim().toLowerCase();
         if (!email || !isValidEmail(email)) {
             delEmailError.textContent = 'Введіть коректний email (він буде логіном для Преміум-профілю).';
             delEmailError.hidden = false;

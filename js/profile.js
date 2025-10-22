@@ -3213,9 +3213,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const box = modal?.querySelector('.login-box');
         const titleEl = box?.querySelector('h2');
         const loginEl = document.getElementById('loginInput');     // login (email)
-        const passEl = document.getElementById('passwordInput');  // password
-        const submitBtn = document.getElementById('loginSubmit');    // main button
-        const errEl = document.getElementById('loginError');     // error text
+        const passEl = document.getElementById('passwordInput');   // password
+        const submitBtn = document.getElementById('loginSubmit');  // main button
+        const errEl = document.getElementById('loginError');       // error text
         const forgotEl = document.getElementById('forgotPassword'); // "Забули…"
 
         if (!modal || !box || !titleEl || !loginEl || !passEl || !submitBtn || !forgotEl) return;
@@ -3232,6 +3232,46 @@ document.addEventListener('DOMContentLoaded', () => {
         let restoreSubmitOnClick = null;
 
         function clearMsg() { if (errEl) { errEl.textContent = ''; errEl.style.color = ''; } }
+
+        function attachPasswordToggle(inputEl) {
+            if (!inputEl) return null;
+
+            // загортаємо в .password-wrapper, якщо ще ні
+            let wrap = inputEl.closest('.password-wrapper');
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.className = 'password-wrapper';
+                inputEl.replaceWith(wrap);
+                wrap.appendChild(inputEl);
+            }
+
+            // додаємо кнопку-око, якщо її немає
+            let btn = wrap.querySelector('.toggle-password');
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'toggle-password';
+                btn.setAttribute('aria-label', 'Показати пароль');
+                btn.innerHTML = `
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5z"/>
+                    <circle cx="12" cy="12" r="3.5"></circle>
+                </svg>
+                `;
+                btn.addEventListener('click', () => {
+                    const visible = inputEl.type === 'text';
+                    inputEl.type = visible ? 'password' : 'text';
+                    btn.classList.toggle('active', !visible);
+                    btn.setAttribute('aria-label', visible ? 'Показати пароль' : 'Приховати пароль');
+                });
+                wrap.appendChild(btn);
+            }
+            return btn;
+        }
+
+        function hideAllPasswordToggles() {
+            document.querySelectorAll('.toggle-password').forEach(b => b.hidden = true);
+        }
 
         function ensureBackLink() {
             if (backToLoginEl) return;
@@ -3255,11 +3295,9 @@ document.addEventListener('DOMContentLoaded', () => {
             forgotEmailEl.addEventListener('click', switchToForgotEmail);
 
             // розміщуємо САМЕ ПІД "Повернутися до входу"
-            // якщо backToLoginEl уже є — ставимо відразу після нього
             if (backToLoginEl && backToLoginEl.parentNode) {
                 backToLoginEl.after(forgotEmailEl);
             } else if (errEl && errEl.parentNode) {
-                // fallback: перед errEl (як у ensureBackLink), якщо раптом ще немає backToLoginEl
                 errEl.before(forgotEmailEl);
             }
         }
@@ -3287,10 +3325,7 @@ document.addEventListener('DOMContentLoaded', () => {
         function switchToForgotEmail() {
             authMode = 'forgotEmail';
 
-            // Прибираємо повідомлення/помилки
             clearMsg();
-
-            // Заголовок (можете лишити "Скидання паролю", або зробити окремий)
             titleEl.textContent = 'Скидання паролю';
 
             // Сховати всі стандартні поля та підказки
@@ -3303,7 +3338,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof resetCodeEl !== 'undefined' && resetCodeEl) resetCodeEl.hidden = true;
             if (typeof resetNewPassEl !== 'undefined' && resetNewPassEl) resetNewPassEl.hidden = true;
 
-            // Сховати/прибрати лінки під формою, щоб лишився тільки наш екран
+            // Сховати/прибрати лінки під формою
             if (backToLoginEl) backToLoginEl.hidden = true;
             if (forgotEmailEl) forgotEmailEl.hidden = true;
 
@@ -3315,13 +3350,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 forgotInfoEl.style.textAlign = 'center';
                 forgotInfoEl.style.margin = '12px 0 20px';
                 forgotInfoEl.textContent = 'Напишіть, будь-ласка, у чат-підтримку щоб дізнатись, або змінити пошту';
-                // вставляємо перед кнопкою
                 submitBtn.before(forgotInfoEl);
             } else {
                 forgotInfoEl.hidden = false;
             }
 
-            // Змінюємо #loginSubmit на "Назад" і тимчасово перевішуємо клік
+            // Кнопка "Назад"
             submitBtn.textContent = 'Назад';
 
             // зберігаємо поточний onclick, щоб потім відновити
@@ -3330,8 +3364,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             submitBtn.onclick = (e) => {
                 e?.preventDefault?.();
-                // повертаємо екран "Скидання паролю" (крок 1)
-                // показуємо назад приховані елементи
                 if (forgotInfoEl) forgotInfoEl.hidden = true;
                 if (backToLoginEl) backToLoginEl.hidden = false;
                 if (forgotEmailEl) forgotEmailEl.hidden = false;
@@ -3340,9 +3372,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitBtn.onclick = restoreSubmitOnClick;
                 restoreSubmitOnClick = null;
 
-                // повертаємо лейбл кнопки і сам екран
                 switchToResetStep1();
             };
+
+            // на цьому екрані іконка ока не потрібна
+            hideAllPasswordToggles();
             hideForgotEmailLink();
         }
 
@@ -3351,6 +3385,17 @@ document.addEventListener('DOMContentLoaded', () => {
             resetCodeEl?.remove(); resetCodeEl = null;
             resetNewPassEl?.remove(); resetNewPassEl = null;
             backToLoginEl?.remove(); backToLoginEl = null;
+        }
+
+        // helper: extract visible text from first <p>...</p> in HTML error
+        function extractParagraphText(html) {
+            try {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const p = doc.querySelector('p');
+                return (p?.textContent || '').trim();
+            } catch (_) {
+                return '';
+            }
         }
 
         function switchToLogin() {
@@ -3363,6 +3408,11 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.textContent = 'Увійти';
             removeResetFields();
             hideForgotEmailLink();
+
+            // 👁️ Показати око лише на кроці авторизації біля пароля
+            hideAllPasswordToggles();
+            const loginEye = attachPasswordToggle(passEl);
+            if (loginEye) loginEye.hidden = false;
         }
 
         function switchToResetStep1() {
@@ -3386,6 +3436,9 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.textContent = 'Надіслати код';
             ensureBackLink();
             showForgotEmailLink();
+
+            // 👁️ На reset step 1 іконки бути не повинно
+            hideAllPasswordToggles();
         }
 
         function switchToResetStep2() {
@@ -3407,8 +3460,14 @@ document.addEventListener('DOMContentLoaded', () => {
             resetNewPassEl.placeholder = 'Новий пароль';
             resetNewPassEl.className = passEl.className;
 
+            // 1) insert fields into DOM first
             resetEmailEl.after(resetCodeEl);
             resetCodeEl.after(resetNewPassEl);
+
+            // 2) then attach the toggle specifically to NEW PASSWORD
+            hideAllPasswordToggles();
+            // const resetEye = attachPasswordToggle(resetNewPassEl);
+            // if (resetEye) resetEye.hidden = false;
 
             submitBtn.textContent = 'Змінити пароль';
             ensureBackLink();
@@ -3507,12 +3566,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email, code, newPassword })
                     });
+
                     if (!res.ok) {
-                        const t = await res.text().catch(() => '');
-                        throw new Error(t || 'Не вдалося змінити пароль');
+                        const raw = await res.text().catch(() => '');
+                        const msg = extractParagraphText(raw) || 'Не вдалося змінити пароль';
+                        throw new Error(msg);
                     }
 
-                    // back to login with success message
+                    // success → back to login
                     switchToLogin();
                     errEl.style.color = '#1B8B59';
                     errEl.textContent = 'Пароль змінено. Увійдіть з новим паролем.';
