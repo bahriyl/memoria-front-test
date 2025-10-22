@@ -172,11 +172,6 @@ searchInput.addEventListener("input", async (e) => {
   suggestionsList.style.display = "block";
 });
 
-// 7) Blur hides suggestions
-searchInput.addEventListener("blur", () => {
-  setTimeout(() => (suggestionsList.style.display = "none"), 200);
-});
-
 // 8) Suggestion click
 suggestionsList.addEventListener("click", (e) => {
   if (e.target.tagName !== "LI" || e.target.classList.contains("no-results"))

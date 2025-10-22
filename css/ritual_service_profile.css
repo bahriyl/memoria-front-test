@@ -55,6 +55,13 @@ body {
   margin: 0;
 }
 
+/* phones/addresses: show \n as line-breaks and tighten spacing */
+.ritual-address,
+.ritual-phone {
+  white-space: pre-line;
+  margin: 0 0 6px 0;
+}
+
 .ritual-link-btn {
   display: inline-flex;
   align-items: center;
@@ -602,8 +609,8 @@ body {
 }
 
 #loginClose {
-  top: 4px;
-  right: 14px;
+  top: 2px;
+  right: 16px;
 }
 
 input[type="password"] {
@@ -685,4 +692,42 @@ input[type="text"] {
   color: #9CA3AF;
   opacity: 1;
   font-family: 'Montserrat', sans-serif;
+}
+
+p.ritual-text {
+  width: 90%;
+}
+
+
+.password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-wrapper input[type="password"],
+.password-wrapper input[type="text"] {
+  width: 100%;
+  padding-right: 42px;
+  /* leave space for the eye icon */
+  box-sizing: border-box;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none !important;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #72767d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-password svg {
+  stroke: #72767D;
+  fill: none;
 }

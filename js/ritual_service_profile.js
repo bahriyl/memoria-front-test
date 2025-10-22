@@ -1,9 +1,65 @@
 document.addEventListener("DOMContentLoaded", async () => {
-  const API_BASE =
-    "https://memoria-test-app-ifisk.ondigitalocean.app/api/ritual_services";
+  const API_BASE = "https://memoria-test-app-ifisk.ondigitalocean.app/api/ritual_services";
   // const API_BASE = "http://0.0.0.0:5000/api/ritual_services"
   const params = new URLSearchParams(window.location.search);
   const ritualId = params.get("id");
+
+  function parseJwt(token) {
+    try {
+      const b64 = token.split(".")[1] || "";
+      const b64url = b64.replace(/-/g, "+").replace(/_/g, "/");
+      const pad = "=".repeat((4 - (b64url.length % 4)) % 4);
+      return JSON.parse(atob(b64url + pad));
+    } catch {
+      return {};
+    }
+  }
+
+  function doLogout() {
+    localStorage.removeItem("token");
+    // повертаємо на публічну сторінку профілю/логіна
+    window.location.href = `/ritual_service_profile.html?id=${new URLSearchParams(location.search).get("id") || ""}`;
+  }
+
+  let __logoutTimer;
+  function scheduleLogout(expSeconds) {
+    clearTimeout(__logoutTimer);
+    const ms = expSeconds * 1000 - Date.now();
+    if (ms <= 0) return doLogout();
+    __logoutTimer = setTimeout(doLogout, ms);
+  }
+
+  function checkTokenAndSchedule() {
+    const t = localStorage.getItem("token");
+    if (!t) return;
+    const { exp } = parseJwt(t);
+    if (!exp) return;                  // якщо бекенд не додає exp
+    if (exp * 1000 <= Date.now()) return doLogout();
+    scheduleLogout(exp);
+  }
+
+  checkTokenAndSchedule();
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) checkTokenAndSchedule(); // перевірка при поверненні у вкладку
+  });
+
+  // If exp is missing (parse failed), confirm with server; 401 → logout
+  (async () => {
+    const t = localStorage.getItem("token");
+    if (!t) return;
+    const { exp } = parseJwt(t) || {};
+    if (typeof exp === "number") return;
+    try {
+      const res = await fetch(`${API_BASE}/verify_token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: t })
+      });
+      if (!res.ok) doLogout();
+    } catch {
+      doLogout();
+    }
+  })();
 
   if (!ritualId) {
     document.body.innerHTML =
@@ -11,78 +67,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  function renderListWithToggle(el, rawItems, opts = {}) {
-    const { prefix = "", joiner = "; " } = opts;
-
-    // Normalize to array of strings
-    const items = Array.isArray(rawItems)
-      ? rawItems.map(String).map(s => s.trim()).filter(Boolean)
-      : (rawItems ? [String(rawItems).trim()] : []);
-
-    // Reset container
-    el.innerHTML = "";
-    if (!items.length) return;
-
-    // Single inline span holds everything to keep in one line
-    const contentSpan = document.createElement("span");
-    contentSpan.className = "text-content";
-    el.appendChild(contentSpan);
-
-    // Prefix (e.g., "тел. ") stays inline too
-    if (prefix) {
-      const prefixNode = document.createElement("span");
-      prefixNode.textContent = prefix;
-      contentSpan.appendChild(prefixNode);
-    }
-
-    // If ≤2 items — just render joined in one line
-    if (items.length <= 2) {
-      const textNode = document.createElement("span");
-      textNode.textContent = items.join(joiner);
-      contentSpan.appendChild(textNode);
-      return;
-    }
-
-    // >2 items — add inline toggle inside the same span
-    let expanded = false;
-
-    // Create the text holder so we can re-render easily
-    const listText = document.createElement("span");
-    contentSpan.appendChild(listText);
-
-    // Inline toggle button
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "bio-toggle";
-    toggle.textContent = "Більше";
-    // force inline layout in case CSS sets it to block
-    toggle.style.display = "inline"; // or "inline-block" if you prefer
-    // small non-breaking space before toggle to separate from text
-    contentSpan.appendChild(document.createTextNode(" "));
-    contentSpan.appendChild(toggle);
-
-    const renderCollapsed = () => {
-      listText.textContent = items.slice(0, 2).join(joiner) + " … ";
-      toggle.textContent = "Більше";
-    };
-
-    const renderExpanded = () => {
-      listText.textContent = items.join(joiner) + " ";
-      toggle.textContent = "Менше";
-    };
-
-    const onToggle = () => {
-      expanded = !expanded;
-      expanded ? renderExpanded() : renderCollapsed();
-    };
-
-    // Initial state — collapsed
-    renderCollapsed();
-
-    toggle.addEventListener("click", onToggle);
-    toggle.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); }
+  const toggleBtns = document.querySelectorAll('.toggle-password');
+  toggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = btn.closest('.password-wrapper').querySelector('input');
+      const isVisible = input.type === 'text';
+      input.type = isVisible ? 'password' : 'text';
+      btn.classList.toggle('active', !isVisible);
+      btn.setAttribute('aria-label', isVisible ? 'Показати пароль' : 'Приховати пароль');
     });
+  });
+
+  function renderJointContacts(addressEl, phoneEl, rawAddresses, rawPhones) {
+    const toList = v => Array.isArray(v)
+      ? v.map(String).map(s => s.trim()).filter(Boolean)
+      : (v ? [String(v).trim()] : []);
+    const joiner = "\n"; // кожен елемент з нового рядка
+
+    const addresses = toList(rawAddresses);
+    const phones = toList(rawPhones);
+
+    // Гарантуємо окремі span-и для тексту (щоб не зносити кнопку при .textContent)
+    let addressText = addressEl.querySelector(".contacts-address-text");
+    if (!addressText) {
+      addressEl.textContent = "";
+      addressText = document.createElement("span");
+      addressText.className = "contacts-address-text";
+      addressEl.appendChild(addressText);
+    }
+
+    let phoneText = phoneEl.querySelector(".contacts-phone-text");
+    if (!phoneText) {
+      phoneEl.textContent = "";
+      phoneText = document.createElement("span");
+      phoneText.className = "contacts-phone-text";
+      phoneEl.appendChild(phoneText);
+    }
+
+    // Єдина кнопка всередині .ritual-phone — в одному рядку з текстом
+    let btn = phoneEl.querySelector(".joint-toggle");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "bio-toggle joint-toggle";
+      btn.textContent = "... більше";
+      phoneEl.appendChild(document.createTextNode(" "));
+      phoneEl.appendChild(btn);
+    }
+
+    const hasMore = (addresses.length > 1) || (phones.length > 1);
+
+    let expanded = false;
+    const collapse = () => {
+      expanded = false;
+      addressText.textContent = addresses[0] || "";
+      phoneText.textContent = phones[0] || "";
+      if (hasMore) {
+        btn.textContent = "... більше";
+        btn.setAttribute("aria-expanded", "false");
+      }
+    };
+
+    const expand = () => {
+      expanded = true;
+      addressText.textContent = addresses.join(joiner);
+      phoneText.textContent = phones.join(joiner);
+      btn.textContent = "... менше";
+      btn.setAttribute("aria-expanded", "true");
+    };
+
+    if (hasMore) {
+      btn.onclick = () => (expanded ? collapse() : expand());
+      btn.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); btn.click(); }
+      };
+      collapse(); // старт: згорнуто
+    } else {
+      // якщо немає що показувати — прибираємо кнопку і лишаємо по одному значенню
+      btn.remove();
+      addressText.textContent = addresses[0] || "";
+      phoneText.textContent = phones[0] || "";
+    }
   }
 
   try {
@@ -97,11 +162,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const addressEl = document.querySelector(".ritual-address");
     const phoneEl = document.querySelector(".ritual-phone");
 
-    // address: масив адрес (або один рядок), префікс не потрібен
-    renderListWithToggle(addressEl, data.address);
-
-    // phone: масив телефонів (або один рядок), з префіксом
-    renderListWithToggle(phoneEl, data.phone);
+    renderJointContacts(addressEl, phoneEl, data.address, data.phone);
 
     // 3) Опис із "більше/менше" — як на profile (bio-body)
     const fullText = (data.description || "").trim();
@@ -123,11 +184,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       const textSpan = document.createElement("span");
-      const nbsp = document.createTextNode("\u00A0");
-      const toggle = document.createElement("span");
-      toggle.className = "bio-toggle";
-      toggle.setAttribute("role", "button");
-      toggle.tabIndex = 0;
+      const createToggle = (label = "більше") => {
+        const t = document.createElement("span");
+        t.className = "bio-toggle";
+        t.setAttribute("role", "button");
+        t.tabIndex = 0;
+        t.textContent = label;
+        return t;
+      };
 
       // базові метрики
       const cs = getComputedStyle(aboutEl);
@@ -154,9 +218,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       function heightForPrefix(prefixLen) {
         aboutEl.classList.add("__measure");
         aboutEl.innerHTML = "";
-        textSpan.textContent = text.slice(0, prefixLen).trimEnd() + " …";
-        toggle.textContent = moreLabel;
-        aboutEl.append(textSpan, nbsp, toggle);
+        const s = document.createElement("span");
+        s.textContent = text.slice(0, prefixLen).trimEnd() + " … ";
+        s.appendChild(createToggle()); // toggle inside the same span
+        aboutEl.appendChild(s);
         const h = aboutEl.clientHeight;
         aboutEl.innerHTML = "";
         aboutEl.classList.remove("__measure");
@@ -178,20 +243,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       // фінальний рендер (уже З клампом, без __measure)
-      aboutEl.innerHTML = "";
-      textSpan.textContent = text.slice(0, best).trimEnd() + " …";
+      const toggle = createToggle(moreLabel);
+      textSpan.textContent = text.slice(0, best).trimEnd() + " … ";
       toggle.textContent = moreLabel;
-      aboutEl.classList.remove("expanded");
-      aboutEl.append(textSpan, document.createTextNode("\u00A0"), toggle);
+      textSpan.appendChild(toggle);
+      aboutEl.innerHTML = "";
+      aboutEl.appendChild(textSpan);
 
       let expanded = false;
       const expand = () => {
         expanded = true;
-        aboutEl.classList.add("expanded"); // <<< важливо
+        aboutEl.classList.add("expanded");
         aboutEl.innerHTML = "";
         textSpan.textContent = text + " ";
         toggle.textContent = "менше";
-        aboutEl.append(textSpan, toggle);
+        textSpan.appendChild(toggle);
+        aboutEl.appendChild(textSpan);
       };
 
       const collapse = () => {
@@ -360,6 +427,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       const result = await res.json();
       // 1) Persist token
       localStorage.setItem("token", result.token);
+
+      const payload = parseJwt(result.token);
+      if (payload?.exp) scheduleLogout(payload.exp);
       // 2) Redirect (URL param optional now)
       window.location.href = `/ritual_service_edit.html?id=${ritualId}`;
     } catch {

@@ -13,6 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const backBtn = document.getElementById('backBtn');
     if (backBtn) {
         backBtn.addEventListener('click', () => {
+            try {
+                sessionStorage.removeItem('premiumQR.filters.v1');
+            } catch (e) {
+                console.warn('Unable to clear filters:', e);
+            }
             window.location.href = 'premium_qr.html';
         });
     }
@@ -123,8 +128,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalSubmitBtn = document.getElementById('deliveryModalSubmit');
     const mainSubmitBtn = document.getElementById('submitBtn');
 
+    if (mainSubmitBtn) {
+        mainSubmitBtn.style.display = 'none'; // приховано доти, доки не обрано особу
+    }
+
     const delEmailInput = document.getElementById('delEmail');
     const delEmailError = document.getElementById('delEmailError');
+
+    // --- delName validation (same as on add_person page) ---
+    const delNameInput = document.getElementById('delName');
+    const delNameError = document.getElementById('delNameError');
+
+    if (delNameInput && delNameError) {
+        delNameInput.addEventListener('blur', () => {
+            const name = delNameInput.value.trim();
+            const parts = name.split(/\s+/).filter(Boolean);
+
+            if (!name) {
+                delNameError.textContent = "Введіть ПІБ";
+                delNameError.hidden = false;
+                delNameInput.classList.add('input-error');
+            } else if (name.includes('.') || parts.length < 3 || parts.some(p => p.length <= 1)) {
+                delNameError.textContent = "Введіть повне ім'я та по-батькові";
+                delNameError.hidden = false;
+                delNameInput.classList.add('input-error');
+            } else {
+                delNameError.hidden = true;
+                delNameInput.classList.remove('input-error');
+            }
+        });
+
+        delNameInput.addEventListener('input', () => {
+            delNameError.hidden = true;
+            delNameInput.classList.remove('input-error');
+        });
+    }
 
     function isValidEmail(s) {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
@@ -678,23 +716,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // re-render the list
         selectedList.innerHTML = selectedPersons.map(p => `
-  <li data-id="${p.id}">
-    <img src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="">
-    <div class="info">
-      <div class="name">${p.name}</div>
-      <div class="years">${p.birthYear} – ${p.deathYear}</div>
-    </div>
-    <button class="deselect-btn" aria-label="Deselect">
-      <img
-        src="/img/minus-icon.png"
-        alt="Видалити"
-        class="minus-icon"
-        width="24"
-        height="24"
-      />
-    </button>
-  </li>
-`).join('');
+        <li data-id="${p.id}">
+            <img src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="">
+            <div class="info">
+            <div class="name">${p.name}</div>
+            <div class="years">${p.birthYear} – ${p.deathYear}</div>
+            </div>
+            <button class="deselect-btn" aria-label="Deselect">
+            <img
+                src="/img/minus-icon.png"
+                alt="Видалити"
+                class="minus-icon"
+                width="24"
+                height="24"
+            />
+            </button>
+        </li>
+        `).join('');
+
         // wire up all deselect buttons
         selectedList.querySelectorAll('li button').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -705,6 +744,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 triggerFetch();  // put them back into Found
             });
         });
+
+        if (selectedPersons.length > 0) {
+            // перемістити кнопку прямо під список вибраних
+            if (mainSubmitBtn) {
+                mainSubmitBtn.classList.add('submit-btn--inline');
+                mainSubmitBtn.style.display = ''; // показати
+                // вставити одразу після #selectedList
+                if (selectedList.parentNode) {
+                    selectedList.after(mainSubmitBtn);
+                }
+            }
+        } else {
+            if (mainSubmitBtn) {
+                mainSubmitBtn.style.display = 'none';
+            }
+        }
 
         updateSelectedCount();
     }
@@ -791,6 +846,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const errorEl = document.getElementById('paymentError');
         errorEl.hidden = true;
         errorEl.textContent = '';
+
+        // ⬇️ Require ALL fields to be filled
+        const delNameVal = (document.getElementById('delName')?.value || '').trim();
+        const delCityVal = (document.getElementById('delCity')?.value || '').trim();
+        const delBranchVal = (document.getElementById('delBranch')?.value || '').trim();
+        const delPhoneVal = (document.getElementById('delPhone')?.value || '').trim();
+
+        if (!delNameVal || !delCityVal || !delBranchVal || !delPhoneVal || !email) {
+            errorEl.textContent = 'Введіть всі дані';
+            errorEl.hidden = false;
+            return;
+        }
 
         // ✅ Вибір однієї особи (фікс, якщо локально зберігаєте у selectedPersons)
         const selectedPerson = (typeof window.selectedPerson !== 'undefined' && window.selectedPerson)

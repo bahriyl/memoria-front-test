@@ -10,6 +10,71 @@ if (urlParams.get("token")) {
   localStorage.setItem("token", token);
 }
 
+function parseJwt(t) {
+  try {
+    const b64 = t.split(".")[1] || "";
+    const b64url = b64.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = "=".repeat((4 - (b64url.length % 4)) % 4);
+    return JSON.parse(atob(b64url + pad));
+  } catch {
+    return {};
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem("token");
+  window.location.href = `/ritual_service_profile.html?id=${ritualId}`;
+}
+
+let __logoutTimer;
+function scheduleLogout(expSeconds) {
+  clearTimeout(__logoutTimer);
+  const ms = expSeconds * 1000 - Date.now();
+  if (ms <= 0) return doLogout();
+  __logoutTimer = setTimeout(doLogout, ms);
+}
+
+// Decode token once on load and schedule logout if exp exists
+(() => {
+  if (!token) return;
+  const { exp } = parseJwt(token);
+  if (exp) {
+    if (exp * 1000 <= Date.now()) return doLogout();
+    scheduleLogout(exp);
+  }
+})();
+
+// Fallback: if exp couldn't be parsed, ask backend to verify and 401 → logout
+(async () => {
+  const t = localStorage.getItem("token");
+  if (!t) return;
+  const { exp } = parseJwt(t) || {};
+  if (typeof exp === "number") return; // already handled
+  try {
+    const res = await fetch(`${API}/ritual_services/verify_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: t })
+    });
+    if (!res.ok) doLogout();
+  } catch {
+    doLogout();
+  }
+})();
+
+// Wrap fetch to always attach Authorization and auto-logout on 401/403
+async function fetchWithAuth(url, opts = {}) {
+  const t = localStorage.getItem("token");
+  const headers = { ...(opts.headers || {}) };
+  if (t) headers.Authorization = `Bearer ${t}`;
+  const res = await fetch(url, { ...opts, headers });
+  if (res.status === 401 || res.status === 403) {
+    doLogout(); // token missing/expired/invalid → logout immediately
+    throw new Error("Unauthorized");
+  }
+  return res;
+}
+
 let ritualData = null;
 
 if (!ritualId) {
@@ -58,78 +123,76 @@ async function fetchRitualService() {
   }
 }
 
-function renderListWithToggle(el, rawItems, opts = {}) {
-  const { prefix = "", joiner = "; " } = opts;
+function renderJointContacts(addressEl, phoneEl, rawAddresses, rawPhones) {
+  const toList = v => Array.isArray(v)
+    ? v.map(String).map(s => s.trim()).filter(Boolean)
+    : (v ? [String(v).trim()] : []);
+  const joiner = "\n"; // кожен елемент з нового рядка
 
-  // Normalize to array of strings
-  const items = Array.isArray(rawItems)
-    ? rawItems.map(String).map(s => s.trim()).filter(Boolean)
-    : (rawItems ? [String(rawItems).trim()] : []);
+  const addresses = toList(rawAddresses);
+  const phones = toList(rawPhones);
 
-  // Reset container
-  el.innerHTML = "";
-  if (!items.length) return;
-
-  // Single inline span holds everything to keep in one line
-  const contentSpan = document.createElement("span");
-  contentSpan.className = "text-content";
-  el.appendChild(contentSpan);
-
-  // Prefix (e.g., "тел. ") stays inline too
-  if (prefix) {
-    const prefixNode = document.createElement("span");
-    prefixNode.textContent = prefix;
-    contentSpan.appendChild(prefixNode);
+  // Гарантуємо окремі span-и для тексту (щоб не зносити кнопку при .textContent)
+  let addressText = addressEl.querySelector(".contacts-address-text");
+  if (!addressText) {
+    addressEl.textContent = "";
+    addressText = document.createElement("span");
+    addressText.className = "contacts-address-text";
+    addressEl.appendChild(addressText);
   }
 
-  // If ≤2 items — just render joined in one line
-  if (items.length <= 2) {
-    const textNode = document.createElement("span");
-    textNode.textContent = items.join(joiner);
-    contentSpan.appendChild(textNode);
-    return;
+  let phoneText = phoneEl.querySelector(".contacts-phone-text");
+  if (!phoneText) {
+    phoneEl.textContent = "";
+    phoneText = document.createElement("span");
+    phoneText.className = "contacts-phone-text";
+    phoneEl.appendChild(phoneText);
   }
 
-  // >2 items — add inline toggle inside the same span
+  // Єдина кнопка всередині .ritual-phone — в одному рядку з текстом
+  let btn = phoneEl.querySelector(".joint-toggle");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "bio-toggle joint-toggle";
+    btn.textContent = "... більше";
+    phoneEl.appendChild(document.createTextNode(" "));
+    phoneEl.appendChild(btn);
+  }
+
+  const hasMore = (addresses.length > 1) || (phones.length > 1);
+
   let expanded = false;
-
-  // Create the text holder so we can re-render easily
-  const listText = document.createElement("span");
-  contentSpan.appendChild(listText);
-
-  // Inline toggle button
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.className = "bio-toggle";
-  toggle.textContent = "Більше";
-  // force inline layout in case CSS sets it to block
-  toggle.style.display = "inline"; // or "inline-block" if you prefer
-  // small non-breaking space before toggle to separate from text
-  contentSpan.appendChild(document.createTextNode(" "));
-  contentSpan.appendChild(toggle);
-
-  const renderCollapsed = () => {
-    listText.textContent = items.slice(0, 2).join(joiner) + " … ";
-    toggle.textContent = "Більше";
+  const collapse = () => {
+    expanded = false;
+    addressText.textContent = addresses[0] || "";
+    phoneText.textContent = phones[0] || "";
+    if (hasMore) {
+      btn.textContent = "... більше";
+      btn.setAttribute("aria-expanded", "false");
+    }
   };
 
-  const renderExpanded = () => {
-    listText.textContent = items.join(joiner) + " ";
-    toggle.textContent = "Менше";
+  const expand = () => {
+    expanded = true;
+    addressText.textContent = addresses.join(joiner);
+    phoneText.textContent = phones.join(joiner);
+    btn.textContent = "... менше";
+    btn.setAttribute("aria-expanded", "true");
   };
 
-  const onToggle = () => {
-    expanded = !expanded;
-    expanded ? renderExpanded() : renderCollapsed();
-  };
-
-  // Initial state — collapsed
-  renderCollapsed();
-
-  toggle.addEventListener("click", onToggle);
-  toggle.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); }
-  });
+  if (hasMore) {
+    btn.onclick = () => (expanded ? collapse() : expand());
+    btn.onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); btn.click(); }
+    };
+    collapse(); // старт: згорнуто
+  } else {
+    // якщо немає що показувати — прибираємо кнопку і лишаємо по одному значенню
+    btn.remove();
+    addressText.textContent = addresses[0] || "";
+    phoneText.textContent = phones[0] || "";
+  }
 }
 
 async function uploadToImgBB(file) {
@@ -166,11 +229,14 @@ function applyAbout(text) {
   }
 
   const textSpan = document.createElement("span");
-  const nbsp = document.createTextNode("\u00A0");
-  const toggle = document.createElement("span");
-  toggle.className = "bio-toggle";
-  toggle.setAttribute("role", "button");
-  toggle.tabIndex = 0;
+  const createToggle = (label = "більше") => {
+    const t = document.createElement("span");
+    t.className = "bio-toggle";
+    t.setAttribute("role", "button");
+    t.tabIndex = 0;
+    t.textContent = label;
+    return t;
+  };
 
   const cs = getComputedStyle(aboutEl);
   const line = parseFloat(cs.lineHeight) || 1.5 * parseFloat(cs.fontSize) || 21;
@@ -185,11 +251,16 @@ function applyAbout(text) {
 
   // Вимірювач висоти для префікса
   function heightForPrefix(prefixLen) {
+    aboutEl.classList.add("__measure");
     aboutEl.innerHTML = "";
-    textSpan.textContent = text.slice(0, prefixLen).trimEnd() + " …";
-    toggle.textContent = moreLabel;
-    aboutEl.append(textSpan, nbsp, toggle);
-    return aboutEl.clientHeight;
+    const s = document.createElement("span");
+    s.textContent = text.slice(0, prefixLen).trimEnd() + " … ";
+    s.appendChild(createToggle()); // toggle inside the same span
+    aboutEl.appendChild(s);
+    const h = aboutEl.clientHeight;
+    aboutEl.innerHTML = "";
+    aboutEl.classList.remove("__measure");
+    return h;
   }
 
   // Бінарний пошук максимальної довжини, що вміщається у 4 рядки (з урахуванням toggle)
@@ -207,10 +278,12 @@ function applyAbout(text) {
   }
 
   // Фінальна розмітка
-  aboutEl.innerHTML = "";
-  textSpan.textContent = text.slice(0, best).trimEnd() + " …";
+  const toggle = createToggle(moreLabel);
+  textSpan.textContent = text.slice(0, best).trimEnd() + " … ";
   toggle.textContent = moreLabel;
-  aboutEl.append(textSpan, document.createTextNode("\u00A0"), toggle);
+  textSpan.appendChild(toggle);
+  aboutEl.innerHTML = "";
+  aboutEl.appendChild(textSpan);
 
   // Обробники
   let expanded = false;
@@ -236,6 +309,17 @@ function applyAbout(text) {
   });
 }
 
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  const t = localStorage.getItem("token");
+  if (!t) return;
+  const { exp } = parseJwt(t) || {};
+  if (exp) {
+    if (exp * 1000 <= Date.now()) return doLogout();
+    scheduleLogout(exp);
+  }
+});
+
 function renderData(data) {
   document.querySelector(".ritual-banner").src = data.banner;
   document.querySelector(".ritual-name").textContent = data.name;
@@ -244,11 +328,7 @@ function renderData(data) {
   const addressEl = document.querySelector(".ritual-address");
   const phoneEl = document.querySelector(".ritual-phone");
 
-  // address: масив адрес (або один рядок), префікс не потрібен
-  renderListWithToggle(addressEl, data.address);
-
-  // phone: масив телефонів (або один рядок), з префіксом
-  renderListWithToggle(phoneEl, data.phone);
+  renderJointContacts(addressEl, phoneEl, data.address, data.phone);
 
   applyAbout((data.description || "").trim());
 
@@ -520,6 +600,10 @@ function renderData(data) {
       const modeAlbum = document.getElementById("mode-album");
       const modePhoto = document.getElementById("mode-photo");
 
+      // react to radio switching between Album / Photo
+      modeAlbum.onchange = applyModeUI;
+      modePhoto.onchange = applyModeUI;
+
       // selection state within modal
       let sel = 0;
       let confirmed = false;
@@ -535,15 +619,15 @@ function renderData(data) {
         thumbsEl.innerHTML = "";
         previews.forEach((src, i) => {
           const wrap = document.createElement("div");
-          wrap.className = "photo-desc-thumb" + (i === sel ? " is-selected" : "");
+          wrap.className = "photo-desc-thumb" + (!disabled && i === sel ? " is-selected" : "");
           wrap.innerHTML = `
-        <img src="${src}" alt="">
-        <button class="thumb-x" data-i="${i}" ${disabled ? "disabled" : ""}>
-          <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>`;
+          <img src="${src}" alt="">
+          <button class="thumb-x" data-i="${i}" ${disabled ? "disabled" : ""}>
+            <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>`;
           if (!disabled) {
             wrap.addEventListener("click", (ev) => {
               if (ev.target.closest(".thumb-x")) return; // ignore delete button
@@ -588,6 +672,8 @@ function renderData(data) {
         textEl.value = tempCaptions[sel] || '';
       };
 
+      if (modeAlbum.checked) return;
+
       // open/close helpers
       function openModal() { overlay.hidden = false; dlg.hidden = false; }
       function closeModal() { overlay.hidden = true; dlg.hidden = true; }
@@ -595,12 +681,14 @@ function renderData(data) {
       // toggle UI by mode (Album → one shared description; Photo → per-photo)
       function applyModeUI() {
         if (modeAlbum.checked) {
-          renderThumbs(true);                 // disable clicks/deletes
-          sel = 0;                            // irrelevant in album mode
+          renderThumbs(true);
+          sel = 0;
           textEl.value = tempCaptions[0] || "";
+          textEl.placeholder = "Додати опис альбому...";
         } else {
-          renderThumbs(false);                // enable per-photo selection
+          renderThumbs(false);
           textEl.value = tempCaptions[sel] || "";
+          textEl.placeholder = "Додати опис...";
         }
       }
 
@@ -612,9 +700,20 @@ function renderData(data) {
       overlay.addEventListener("click", closeModal, { once: true });
 
       okBtn.onclick = () => {
-        commitCurrent();      // save text of current selection
-        confirmed = true;     // mark user confirmation
-        closeModal();         // close the modal
+        // Always persist current textarea before closing
+        commitCurrent();
+
+        // If ALBUM mode: enforce a single, joint description for all photos
+        if (modeAlbum.checked) {
+          const joint = (textEl.value || "").trim();
+          // make every slot share the same text
+          for (let i = 0; i < tempCaptions.length; i++) tempCaptions[i] = joint;
+          // selection index is irrelevant in album mode
+          sel = 0;
+        }
+
+        confirmed = true;
+        closeModal();
       };
 
       // wait until modal actually closes
@@ -634,24 +733,51 @@ function renderData(data) {
       if (!section.contains(imagesContainer)) section.appendChild(imagesContainer);
       imagesContainer.classList.add("one-row");                 // same as profile grid
 
-      // create temporary "uploading" tiles with spinner overlay
+      // create temporary "uploading" tile(s)
       const tempWraps = [];
-      previews.forEach((src) => {
+
+      if (modeAlbum.checked) {
+        // ONE placeholder for the whole album
         const wrap = document.createElement("div");
-        wrap.className = "image-wrap uploading";                // triggers overlay CSS
+        wrap.className = "image-wrap uploading";
 
         const img = document.createElement("img");
         img.className = "item-image";
-        img.src = src;
+        // show first preview as cover
+        img.src = previews[0];
 
-        const hint = document.createElement("div");
-        hint.className = "uploading-hint";
-        hint.textContent = "Завантаження…";
+        // counter badge with total files
+        const counter = document.createElement("div");
+        counter.className = "image-counter";
+        counter.textContent = String(previews.length);
 
-        wrap.append(img, hint);
-        imagesContainer.prepend(wrap);                          // newest first
+        // spinner overlay + hint
+        const overlay = document.createElement("div");
+        overlay.className = "uploading-overlay";
+        overlay.innerHTML = `<div class="spinner"></div><div class="uploading-hint">Завантаження…</div>`;
+
+        wrap.append(img, overlay, counter);
+        imagesContainer.prepend(wrap);
         tempWraps.push(wrap);
-      });
+      } else {
+        // N placeholders (one per photo) for Photo mode
+        previews.forEach((src) => {
+          const wrap = document.createElement("div");
+          wrap.className = "image-wrap uploading";
+
+          const img = document.createElement("img");
+          img.className = "item-image";
+          img.src = src;
+
+          const overlay = document.createElement("div");
+          overlay.className = "uploading-overlay";
+          overlay.innerHTML = `<div class="spinner"></div><div class="uploading-hint">Завантаження…</div>`;
+
+          wrap.append(img, overlay);
+          imagesContainer.prepend(wrap);
+          tempWraps.push(wrap);
+        });
+      }
 
       // uploader (ImgBB)
       async function uploadToImgBB(file) {
@@ -730,11 +856,10 @@ function renderData(data) {
 // --- make updateItems() report server errors clearly ---
 async function updateItems(items) {
   try {
-    const res = await fetch(`${API}/ritual_services/${ritualId}`, {
+    const res = await fetchWithAuth(`${API}/ritual_services/${ritualId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ items }),
     });
@@ -795,11 +920,10 @@ async function updateDescription(newDescription) {
   );
 
   try {
-    const res = await fetch(`${API}/ritual_services/${ritualId}`, {
+    const res = await fetchWithAuth(`${API}/ritual_services/${ritualId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ description: newDescription }),
     });

@@ -226,7 +226,7 @@ input[type="text"]::placeholder {
 .people-list {
     list-style: none;
     padding: 0;
-    margin: 0 0 36px;
+    margin: 0 0 14px;
 }
 
 .people-list li {
@@ -287,7 +287,7 @@ input[type="text"]::placeholder {
 
 /* 10) Submit Button */
 .submit-btn {
-    position: fixed;
+    /* position: fixed; */
     bottom: env(safe-area-inset-bottom, 16px);
     /* for iOS notch + 16px fallback */
     left: 50%;
@@ -311,6 +311,18 @@ input[type="text"]::placeholder {
     font-family: var(--font-base);
     font-weight: 600;
     cursor: pointer;
+}
+
+/* inline-режим розміщення під вибраною особою */
+.submit-btn--inline {
+    position: static;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    margin: 0 0 20px 0;
+    /* невеликий відступ зверху від списку */
 }
 
 /* ---- found label ---- */

@@ -135,6 +135,13 @@ body {
   font-weight: 480;
 }
 
+/* phones/addresses: show \n as line-breaks and tighten spacing */
+.ritual-address,
+.ritual-phone {
+  white-space: pre-line;
+  margin: 0 0 6px 0;
+}
+
 .ritual-link-btn {
   display: inline-flex;
   align-items: center;
@@ -204,6 +211,7 @@ body {
 }
 
 p.ritual-text {
+  width: 90%;
   background: none;
   margin-top: 8px;
   margin-bottom: 0;
@@ -1015,7 +1023,7 @@ textarea {
 .photo-type {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
   margin: 14px 4px 0;
 }
 

@@ -133,18 +133,19 @@
 
             <div class="modal-form">
                 <div class="form-group">
-                    <input type="text" id="delName" placeholder="Вкажіть ваш ПІБ…" />
+                    <input type="text" id="delName" placeholder="Введіть ваш ПІБ…" />
+                    <p id="delNameError" class="error-message" hidden></p>
                 </div>
                 <div class="form-group">
-                    <input type="text" id="delPhone" placeholder="Вкажіть ваш номер телефону…" />
+                    <input type="text" id="delPhone" placeholder="Введіть ваш номер телефону…" />
                 </div>
                 <div class="form-group">
-                    <input type="email" id="delEmail" placeholder="Вкажіть ваш email…" autocomplete="email"
+                    <input type="email" id="delEmail" placeholder="Введіть ваш email…" autocomplete="email"
                         inputmode="email" />
                     <div id="delEmailError" class="error-message" hidden></div>
                 </div>
                 <div class="form-group suggestions-container">
-                    <input type="text" id="delCity" placeholder="Населений пункт…" autocomplete="off" />
+                    <input type="text" id="delCity" placeholder="Введіть населений пункт…" autocomplete="off" />
                     <button class="icon-btn clear-btn" id="clearDelCity" aria-label="Очистити">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
@@ -155,7 +156,7 @@
                     <ul class="suggestions-list" id="delCitySuggestions"></ul>
                 </div>
                 <div class="form-group suggestions-container">
-                    <input type="text" id="delBranch" placeholder="Відділення НП…" autocomplete="off" />
+                    <input type="text" id="delBranch" placeholder="Оберть відділення НП…" autocomplete="off" />
                     <button class="icon-btn clear-btn" id="clearDelBranch" aria-label="Очистити">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">

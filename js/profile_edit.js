@@ -1401,10 +1401,12 @@ document.addEventListener('DOMContentLoaded', () => {
         function openModal() { overlay.hidden = false; dlg.hidden = false; }
         function closeModal() { overlay.hidden = true; dlg.hidden = true; }
 
-        // open modal
-        openModal();
-        renderThumbs();
-        textEl.value = tempCaptions[sel] || '';
+        // open modal (defer one tick so iOS finishes closing the native picker)
+        setTimeout(() => {
+            openModal();
+            renderThumbs();
+            textEl.value = tempCaptions[sel] || '';
+        }, 0);
 
         closeX.onclick = () => { commitCurrent(); closeModal(); };
         overlay.addEventListener('click', () => { commitCurrent(); closeModal(); }, { once: true });
@@ -2110,42 +2112,228 @@ document.addEventListener('DOMContentLoaded', () => {
         return r.json(); // { uploadUrl, objectUrl, key, expiresIn }
     }
 
-    async function capturePosterFromVideoFile(file, atSeconds = 0.8) {
-        return new Promise((resolve, reject) => {
-            const url = URL.createObjectURL(file);
-            const video = document.createElement("video");
-            video.src = url;
-            video.muted = true;
-            video.playsInline = true;
-            video.crossOrigin = "anonymous";
-            video.addEventListener("loadedmetadata", () => {
-                const target = Math.min(Math.max(0.01, atSeconds), Math.max(0.01, (video.duration || 1) - 0.01));
-                const seekTo = isFinite(target) ? target : 0.5;
-                const onSeeked = () => {
-                    try {
-                        const canvas = document.createElement("canvas");
-                        canvas.width = video.videoWidth || 800;
-                        canvas.height = video.videoHeight || 450;
-                        const ctx = canvas.getContext("2d");
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        canvas.toBlob((blob) => {
-                            URL.revokeObjectURL(url);
-                            if (!blob) return reject(new Error("poster toBlob failed"));
-                            resolve(blob);
-                        }, "image/jpeg", 0.85);
-                    } catch (err) {
-                        URL.revokeObjectURL(url);
-                        reject(err);
+    function dataUrlToBlob(dataUrl) {
+        try {
+            const parts = dataUrl.split(',');
+            if (parts.length < 2) return new Blob();
+            const header = parts[0];
+            const data = parts.slice(1).join(',');
+            const mimeMatch = header.match(/data:(.*?)(;base64)?$/i);
+            const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+            const isBase64 = /;base64$/i.test(header);
+            const bytes = isBase64 ? atob(data) : decodeURIComponent(data);
+            const buffer = new Uint8Array(bytes.length);
+            for (let i = 0; i < bytes.length; i += 1) {
+                buffer[i] = bytes.charCodeAt(i);
+            }
+            return new Blob([buffer], { type: mime });
+        } catch {
+            return new Blob();
+        }
+    }
+
+    function canvasToJpegBlob(canvas, quality = 0.85) {
+        return new Promise((resolve) => {
+            const fallback = () => {
+                try {
+                    const dataUrl = canvas.toDataURL("image/jpeg", quality);
+                    resolve(dataUrlToBlob(dataUrl));
+                } catch {
+                    resolve(new Blob());
+                }
+            };
+
+            if (typeof canvas.toBlob === 'function') {
+                canvas.toBlob((blob) => {
+                    if (blob && blob.size) {
+                        resolve(blob);
+                    } else {
+                        fallback();
                     }
-                };
-                video.currentTime = seekTo;
-                video.addEventListener("seeked", onSeeked, { once: true });
-            }, { once: true });
-            video.addEventListener("error", () => {
-                URL.revokeObjectURL(url);
-                reject(new Error("video load error"));
-            }, { once: true });
+                }, "image/jpeg", quality);
+            } else {
+                fallback();
+            }
         });
+    }
+
+    async function createPlaceholderPoster(width = 800, height = 450) {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return canvasToJpegBlob(canvas, 0.75);
+
+        ctx.fillStyle = "#e9eef3";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = "#c2ccd8";
+        ctx.beginPath();
+        ctx.moveTo(width * 0.42, height * 0.36);
+        ctx.lineTo(width * 0.42, height * 0.64);
+        ctx.lineTo(width * 0.66, height * 0.5);
+        ctx.closePath();
+        ctx.fill();
+
+        return canvasToJpegBlob(canvas, 0.75);
+    }
+
+    function waitForMetadata(video, timeoutMs = 8000) {
+        return new Promise((resolve) => {
+            if (video.readyState >= 1 && Number.isFinite(video.duration)) {
+                resolve();
+                return;
+            }
+
+            let settled = false;
+            const finalize = () => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                video.removeEventListener("loadedmetadata", onLoaded);
+                video.removeEventListener("loadeddata", onLoaded);
+                video.removeEventListener("error", finalize);
+                resolve();
+            };
+            const onLoaded = () => finalize();
+            const timer = setTimeout(finalize, timeoutMs);
+
+            video.addEventListener("loadedmetadata", onLoaded, { once: true });
+            video.addEventListener("loadeddata", onLoaded, { once: true });
+            video.addEventListener("error", finalize, { once: true });
+        });
+    }
+
+    function waitForReadyFrame(video, timeoutMs = 4000) {
+        return new Promise((resolve) => {
+            if (video.readyState >= 2) {
+                resolve();
+                return;
+            }
+
+            let settled = false;
+            const finalize = () => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                video.removeEventListener("loadeddata", onReady);
+                video.removeEventListener("canplay", onReady);
+                video.removeEventListener("error", finalize);
+                resolve();
+            };
+            const onReady = () => finalize();
+            const timer = setTimeout(finalize, timeoutMs);
+
+            video.addEventListener("loadeddata", onReady, { once: true });
+            video.addEventListener("canplay", onReady, { once: true });
+            video.addEventListener("error", finalize, { once: true });
+        });
+    }
+
+    function waitForSeek(video, targetTime, timeoutMs = 3500) {
+        return new Promise((resolve) => {
+            let settled = false;
+            const finalize = () => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                video.removeEventListener("seeked", onSeeked);
+                video.removeEventListener("error", finalize);
+                resolve();
+            };
+            const onSeeked = () => finalize();
+            const timer = setTimeout(finalize, timeoutMs);
+
+            video.addEventListener("seeked", onSeeked, { once: true });
+            video.addEventListener("error", finalize, { once: true });
+
+            try {
+                if (!Number.isFinite(targetTime) || targetTime < 0) {
+                    setTimeout(finalize, 0);
+                    return;
+                }
+
+                if (Math.abs(video.currentTime - targetTime) < 0.02) {
+                    setTimeout(finalize, 0);
+                    return;
+                }
+
+                video.currentTime = targetTime;
+            } catch {
+                finalize();
+            }
+        });
+    }
+
+    async function capturePosterFromVideoFile(file, atSeconds = 0.8) {
+        const objectUrl = URL.createObjectURL(file);
+        const video = document.createElement("video");
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = "metadata";
+        video.crossOrigin = "anonymous";
+
+        const cleanup = () => {
+            try { video.pause(); } catch { }
+            try {
+                video.removeAttribute("src");
+                if (typeof video.load === "function") video.load();
+            } catch { }
+            try { URL.revokeObjectURL(objectUrl); } catch { }
+        };
+
+        try {
+            const metadataReady = waitForMetadata(video);
+            video.src = objectUrl;
+            try { video.load(); } catch { }
+            await metadataReady;
+
+            if (video.readyState < 2) {
+                await waitForReadyFrame(video);
+            }
+
+            const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1;
+            let targetTime = Number.isFinite(atSeconds) && atSeconds >= 0 ? atSeconds : 0.5;
+            if (duration > 0) {
+                const maxSeek = Math.max(duration - 0.05, 0);
+                if (maxSeek > 0) targetTime = Math.min(targetTime, maxSeek);
+                if (targetTime > duration) targetTime = Math.max(duration - 0.05, 0);
+            }
+            if (!Number.isFinite(targetTime) || targetTime < 0) {
+                targetTime = 0;
+            }
+
+            await waitForSeek(video, targetTime);
+
+            if (video.readyState < 2) {
+                await waitForReadyFrame(video);
+            }
+
+            const width = video.videoWidth || 800;
+            const height = video.videoHeight || Math.round(width * 9 / 16) || 450;
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return createPlaceholderPoster(width, height);
+
+            if (video.videoWidth && video.videoHeight) {
+                ctx.drawImage(video, 0, 0, width, height);
+            } else {
+                ctx.fillStyle = "#e9eef3";
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            const blob = await canvasToJpegBlob(canvas, 0.85);
+            if (blob && blob.size) return blob;
+
+            return createPlaceholderPoster(width, height);
+        } catch (err) {
+            console.warn("capturePosterFromVideoFile fallback", err);
+            return createPlaceholderPoster();
+        } finally {
+            cleanup();
+        }
     }
 
     async function uploadVideoToSpaces(file) {
@@ -2158,6 +2346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2) upload bytes
         const put = await fetch(meta.uploadUrl, {
             method: "PUT",
+            headers: { "Content-Type": file.type || "video/mp4" },
             body: file,
         });
         if (!put.ok) throw new Error(`Spaces upload failed: ${put.status}`);
@@ -2187,7 +2376,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let poster = "";
         try {
             const posterBlob = await capturePosterFromVideoFile(file, 0.8);
-            const posterFile = new File([posterBlob], (filename.replace(/\.[^.]+$/, "") || "poster") + ".jpg", { type: "image/jpeg" });
+            const blobType = posterBlob?.type && posterBlob.type.includes('/') ? posterBlob.type : "image/jpeg";
+            const ext = blobType.includes("png") ? "png" : "jpg";
+            const safeBaseName = filename.replace(/\.[^.]+$/, "") || "poster";
+            const posterFile = new File([posterBlob], `${safeBaseName}.${ext}`, { type: blobType });
             poster = await uploadToImgBB(posterFile); // reuse your existing ImgBB helper
         } catch (e) {
             console.warn("Poster generation failed, using empty poster", e);
@@ -2203,6 +2395,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function hookPhotoButtons() {
         if (addPhotoBtn)
             addPhotoBtn.addEventListener('click', () => {
+                if (fileInput) fileInput.value = "";
                 fileInput?.click();
             });
 
@@ -2287,119 +2480,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Split by type
                 const imageFiles = files.filter(f => f.type.startsWith("image/"));
                 const videoFiles = files.filter(f => f.type.startsWith("video/"));
-
-                // --- helpers (scoped) ----------------------------------------------------
-                async function uploadToImgBB(file) {
-                    const form = new FormData();
-                    form.append('image', file);
-                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-                        method: 'POST',
-                        body: form
-                    });
-                    const json = await res.json();
-                    if (!json?.success) throw new Error('Upload to ImgBB failed');
-                    return json.data.url;
-                }
-
-                async function capturePosterFromVideoFile(file, atSeconds = 0.8) {
-                    return new Promise((resolve, reject) => {
-                        const url = URL.createObjectURL(file);
-                        const v = document.createElement("video");
-                        v.src = url;
-                        v.muted = true;
-                        v.playsInline = true;
-                        v.crossOrigin = "anonymous";
-                        v.addEventListener("loadedmetadata", () => {
-                            const t = Math.min(Math.max(0.01, atSeconds), Math.max(0.01, (v.duration || 1) - 0.01));
-                            v.currentTime = Number.isFinite(t) ? t : 0.5;
-                            v.addEventListener("seeked", () => {
-                                try {
-                                    const c = document.createElement("canvas");
-                                    c.width = v.videoWidth || 800;
-                                    c.height = v.videoHeight || 450;
-                                    c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
-                                    c.toBlob(b => {
-                                        URL.revokeObjectURL(url);
-                                        if (!b) return reject(new Error("poster toBlob failed"));
-                                        resolve(b);
-                                    }, "image/jpeg", 0.85);
-                                } catch (err) {
-                                    URL.revokeObjectURL(url);
-                                    reject(err);
-                                }
-                            }, { once: true });
-                        }, { once: true });
-                        v.addEventListener("error", () => {
-                            URL.revokeObjectURL(url);
-                            reject(new Error("video load error"));
-                        }, { once: true });
-                    });
-                }
-
-                async function getSpacesUploadUrl(filename, contentType) {
-                    const params = new URLSearchParams({ filename, contentType });
-                    const r = await fetch(`${API_URL}/api/spaces/video-upload-url?` + params);
-                    if (!r.ok) throw new Error("Failed to get Spaces upload URL");
-                    return r.json(); // { uploadUrl, objectUrl, key, expiresIn }
-                }
-
-                async function uploadVideoToSpaces(file) {
-                    const contentType = file.type || "video/mp4";
-                    const filename = (file.name ? file.name.replace(/\s+/g, "_") : `video_${Date.now()}.mp4`);
-
-                    // 1) presigned PUT
-                    const meta = await getSpacesUploadUrl(filename, contentType);
-
-                    // 2) upload bytes
-                    const put = await fetch(meta.uploadUrl, {
-                        method: "PUT",
-                        headers: { "Content-Type": contentType },
-                        body: file
-                    });
-                    if (!put.ok) throw new Error(`Spaces upload failed: ${put.status}`);
-
-                    // 3) make the uploaded object public
-                    if (meta?.key) {
-                        try {
-                            const makePublicRes = await fetch(`${API_URL}/api/spaces/make-public`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ key: meta.key })
-                            });
-                            if (makePublicRes.ok) {
-                                const mpJson = await makePublicRes.json().catch(() => null);
-                                if (mpJson?.objectUrl) {
-                                    meta.objectUrl = mpJson.objectUrl;
-                                }
-                            } else {
-                                console.warn('Spaces make-public failed', makePublicRes.status);
-                            }
-                        } catch (err) {
-                            console.warn('Spaces make-public error', err);
-                        }
-                    }
-
-                    // 4) poster (from local file) → ImgBB
-                    let poster = "";
-                    try {
-                        const posterBlob = await capturePosterFromVideoFile(file, 0.8);
-                        const posterFile = new File(
-                            [posterBlob],
-                            (filename.replace(/\.[^.]+$/, "") || "poster") + ".jpg",
-                            { type: "image/jpeg" }
-                        );
-                        poster = await uploadToImgBB(posterFile);
-                    } catch (e) {
-                        console.warn("Poster generation failed", e);
-                    }
-
-                    const playerUrl = meta.objectUrl || meta.object_url || (typeof meta.uploadUrl === 'string'
-                        ? meta.uploadUrl.split('?')[0]
-                        : '');
-                    return { player: playerUrl, poster };
-                }
-                // ------------------------------------------------------------------------
-
                 // 0) Build preview list (images = blob URLs; videos = captured poster)
                 const previewItems = await Promise.all(files.map(async (f, idx) => {
                     if (f.type.startsWith("image/")) {
@@ -2410,6 +2490,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const posterUrl = URL.createObjectURL(posterBlob);
                             return { kind: "video", idx, src: posterUrl };
                         } catch {
+                            // (we rarely hit this now, since the helper always resolves)
                             const ph = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
                                 `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><rect width='100%' height='100%' fill='#e9eef3'/></svg>`
                             );
@@ -3115,8 +3196,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
             const dateItem = document.createElement('div');
-            dateItem.className = 'date-item' +
-                (d.toDateString() === today.toDateString() ? ' selected' : '');
+            dateItem.className =
+                'date-item' + (d.toDateString() === today.toDateString() ? ' selected' : '');
 
             const dateNumber = document.createElement('span');
             dateNumber.className = 'date-number';
@@ -3133,18 +3214,25 @@ document.addEventListener('DOMContentLoaded', () => {
             dateItem.dataset.day = String(d.getDate());
             dateItem.dataset.month = String(d.getMonth() + 1);
             dateItem.dataset.year = String(d.getFullYear());
+
+            // ✅ NEW: Mark today's date for styling (if not selected)
+            if (d.toDateString() === today.toDateString()) {
+                dateItem.classList.add('today');
+            }
         }
 
-        const todayFormatted = `${String(today.getDate()).padStart(2, '0')}.${String(today.getMonth() + 1).padStart(2, '0')}.${today.getFullYear()}`;
+        const todayFormatted = `${String(today.getDate()).padStart(2, '0')}.${String(
+            today.getMonth() + 1
+        ).padStart(2, '0')}.${today.getFullYear()}`;
         selectedDateEl.textContent = todayFormatted;
 
         // Ensure "today" is selected and shown
-        const todayItem = Array.from(dateCalendar.querySelectorAll('.date-item'))
-            .find(item =>
+        const todayItem = Array.from(dateCalendar.querySelectorAll('.date-item')).find(
+            (item) =>
                 parseInt(item.dataset.day) === today.getDate() &&
                 parseInt(item.dataset.month) === today.getMonth() + 1 &&
                 parseInt(item.dataset.year) === today.getFullYear()
-            );
+        );
 
         // Show today's chip at the LEFT edge (no page jump)
         const scroller = dateCalendar; // the actual overflow-x container
@@ -3156,7 +3244,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update details immediately
         updateLiturgyDetails();
-
         setTimeout(updateLiturgyDetails, 100);
     }
 

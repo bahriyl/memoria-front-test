@@ -695,6 +695,12 @@ body::-webkit-scrollbar {
     color: #fff;
 }
 
+/* Highlight today's date if not selected */
+.date-item.today:not(.selected) .date-number,
+.date-item.today:not(.selected) .date-day {
+    color: #1B8B59 !important;
+}
+
 .date-number {
     font-size: 1.25rem;
     font-weight: 600;
@@ -2503,7 +2509,7 @@ input[type="number"] {
     font-size: 17px;
     font-weight: 550;
     font-family: 'Montserrat', sans-serif;
-    width: 50%;
+    width: 55%;
     align-self: center;
     margin-top: 10px;
 }
@@ -2515,6 +2521,21 @@ input[type="number"] {
     margin: 0;
     cursor: pointer;
     margin-left: 4px;
+}
+
+.forgot-email-link {
+    color: #1B8B59;
+    font-weight: 550;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 6px;
+}
+
+.forgot-email-text {
+    font-size: 15px;
+    line-height: 1.5;
+    text-align: center;
+    margin-bottom: 20px;
 }
 
 /* ── Photo Description Modal (unified) ───────────────────────── */
@@ -2990,4 +3011,37 @@ video::-webkit-media-controls-start-playback-button {
 .liturgy-status.is-done {
     background: #FFFFFF;
     color: #000000;
+}
+
+.password-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.password-wrapper input[type="password"],
+.password-wrapper input[type="text"] {
+    width: 100%;
+    padding-right: 42px;
+    /* leave space for the eye icon */
+    box-sizing: border-box;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none !important;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #72767d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-password svg {
+    stroke: #72767D;
+    fill: none;
 }

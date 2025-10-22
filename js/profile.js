@@ -51,6 +51,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return `relModalReturn:${id}`;
     }
 
+    const toggleBtns = document.querySelectorAll('.toggle-password');
+    toggleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = btn.closest('.password-wrapper').querySelector('input');
+            const isVisible = input.type === 'text';
+            input.type = isVisible ? 'password' : 'text';
+            btn.classList.toggle('active', !isVisible);
+            btn.setAttribute('aria-label', isVisible ? 'Показати пароль' : 'Приховати пароль');
+        });
+    });
+
     // ─────────────────────────────────────────────────────────────────────────────
     // Grab key elements
     // ─────────────────────────────────────────────────────────────────────────────
@@ -2319,6 +2330,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const open = () => {
+            loginModal.dispatchEvent(new CustomEvent('login:reset'));
             loginModal.style.display = 'flex';
         };
         const close = () => {
@@ -2326,6 +2338,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('loginInput').value = '';
             document.getElementById('passwordInput').value = '';
             document.getElementById('loginError').textContent = '';
+            loginModal.dispatchEvent(new CustomEvent('login:reset'));
         };
 
         loginBtn.addEventListener('click', open);
@@ -2351,6 +2364,11 @@ document.addEventListener('DOMContentLoaded', () => {
             premiumCreds = data.premium || null;
 
             if (premiumLock) {
+                const photosTitleEl = document.querySelector('.photos-title');
+                if (photosTitleEl && photosTitleEl.textContent.trim() === 'Фотографії') {
+                    photosTitleEl.textContent = 'Галерея';
+                }
+
                 // Показати шапку з “Увійти” та сховати всі кнопки редагування
                 document.getElementById('profile-login-header')?.removeAttribute('hidden');
                 hideEditingUIForPremium?.();
@@ -2361,7 +2379,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const loginModal = document.getElementById('loginModal');
                 const loginBox = loginModal?.querySelector('.login-box');
                 if (loginBtn && loginModal && loginBox) {
-                    const open = () => { loginModal.style.display = 'flex'; };
+                    const open = () => {
+                        loginModal.dispatchEvent(new CustomEvent('login:reset'));
+                        loginModal.style.display = 'flex';
+                    };
                     loginBtn.onclick = open;
                     loginBox.onclick = (e) => e.stopPropagation();
                     loginModal.onclick = (e) => {
@@ -2648,8 +2669,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
             const dateItem = document.createElement('div');
-            dateItem.className = 'date-item' +
-                (d.toDateString() === today.toDateString() ? ' selected' : '');
+            dateItem.className =
+                'date-item' + (d.toDateString() === today.toDateString() ? ' selected' : '');
 
             const dateNumber = document.createElement('span');
             dateNumber.className = 'date-number';
@@ -2666,18 +2687,25 @@ document.addEventListener('DOMContentLoaded', () => {
             dateItem.dataset.day = String(d.getDate());
             dateItem.dataset.month = String(d.getMonth() + 1);
             dateItem.dataset.year = String(d.getFullYear());
+
+            // ✅ NEW: Mark today's date for styling (if not selected)
+            if (d.toDateString() === today.toDateString()) {
+                dateItem.classList.add('today');
+            }
         }
 
-        const todayFormatted = `${String(today.getDate()).padStart(2, '0')}.${String(today.getMonth() + 1).padStart(2, '0')}.${today.getFullYear()}`;
+        const todayFormatted = `${String(today.getDate()).padStart(2, '0')}.${String(
+            today.getMonth() + 1
+        ).padStart(2, '0')}.${today.getFullYear()}`;
         selectedDateEl.textContent = todayFormatted;
 
         // Ensure "today" is selected and shown
-        const todayItem = Array.from(dateCalendar.querySelectorAll('.date-item'))
-            .find(item =>
+        const todayItem = Array.from(dateCalendar.querySelectorAll('.date-item')).find(
+            (item) =>
                 parseInt(item.dataset.day) === today.getDate() &&
                 parseInt(item.dataset.month) === today.getMonth() + 1 &&
                 parseInt(item.dataset.year) === today.getFullYear()
-            );
+        );
 
         // Show today's chip at the LEFT edge (no page jump)
         const scroller = dateCalendar; // the actual overflow-x container
@@ -2689,7 +2717,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update details immediately
         updateLiturgyDetails();
-
         setTimeout(updateLiturgyDetails, 100);
     }
 
@@ -3200,6 +3227,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let resetNewPassEl = null;
         let backToLoginEl = null;
 
+        let forgotEmailEl;
+        let forgotInfoEl;
+        let restoreSubmitOnClick = null;
+
         function clearMsg() { if (errEl) { errEl.textContent = ''; errEl.style.color = ''; } }
 
         function ensureBackLink() {
@@ -3211,6 +3242,108 @@ document.addEventListener('DOMContentLoaded', () => {
             backToLoginEl.style.marginTop = '4px';
             backToLoginEl.addEventListener('click', switchToLogin);
             errEl?.before(backToLoginEl);
+        }
+
+        function ensureForgotEmailLink() {
+            if (forgotEmailEl) return;
+            forgotEmailEl = document.createElement('p');
+            forgotEmailEl.className = 'forgot-password';
+            forgotEmailEl.textContent = 'Забули пошту?';
+            forgotEmailEl.style.textAlign = 'center';
+            forgotEmailEl.style.marginTop = '4px';
+            forgotEmailEl.style.cursor = 'pointer';
+            forgotEmailEl.addEventListener('click', switchToForgotEmail);
+
+            // розміщуємо САМЕ ПІД "Повернутися до входу"
+            // якщо backToLoginEl уже є — ставимо відразу після нього
+            if (backToLoginEl && backToLoginEl.parentNode) {
+                backToLoginEl.after(forgotEmailEl);
+            } else if (errEl && errEl.parentNode) {
+                // fallback: перед errEl (як у ensureBackLink), якщо раптом ще немає backToLoginEl
+                errEl.before(forgotEmailEl);
+            }
+        }
+
+        function showForgotEmailLink() {
+            // create once, place under "Повернутися до входу"
+            if (!forgotEmailEl) {
+                forgotEmailEl = document.createElement('p');
+                forgotEmailEl.className = 'forgot-password';
+                forgotEmailEl.textContent = 'Забули пошту?';
+                forgotEmailEl.style.textAlign = 'center';
+                forgotEmailEl.style.marginTop = '4px';
+                forgotEmailEl.style.cursor = 'pointer';
+                forgotEmailEl.addEventListener('click', switchToForgotEmail);
+                if (backToLoginEl?.parentNode) backToLoginEl.after(forgotEmailEl);
+                else if (errEl?.parentNode) errEl.before(forgotEmailEl);
+            }
+            forgotEmailEl.hidden = false; // ensure visible on step 1
+        }
+
+        function hideForgotEmailLink() {
+            if (forgotEmailEl) forgotEmailEl.hidden = true;
+        }
+
+        function switchToForgotEmail() {
+            authMode = 'forgotEmail';
+
+            // Прибираємо повідомлення/помилки
+            clearMsg();
+
+            // Заголовок (можете лишити "Скидання паролю", або зробити окремий)
+            titleEl.textContent = 'Скидання паролю';
+
+            // Сховати всі стандартні поля та підказки
+            loginEl.hidden = true;
+            passEl.hidden = true;
+            forgotEl.hidden = true;
+
+            // Сховати динамічні елементи reset-step1/2, якщо вони додані
+            if (typeof resetEmailEl !== 'undefined' && resetEmailEl) resetEmailEl.hidden = true;
+            if (typeof resetCodeEl !== 'undefined' && resetCodeEl) resetCodeEl.hidden = true;
+            if (typeof resetNewPassEl !== 'undefined' && resetNewPassEl) resetNewPassEl.hidden = true;
+
+            // Сховати/прибрати лінки під формою, щоб лишився тільки наш екран
+            if (backToLoginEl) backToLoginEl.hidden = true;
+            if (forgotEmailEl) forgotEmailEl.hidden = true;
+
+            // Показати текст-підказку
+            if (!forgotInfoEl) {
+                forgotInfoEl = document.createElement('p');
+                forgotInfoEl.style.fontSize = '15px';
+                forgotInfoEl.style.lineHeight = '1.5';
+                forgotInfoEl.style.textAlign = 'center';
+                forgotInfoEl.style.margin = '12px 0 20px';
+                forgotInfoEl.textContent = 'Напишіть, будь-ласка, у чат-підтримку щоб дізнатись, або змінити пошту';
+                // вставляємо перед кнопкою
+                submitBtn.before(forgotInfoEl);
+            } else {
+                forgotInfoEl.hidden = false;
+            }
+
+            // Змінюємо #loginSubmit на "Назад" і тимчасово перевішуємо клік
+            submitBtn.textContent = 'Назад';
+
+            // зберігаємо поточний onclick, щоб потім відновити
+            if (restoreSubmitOnClick === null) {
+                restoreSubmitOnClick = submitBtn.onclick || null;
+            }
+            submitBtn.onclick = (e) => {
+                e?.preventDefault?.();
+                // повертаємо екран "Скидання паролю" (крок 1)
+                // показуємо назад приховані елементи
+                if (forgotInfoEl) forgotInfoEl.hidden = true;
+                if (backToLoginEl) backToLoginEl.hidden = false;
+                if (forgotEmailEl) forgotEmailEl.hidden = false;
+
+                // відновлюємо первинний обробник кнопки
+                submitBtn.onclick = restoreSubmitOnClick;
+                restoreSubmitOnClick = null;
+
+                // повертаємо лейбл кнопки і сам екран
+                switchToResetStep1();
+            };
+            hideForgotEmailLink();
         }
 
         function removeResetFields() {
@@ -3229,6 +3362,7 @@ document.addEventListener('DOMContentLoaded', () => {
             forgotEl.hidden = false;
             submitBtn.textContent = 'Увійти';
             removeResetFields();
+            hideForgotEmailLink();
         }
 
         function switchToResetStep1() {
@@ -3251,6 +3385,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             submitBtn.textContent = 'Надіслати код';
             ensureBackLink();
+            showForgotEmailLink();
         }
 
         function switchToResetStep2() {
@@ -3277,7 +3412,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             submitBtn.textContent = 'Змінити пароль';
             ensureBackLink();
+            hideForgotEmailLink();
         }
+
+        // Allow external open/close handlers to force the login view
+        modal.addEventListener('login:reset', switchToLogin);
 
         // Hook the "forgot password" link
         forgotEl.addEventListener('click', switchToResetStep1);
@@ -3389,6 +3528,24 @@ document.addEventListener('DOMContentLoaded', () => {
         // Ensure the modal always opens in login mode
         switchToLogin();
     })();
+
+    // "Забули пошту" flow
+    const forgotEmailLink = document.getElementById('forgot-email');
+    const forgotEmailModal = document.getElementById('forgot-email-modal');
+    const backToResetBtn = document.getElementById('back-to-reset');
+    const resetPasswordModal = document.getElementById('reset-password-modal'); // adjust ID if yours differs
+
+    if (forgotEmailLink && forgotEmailModal && backToResetBtn && resetPasswordModal) {
+        forgotEmailLink.addEventListener('click', () => {
+            resetPasswordModal.hidden = true;
+            forgotEmailModal.hidden = false;
+        });
+
+        backToResetBtn.addEventListener('click', () => {
+            forgotEmailModal.hidden = true;
+            resetPasswordModal.hidden = false;
+        });
+    }
 
     // Dots → Relatives “Добавити / Вибрати”
     document.getElementById('rel-add-option')?.addEventListener('click', () => addRelBtn?.click());
