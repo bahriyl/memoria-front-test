@@ -192,10 +192,18 @@ function renderFilterControls() {
             let selectedDeath = filterState.deathYear ? Number(filterState.deathYear) : undefined;
 
             const updateDisplay = () => {
+                let text = 'Роки життя';
+
+                if (selectedBirth && !selectedDeath) {
+                    text = `${selectedBirth} – `;
+                } else if (!selectedBirth && selectedDeath) {
+                    text = ` – ${selectedDeath}`;
+                } else if (selectedBirth && selectedDeath) {
+                    text = `${selectedBirth} – ${selectedDeath}`;
+                }
+
                 const hasAny = !!(selectedBirth || selectedDeath);
-                const text = hasAny
-                    ? `${selectedBirth ?? ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath ?? ''}`
-                    : 'Роки життя';
+
                 display.textContent = text;
                 display.classList.toggle('has-value', hasAny);
                 picker.classList.toggle('has-value', hasAny);

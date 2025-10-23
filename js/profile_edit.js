@@ -1719,6 +1719,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const paused = video.paused;
                     overlayBtn.hidden = !paused;
                     if (controlsBar) controlsBar.style.display = paused ? 'none' : 'flex';
+                    if (indicator) indicator.style.display = paused ? '' : 'none';
                 };
 
                 overlayBtn.addEventListener('click', () => {

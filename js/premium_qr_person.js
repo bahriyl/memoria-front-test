@@ -53,10 +53,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedBirth, selectedDeath;
 
     const updateDisplay = () => {
+        let text = 'Роки життя';
+
+        if (selectedBirth && !selectedDeath) {
+            text = `${selectedBirth} – `;
+        } else if (!selectedBirth && selectedDeath) {
+            text = ` – ${selectedDeath}`;
+        } else if (selectedBirth && selectedDeath) {
+            text = `${selectedBirth} – ${selectedDeath}`;
+        }
+
         const hasAny = !!(selectedBirth || selectedDeath);
-        const text = hasAny
-            ? `${selectedBirth ?? ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath ?? ''}`
-            : 'Роки життя';
 
         display.textContent = text;
         display.classList.toggle('has-value', hasAny);

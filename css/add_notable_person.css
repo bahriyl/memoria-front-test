@@ -544,7 +544,8 @@ textarea {
     font-weight: 570;
     line-height: 1.3;
     color: #12161f;
-    margin-bottom: 60px;
+    margin-bottom: 15px;
+    text-align: center;
 }
 
 .years-body {
@@ -750,7 +751,7 @@ textarea {
     display: block;
     width: 100%;
     height: 48px;
-    margin: 18px auto 0;
+    margin: 20px auto 0;
     background: #1B8B59;
     border: none;
     border-radius: 18px;

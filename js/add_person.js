@@ -89,11 +89,17 @@ document.addEventListener('DOMContentLoaded', () => {
     })();
 
     function updateDisplay() {
-        const hasAny = !!(selectedBirth || selectedDeath);
-        const text = hasAny
-            ? `${selectedBirth ?? ""}${(selectedBirth && selectedDeath) ? " – " : ""}${selectedDeath ?? ""}`
-            : 'Роки життя';
+        let text = 'Роки життя';
 
+        if (selectedBirth && !selectedDeath) {
+            text = `${selectedBirth} – `;
+        } else if (!selectedBirth && selectedDeath) {
+            text = ` – ${selectedDeath}`;
+        } else if (selectedBirth && selectedDeath) {
+            text = `${selectedBirth} – ${selectedDeath}`;
+        }
+
+        const hasAny = !!(selectedBirth || selectedDeath);
         display.textContent = text;
         display.classList.toggle('has-value', hasAny);
         picker.classList.toggle('has-value', hasAny);
@@ -104,8 +110,11 @@ document.addEventListener('DOMContentLoaded', () => {
         deathInput.value = selectedDeath ?? '';
 
         D('updateDisplay()', {
-            selectedBirth, selectedDeath, text,
-            birthInput: birthInput.value, deathInput: deathInput.value
+            selectedBirth,
+            selectedDeath,
+            text,
+            birthInput: birthInput.value,
+            deathInput: deathInput.value
         });
     }
 
