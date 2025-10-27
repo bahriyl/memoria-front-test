@@ -221,6 +221,12 @@ document.addEventListener('DOMContentLoaded', () => {
         panel.hidden = !panel.hidden;
         D('display.click → toggle panel', { hidden: panel.hidden, before });
 
+        // Hide submit button when years-panel is open
+        const submitBtn = document.querySelector('.submit-btn');
+        if (submitBtn) {
+            submitBtn.style.display = panel.hidden ? 'block' : 'none';
+        }
+
         if (!panel.hidden) {
             const hasBirth = !!birthWheel.getValue();
             const hasDeath = !!deathWheel.getValue();
@@ -242,12 +248,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!picker.contains(e.target)) {
             panel.hidden = true;
             D('document.click → close panel');
+
+            const submitBtn = document.querySelector('.submit-btn');
+            if (submitBtn) submitBtn.style.display = 'block';
         }
     });
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
             panel.hidden = true;
             D('keydown[Escape] → close panel');
+
+            const submitBtn = document.querySelector('.submit-btn');
+            if (submitBtn) submitBtn.style.display = 'block';
         }
     });
 
@@ -270,6 +282,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDisplay();
         panel.hidden = true;
         D('doneBtn.click() → panel.hidden=true');
+
+        const submitBtn = document.querySelector('.submit-btn');
+        if (submitBtn) submitBtn.style.display = 'block';
     });
 
     clearBtn.addEventListener('click', (e) => {

@@ -62,6 +62,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // ---- Scroll lock helpers ----
+    let __scrollLockCount = 0;
+
+    function lockScroll() {
+        if (__scrollLockCount++ > 0) return; // вже залочено (підтримка вкладених модалок)
+        const y = window.scrollY || document.documentElement.scrollTop || 0;
+        document.body.dataset.lockScrollY = String(y);
+        Object.assign(document.body.style, {
+            position: 'fixed',
+            top: `-${y}px`,
+            left: '0',
+            right: '0',
+            width: '100%',
+            overscrollBehavior: 'contain', // iOS/Android: не віддавати скрол вище
+        });
+    }
+
+    function unlockScroll() {
+        if (--__scrollLockCount > 0) return; // ще є активні модалки
+        const y = parseInt(document.body.dataset.lockScrollY || '0', 10);
+        Object.assign(document.body.style, {
+            position: '',
+            top: '',
+            left: '',
+            right: '',
+            width: '',
+            overscrollBehavior: '',
+        });
+        delete document.body.dataset.lockScrollY;
+        window.scrollTo(0, y);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────
     // Grab key elements
     // ─────────────────────────────────────────────────────────────────────────────
@@ -138,6 +170,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const donationClose = document.getElementById('donation-close');
 
     let liturgiesIndex = {}; // { 'YYYY-MM-DD': [ { _id, churchName, price, createdAt, serviceDate } ] }
+
+    function openSharedUploadedModal() {
+        if (!overlayEl) return;
+
+        // Create once
+        let modal = document.getElementById('shared-upload-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'shared-upload-modal';
+            modal.className = 'modal';
+            modal.hidden = true;
+            modal.innerHTML = `
+            <button id="shared-upload-close" class="modal-close" aria-label="Закрити">
+                <svg viewBox="0 0 30 30" width="28" height="28" aria-hidden="true">
+                <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+                </svg>
+            </button>
+            <p class="modal-text" style="font-weight: 480; font-size: 15px;">Успішно відправлено на модерацію</p>
+            <div class="modal-actions">
+                <button id="shared-upload-ok" class="modal-ok">OK</button>
+            </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        const ok = modal.querySelector('#shared-upload-ok');
+
+        // show
+        overlayEl.hidden = false;
+        modal.hidden = false;
+        try { lockScroll?.(); } catch { }
+
+        const close = () => {
+            modal.hidden = true;
+            overlayEl.hidden = true;
+            try { unlockScroll?.(); } catch { }
+        };
+
+        ok?.addEventListener('click', close, { once: true });
+        // also close by tapping outside the card
+        overlayEl.addEventListener('click', close, { once: true });
+    }
 
     function toISOFromParts(y, m, d) {
         // y: 2025, m: 1..12, d: 1..31 -> 'YYYY-MM-DD'
@@ -1352,7 +1426,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ url })
                 });
             }
-            showToast('Надіслано на модерацію');
+            openSharedUploadedModal();
         } catch (err) {
             console.error('Shared upload failed', err);
             alert('Не вдалося надіслати у Спільний альбом');
@@ -1437,7 +1511,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const closeBtnX = document.createElement('span');
         closeBtnX.textContent = '✕';
         closeBtnX.className = 'close-slideshow';
-        closeBtnX.onclick = () => document.body.removeChild(modal);
+        closeBtnX.onclick = () => { unlockScroll(); document.body.removeChild(modal); };
 
         const track = document.createElement('div');
         track.className = 'slideshow-track';
@@ -1516,6 +1590,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         modal.append(closeBtnX, track, indicator);
         document.body.appendChild(modal);
+        lockScroll();
 
         requestAnimationFrame(() => {
             const prev = track.style.scrollBehavior;
@@ -1601,7 +1676,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const timeLabel = document.createElement('span');
                 timeLabel.className = 'hud-pill hud-right';
-                timeLabel.textContent = '00:00 / 00:00';
+                timeLabel.textContent = '00:00';
                 controlsBar.appendChild(timeLabel);
 
                 const progress = document.createElement('input');
@@ -1656,7 +1731,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     progress.style.setProperty('--p', `${pct}%`);
                 };
                 const syncTime = () => {
-                    if (timeLabel) timeLabel.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration || 0)}`;
+                    if (timeLabel) timeLabel.textContent = `${fmt(video.currentTime)}`;
                 };
                 const syncState = () => {
                     const paused = video.paused;
@@ -1677,6 +1752,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     video.currentTime = (clamped / 100) * video.duration;
                     syncProgress();
                     syncTime();
+                });
+
+                // Pause when user taps the video area
+                video.addEventListener('click', () => {
+                    if (!video.paused) video.pause();
                 });
 
                 video.addEventListener('play', () => { syncState(); });
@@ -1772,11 +1852,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         closeBtnX.onclick = () => {
             videoRefs.forEach(({ el }) => el.pause());
+            unlockScroll();
             modal.remove();
         };
 
         modal.append(closeBtnX, track, indicator);
         document.body.appendChild(modal);
+        lockScroll();
 
         let initialIndex = mediaEntries.findIndex(entry => entry.idx === startIndex);
         if (initialIndex < 0) initialIndex = 0;
@@ -1803,6 +1885,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const controls = document.getElementById('ppControls') || document.getElementById('rsControls');
         const closeX = document.getElementById('ppClose') || (modal && modal.querySelector('.close-slideshow'));
 
+        // Clicking the video pauses playback
+        v.addEventListener('click', () => {
+            if (!v.paused) v.pause();
+        });
+
         if (!modal || !v) return;
 
         const pauseIcon = `
@@ -1817,6 +1904,15 @@ document.addEventListener('DOMContentLoaded', () => {
         v.poster = poster || '';
 
         modal.hidden = false;
+        lockScroll();
+
+        if (closeX) {
+            closeX.onclick = () => {
+                try { v.pause(); } catch { }
+                modal.hidden = true;
+                unlockScroll();
+            };
+        }
 
         if (playBtn) {
             playBtn.innerHTML = pauseIcon;
@@ -1910,7 +2006,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (photosListEl.style) photosListEl.style.display = 'none';
             const empty = document.createElement('div');
             empty.className = 'photos-empty';
-            empty.textContent = 'Немає фотографій. Будь ласка, поділіться спогадами';
+            empty.innerHTML = 'Немає фотографій.<br>Будь ласка, поділіться спогадами';
             photosScrollEl?.appendChild(empty);
             return;
         }
@@ -2533,7 +2629,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (bioBodyWrap) {
                     const empty = document.createElement('div');
                     empty.className = 'bio-empty';
-                    empty.textContent = 'Життєпис ще не заповнено. Будь ласка, додайте інформацію';
+                    empty.innerHTML = 'Життєпис ще не заповнено.<br>Будь ласка, додайте інформацію';
                     bioBodyWrap.prepend(empty);
                 }
             }
@@ -3324,6 +3420,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function switchToForgotEmail() {
+            box.classList.add('forgot-email');
+
             authMode = 'forgotEmail';
 
             clearMsg();
@@ -3386,6 +3484,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resetCodeEl?.remove(); resetCodeEl = null;
             resetNewPassEl?.remove(); resetNewPassEl = null;
             backToLoginEl?.remove(); backToLoginEl = null;
+            if (typeof codeNoteEl !== 'undefined' && codeNoteEl) { codeNoteEl.remove(); codeNoteEl = null; }
         }
 
         // helper: extract visible text from first <p>...</p> in HTML error
@@ -3400,6 +3499,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function switchToLogin() {
+            box.classList.remove('forgot-email');
             authMode = 'login';
             clearMsg();
             titleEl.textContent = 'Авторизація';
@@ -3410,13 +3510,25 @@ document.addEventListener('DOMContentLoaded', () => {
             removeResetFields();
             hideForgotEmailLink();
 
-            // 👁️ Показати око лише на кроці авторизації біля пароля
+            // ensure the “Забули пошту?” note is gone
+            if (typeof forgotInfoEl !== 'undefined' && forgotInfoEl) {
+                forgotInfoEl.remove();
+                forgotInfoEl = null;
+            }
+            // also restore the submit handler if it was overridden
+            if (typeof restoreSubmitOnClick !== 'undefined' && restoreSubmitOnClick !== null) {
+                submitBtn.onclick = restoreSubmitOnClick;
+                restoreSubmitOnClick = null;
+            }
+
+            // show eye only for login password
             hideAllPasswordToggles();
             const loginEye = attachPasswordToggle(passEl);
             if (loginEye) loginEye.hidden = false;
         }
 
         function switchToResetStep1() {
+            box.classList.remove('forgot-email');
             authMode = 'reset1';
             clearMsg();
             titleEl.textContent = 'Скидання паролю';
@@ -3443,6 +3555,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function switchToResetStep2() {
+            box.classList.remove('forgot-email');
             authMode = 'reset2';
             clearMsg();
             titleEl.textContent = 'Введіть код та новий пароль';
@@ -3464,6 +3577,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // 1) insert fields into DOM first
             resetEmailEl.after(resetCodeEl);
             resetCodeEl.after(resetNewPassEl);
+
+            // note under the code input
+            if (typeof codeNoteEl === 'undefined') var codeNoteEl = null; // keep in outer scope if needed
+            if (!codeNoteEl) {
+                codeNoteEl = document.createElement('p');
+                codeNoteEl.className = 'code-sent-note';
+            }
+            resetCodeEl.after(codeNoteEl);
+            codeNoteEl.textContent = ''; // clear by default
 
             // 2) then attach the toggle specifically to NEW PASSWORD
             hideAllPasswordToggles();
@@ -3542,8 +3664,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Success → go to step 2
                         switchToResetStep2();
-                        errEl.style.color = '#1B8B59';
-                        errEl.textContent = 'Код надіслано на вашу пошту.';
+                        codeNoteEl = document.querySelector('.code-sent-note');
+                        if (codeNoteEl) {
+                            codeNoteEl.hidden = false;
+                            codeNoteEl.textContent = 'Код надіслано вам на пошту';
+                        }
                         setTimeout(() => { clearMsg(); }, 3000);
                         return;
 
@@ -3874,8 +3999,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!panel.hidden) {
                 const hasBirth = !!birthWheel.getValue();
                 const hasDeath = !!deathWheel.getValue();
-                if (hasBirth) birthWheel.snap({ behavior: 'auto', silent: true });
-                if (hasDeath) deathWheel.snap({ behavior: 'auto', silent: true });
+                if (!hasBirth) birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+                if (!hasDeath) deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
             }
         });
 
@@ -3898,12 +4023,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clearYears.addEventListener('click', (e) => {
             e.stopPropagation();
+
+            // 1) reset state + hidden inputs
             selectedBirth = selectedDeath = undefined;
-            birthInput.value = deathInput.value = '';
-            birthWheel.clear({ silent: true, keepActive: false });
-            deathWheel.clear({ silent: true, keepActive: false });
+            birthInput.value = '';
+            deathInput.value = '';
+
+            // 2) tell wheels to clear AND remove any visual .selected
+            birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+            deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+            birthList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+            deathList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+
+            // 3) constraints + UI
             applyDeathConstraints();
             updateYearsDisplay();
+
+            // 4) snap focus to the placeholder rows ("Від" / "До") so the panel looks reset
+            requestAnimationFrame(() => {
+                birthWheel.snap({ behavior: 'auto', silent: true });
+                deathWheel.snap({ behavior: 'auto', silent: true });
+            });
+
+            // 5) re-fetch results
             triggerFetch();
         });
 

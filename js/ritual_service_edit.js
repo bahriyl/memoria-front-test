@@ -127,12 +127,11 @@ function renderJointContacts(addressEl, phoneEl, rawAddresses, rawPhones) {
   const toList = v => Array.isArray(v)
     ? v.map(String).map(s => s.trim()).filter(Boolean)
     : (v ? [String(v).trim()] : []);
-  const joiner = "\n"; // кожен елемент з нового рядка
+  const joiner = "\n";
 
   const addresses = toList(rawAddresses);
   const phones = toList(rawPhones);
 
-  // Гарантуємо окремі span-и для тексту (щоб не зносити кнопку при .textContent)
   let addressText = addressEl.querySelector(".contacts-address-text");
   if (!addressText) {
     addressEl.textContent = "";
@@ -149,7 +148,6 @@ function renderJointContacts(addressEl, phoneEl, rawAddresses, rawPhones) {
     phoneEl.appendChild(phoneText);
   }
 
-  // Єдина кнопка всередині .ritual-phone — в одному рядку з текстом
   let btn = phoneEl.querySelector(".joint-toggle");
   if (!btn) {
     btn = document.createElement("button");
@@ -162,21 +160,38 @@ function renderJointContacts(addressEl, phoneEl, rawAddresses, rawPhones) {
 
   const hasMore = (addresses.length > 1) || (phones.length > 1);
 
+  // helper: A1, B1, A2, B2, ...
+  const makeInterleaved = (A, B) => {
+    const n = Math.max(A.length, B.length);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      if (A[i]) out.push(A[i]);
+      if (B[i]) out.push(B[i]);
+    }
+    return out;
+  };
+
   let expanded = false;
+
   const collapse = () => {
     expanded = false;
+    // compact: show first address + first phone (as before)
     addressText.textContent = addresses[0] || "";
     phoneText.textContent = phones[0] || "";
     if (hasMore) {
       btn.textContent = "... більше";
       btn.setAttribute("aria-expanded", "false");
+    } else {
+      btn.remove();
     }
   };
 
   const expand = () => {
     expanded = true;
-    addressText.textContent = addresses.join(joiner);
-    phoneText.textContent = phones.join(joiner);
+    // expanded: interleave lines into address block, clear phone text
+    const lines = makeInterleaved(addresses, phones);
+    addressText.textContent = lines.join(joiner);
+    phoneText.textContent = ""; // avoid duplicated content
     btn.textContent = "... менше";
     btn.setAttribute("aria-expanded", "true");
   };
@@ -186,9 +201,8 @@ function renderJointContacts(addressEl, phoneEl, rawAddresses, rawPhones) {
     btn.onkeydown = (e) => {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); btn.click(); }
     };
-    collapse(); // старт: згорнуто
+    collapse(); // start collapsed
   } else {
-    // якщо немає що показувати — прибираємо кнопку і лишаємо по одному значенню
     btn.remove();
     addressText.textContent = addresses[0] || "";
     phoneText.textContent = phones[0] || "";
@@ -390,9 +404,13 @@ function renderData(data) {
     // === Images container (single row) ===
     const imagesContainer = document.createElement("div");
     imagesContainer.className = "item-images";
+    let canReorder = false;
+
+    // Replace the drag'n'drop section in your renderImages() function:
 
     function renderImages() {
       imagesContainer.innerHTML = "";
+      canReorder = albums.length > 1;
 
       if (albums.length === 1) {
         imagesContainer.className = "item-images single-image";
@@ -402,46 +420,102 @@ function renderData(data) {
         imagesContainer.className = "item-images";
       }
 
-      albums.forEach((album) => {
+      albums.forEach((album, albumIdx) => {
         if (!album.photos?.length) return;
         const cover = album.photos[0];
 
         const wrap = document.createElement("div");
         wrap.className = "image-wrap";
+        wrap.dataset.idx = String(albumIdx);
+        wrap.draggable = canReorder;
+
+        const handle = document.createElement("button");
+        handle.type = "button";
+        handle.className = "drag-handle";
+        handle.title = "Перетягнути для зміни порядку";
+        handle.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round">
+        <circle cx="7" cy="6" r="1.5"></circle><circle cx="12" cy="6" r="1.5"></circle><circle cx="17" cy="6" r="1.5"></circle>
+        <circle cx="7" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="17" cy="12" r="1.5"></circle>
+        <circle cx="7" cy="18" r="1.5"></circle><circle cx="12" cy="18" r="1.5"></circle><circle cx="17" cy="18" r="1.5"></circle>
+      </svg>
+    `;
 
         const img = document.createElement("img");
         img.src = cover;
         img.alt = title;
         img.className = "item-image";
 
-        // little counter badge
-        const counter = document.createElement("div");
-        counter.className = "image-counter";
-        counter.textContent = `${album.photos.length}`;
+        // DRAG START: only works if started from handle
+        wrap.addEventListener("dragstart", (e) => {
+          if (!canReorder) {
+            e.preventDefault();
+            return;
+          }
+
+          // Check if drag started from handle area
+          const handleRect = handle.getBoundingClientRect();
+          const x = e.clientX;
+          const y = e.clientY;
+          const fromHandle = (
+            x >= handleRect.left && x <= handleRect.right &&
+            y >= handleRect.top && y <= handleRect.bottom
+          );
+
+          if (!fromHandle) {
+            e.preventDefault();
+            return;
+          }
+
+          try {
+            e.dataTransfer.setData("text/plain", wrap.dataset.idx || "");
+          } catch { }
+          e.dataTransfer.effectAllowed = "move";
+          wrap.classList.add("dragging");
+        });
+
+        // DRAG END: reorder and save
+        wrap.addEventListener("dragend", async () => {
+          wrap.classList.remove("dragging");
+
+          const newOrderWraps = [...imagesContainer.querySelectorAll(".image-wrap")];
+          const newAlbums = newOrderWraps.map(w => albums[Number(w.dataset.idx)]);
+          albums.splice(0, albums.length, ...newAlbums);
+
+          [...imagesContainer.querySelectorAll(".image-wrap")].forEach((w, i) => {
+            w.dataset.idx = String(i);
+          });
+
+          await updateItems(ritualData.items);
+        });
+
+        // Image counter badge
+        if (album.photos.length > 1) {
+          const counter = document.createElement("div");
+          counter.className = "image-counter";
+          counter.textContent = String(album.photos.length);
+          wrap.appendChild(counter);
+        }
 
         const badge = document.createElement("span");
         badge.className = "select-badge";
 
         wrap.addEventListener("click", (e) => {
           e.preventDefault();
-
           if (isSelecting) {
-            // select / deselect this tile
             toggleSelect(wrap);
             return;
           }
-
-          // normal behavior: open slideshow
           const captions = album.photos.map(() => album.description || "");
           openSlideshow(album.photos, 0, captions);
         });
 
-        wrap.append(img, badge, counter);
+        wrap.append(handle, img, badge);
         imagesContainer.appendChild(wrap);
       });
 
+      // Grid layout
       const totalAlbums = albums.length;
-
       if (totalAlbums <= 5) {
         imagesContainer.classList.add("one-row");
         imagesContainer.classList.remove("two-rows");
@@ -450,6 +524,42 @@ function renderData(data) {
         imagesContainer.classList.remove("one-row");
       }
     }
+
+    // DRAGOVER handler (attach once to container, outside renderImages)
+    // Place this code AFTER the renderImages() function definition:
+
+    imagesContainer.addEventListener("dragover", (e) => {
+      if (!canReorder) return;
+      e.preventDefault();
+
+      const dragging = imagesContainer.querySelector(".dragging");
+      if (!dragging) return;
+
+      const afterEl = getAfterElement(imagesContainer, e.clientX);
+      if (afterEl == null) {
+        imagesContainer.appendChild(dragging);
+      } else {
+        imagesContainer.insertBefore(dragging, afterEl);
+      }
+    });
+    imagesContainer.addEventListener("drop", (e) => {
+      if (!canReorder) return;
+      e.preventDefault();
+    });
+
+    function getAfterElement(container, x) {
+      const els = [...container.querySelectorAll(".image-wrap:not(.dragging)")];
+      let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
+      for (const child of els) {
+        const box = child.getBoundingClientRect();
+        const offset = x - (box.left + box.width / 2);
+        if (offset < 0 && offset > closest.offset) {
+          closest = { offset, element: child };
+        }
+      }
+      return closest.element;
+    }
+
     if (hasPhotos) renderImages();
 
     // === Selection mode logic (only meaningful when hasPhotos) ===
@@ -483,6 +593,12 @@ function renderData(data) {
       if (isSelecting) return;
       isSelecting = true;
       section.classList.add("selection-mode");
+
+      imagesContainer.querySelectorAll(".image-wrap").forEach(w => {
+        w.draggable = canReorder;
+      });
+
+      // Clear buttons row and rebuild controls
       btnRow.innerHTML = "";
 
       const cancelBtn = document.createElement("button");
@@ -498,55 +614,29 @@ function renderData(data) {
       btnRow.append(cancelBtn, deleteBtn);
 
       cancelBtn.addEventListener("click", exitSelectionMode);
-      deleteBtn.addEventListener("click", () => {
-        if (selectedOrder.length === 0) {
-          exitSelectionMode();
-          return;
-        }
 
-        // use the same modal UX as on profile page
-        const overlay = document.getElementById('modal-overlay');
-        const dlg = document.getElementById('confirm-delete-modal');
-        const closeX = document.getElementById('confirm-delete-close');
-        const cancelBtn = document.getElementById('confirm-delete-cancel');
-        const okBtn = document.getElementById('confirm-delete-ok');
+      deleteBtn.addEventListener("click", async () => {
+        const selected = Array.from(imagesContainer.querySelectorAll(".image-wrap.selected"));
+        if (!selected.length) return;
 
-        const openConfirm = () => { if (overlay && dlg) { overlay.hidden = false; dlg.hidden = false; } };
-        const closeConfirm = () => { if (overlay && dlg) { overlay.hidden = true; dlg.hidden = true; } };
+        const modal = createConfirmModal(
+          `Видалити ${selected.length} елемент${selected.length > 1 ? "и" : ""}?`
+        );
+        document.body.appendChild(modal);
+        modal.showModal();
 
-        // open dialog
-        openConfirm();
+        const confirmed = await new Promise(resolve => {
+          modal.querySelector(".confirm").addEventListener("click", () => resolve(true));
+          modal.querySelector(".cancel").addEventListener("click", () => resolve(false));
+        });
+        modal.close();
+        modal.remove();
 
-        // close on X / Cancel / overlay (bind once per open)
-        const closeOnce = () => {
-          closeConfirm();
-          // clean temporary listeners so we don't stack them on repeated opens
-          closeX && closeX.removeEventListener('click', closeOnce);
-          cancelBtn && cancelBtn.removeEventListener('click', closeOnce);
-          overlay && overlay.removeEventListener('click', overlayCloser, true);
-          okBtn && (okBtn.onclick = null);
-        };
-        const overlayCloser = (e) => { if (e.target === overlay) closeOnce(); };
+        if (!confirmed) return;
 
-        closeX && closeX.addEventListener('click', closeOnce);
-        cancelBtn && cancelBtn.addEventListener('click', closeOnce);
-        overlay && overlay.addEventListener('click', overlayCloser, true);
-
-        // confirm deletion
-        if (okBtn) {
-          okBtn.onclick = async () => {
-            const toRemove = new Set(selectedOrder.map(w => w.querySelector('img').src));
-            ritualData.items[index][1] = ritualData.items[index][1].filter(album => {
-              const cover = album?.photos?.[0];
-              return !toRemove.has(cover);
-            });
-
-            selectedOrder = [];
-            await updateItems(ritualData.items);  // persists and refreshes
-            closeOnce();
-            exitSelectionMode();
-          };
-        }
+        selected.forEach(el => el.remove());
+        updateBadges();
+        exitSelectionMode();
       });
 
       updateBadges();
@@ -557,7 +647,15 @@ function renderData(data) {
       isSelecting = false;
       selectedOrder = [];
       section.classList.remove("selection-mode");
-      btnRow.innerHTML = ""; // row hides again via CSS
+
+      imagesContainer.querySelectorAll(".image-wrap").forEach(w => {
+        w.draggable = canReorder;
+        w.classList.remove("selected");
+      });
+
+      // Clear the control buttons
+      btnRow.innerHTML = "";
+
       updateBadges();
     }
 
@@ -598,7 +696,18 @@ function renderData(data) {
       const countEl = document.getElementById("photo-desc-count");
       const okBtn = document.getElementById("photo-desc-add");
       const modeAlbum = document.getElementById("mode-album");
+      const modeAlbumWrap = document.getElementById("modeAlbumWrap");
       const modePhoto = document.getElementById("mode-photo");
+
+      if (files.length === 1) {
+        // hide album option
+        if (modeAlbumWrap) modeAlbumWrap.style.display = "none";
+        if (modeAlbum) modeAlbum.checked = false;
+        if (modePhoto) modePhoto.checked = true;
+      } else {
+        // show album option again
+        if (modeAlbumWrap) modeAlbumWrap.style.display = "";
+      }
 
       // react to radio switching between Album / Photo
       modeAlbum.onchange = applyModeUI;

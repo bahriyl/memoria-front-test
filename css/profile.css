@@ -3050,3 +3050,146 @@ video::-webkit-media-controls-start-playback-button {
 .password-wrapper #resetCode {
     margin-bottom: 12px;
 }
+
+/* 1. Hide scrollbar on main page (html, body) */
+html,
+body {
+    /* Firefox */
+    scrollbar-width: none;
+    /* IE and old Edge */
+    -ms-overflow-style: none;
+}
+
+/* Chrome, Safari, Opera, new Edge */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+/* 2. Hide scrollbar inside relativesModal */
+#relativesModal {
+    /* Firefox */
+    scrollbar-width: none;
+    /* IE/Edge */
+    -ms-overflow-style: none;
+}
+
+/* Chrome, Safari, Opera */
+#relativesModal::-webkit-scrollbar {
+    display: none;
+}
+
+/* 3. Hide scrollbar in modal-content (inner scrollable area) */
+#relativesModal .modal-content {
+    /* Firefox */
+    scrollbar-width: none;
+    /* IE/Edge */
+    -ms-overflow-style: none;
+}
+
+/* Chrome, Safari, Opera */
+#relativesModal .modal-content::-webkit-scrollbar {
+    display: none;
+}
+
+/* 4. Optional: Hide scrollbars in people lists inside the modal */
+#relSelectedList,
+#relFoundList {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#relSelectedList::-webkit-scrollbar,
+#relFoundList::-webkit-scrollbar {
+    display: none;
+}
+
+/* 5. Ensure profile-container also has no scrollbar */
+.profile-container {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.profile-container::-webkit-scrollbar {
+    display: none;
+}
+
+.year-wheel {
+    position: relative;
+}
+
+.year-wheel .year-list {
+    position: relative;
+    z-index: 2;
+    /* draw numbers above the focus layer */
+}
+
+.year-wheel .year-focus {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 50%;
+    height: 44px;
+    /* same height as one row */
+    transform: translateY(-50%);
+    border-radius: 12px;
+    pointer-events: none;
+    /* don’t intercept scroll/tap */
+    z-index: 1;
+    /* behind the numbers */
+}
+
+.code-sent-note {
+    margin: 0 0 12px;
+    font-size: 14px;
+    color: #1B8B59;
+}
+
+/* Small play mark centered over video thumbnails */
+.video-play-small {
+    position: absolute;
+    left: 90%;
+    top: 10%;
+    transform: translate(-50%, -50%);
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: transparent;
+    display: grid;
+    place-items: center;
+    z-index: 2;
+    /* above the image */
+    pointer-events: none;
+    /* clicks go to the tile */
+}
+
+.video-play-small svg {
+    width: 22px;
+    height: 22px;
+    display: block;
+    fill: #fff;
+}
+
+/* Make sure order badge is above the play dot */
+.profile-photos .select-badge,
+.profile-shared .select-badge {
+    z-index: 3;
+}
+
+/* Компактні відступи тільки для екрана "Забули пошту?" */
+.login-box.forgot-email {
+    gap: 4px;
+    /* було 12px */
+}
+
+.login-box.forgot-email h2 {
+    margin: 6px 0 4px;
+    /* було 10px зверху/знизу */
+}
+
+.login-box.forgot-email .forgot-email-text {
+    margin: 0 0 14px;
+    /* без верхнього відступу */
+}

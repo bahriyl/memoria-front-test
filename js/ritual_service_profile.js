@@ -1,3 +1,21 @@
+// Redirect to EDIT if already logged in (runs immediately)
+(() => {
+  const params = new URLSearchParams(location.search);
+  const ritualId = params.get("id") || "";
+  if (localStorage.getItem("token")) {
+    window.location.replace(`/ritual_service_edit.html?id=${ritualId}`);
+  }
+})();
+
+// Also handle back/forward cache restores
+window.addEventListener("pageshow", () => {
+  const params = new URLSearchParams(location.search);
+  const ritualId = params.get("id") || "";
+  if (localStorage.getItem("token")) {
+    window.location.replace(`/ritual_service_edit.html?id=${ritualId}`);
+  }
+});
+
 document.addEventListener("DOMContentLoaded", async () => {
   const API_BASE = "https://memoria-test-app-ifisk.ondigitalocean.app/api/ritual_services";
   // const API_BASE = "http://0.0.0.0:5000/api/ritual_services"
@@ -82,12 +100,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const toList = v => Array.isArray(v)
       ? v.map(String).map(s => s.trim()).filter(Boolean)
       : (v ? [String(v).trim()] : []);
-    const joiner = "\n"; // кожен елемент з нового рядка
+    const joiner = "\n";
 
     const addresses = toList(rawAddresses);
     const phones = toList(rawPhones);
 
-    // Гарантуємо окремі span-и для тексту (щоб не зносити кнопку при .textContent)
     let addressText = addressEl.querySelector(".contacts-address-text");
     if (!addressText) {
       addressEl.textContent = "";
@@ -104,7 +121,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       phoneEl.appendChild(phoneText);
     }
 
-    // Єдина кнопка всередині .ritual-phone — в одному рядку з текстом
     let btn = phoneEl.querySelector(".joint-toggle");
     if (!btn) {
       btn = document.createElement("button");
@@ -117,21 +133,38 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const hasMore = (addresses.length > 1) || (phones.length > 1);
 
+    // helper: A1, B1, A2, B2, ...
+    const makeInterleaved = (A, B) => {
+      const n = Math.max(A.length, B.length);
+      const out = [];
+      for (let i = 0; i < n; i++) {
+        if (A[i]) out.push(A[i]);
+        if (B[i]) out.push(B[i]);
+      }
+      return out;
+    };
+
     let expanded = false;
+
     const collapse = () => {
       expanded = false;
+      // compact: show first address + first phone (as before)
       addressText.textContent = addresses[0] || "";
       phoneText.textContent = phones[0] || "";
       if (hasMore) {
         btn.textContent = "... більше";
         btn.setAttribute("aria-expanded", "false");
+      } else {
+        btn.remove();
       }
     };
 
     const expand = () => {
       expanded = true;
-      addressText.textContent = addresses.join(joiner);
-      phoneText.textContent = phones.join(joiner);
+      // expanded: interleave lines into address block, clear phone text
+      const lines = makeInterleaved(addresses, phones);
+      addressText.textContent = lines.join(joiner);
+      phoneText.textContent = ""; // avoid duplicated content
       btn.textContent = "... менше";
       btn.setAttribute("aria-expanded", "true");
     };
@@ -141,9 +174,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       btn.onkeydown = (e) => {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); btn.click(); }
       };
-      collapse(); // старт: згорнуто
+      collapse(); // start collapsed
     } else {
-      // якщо немає що показувати — прибираємо кнопку і лишаємо по одному значенню
       btn.remove();
       addressText.textContent = addresses[0] || "";
       phoneText.textContent = phones[0] || "";
@@ -431,7 +463,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const payload = parseJwt(result.token);
       if (payload?.exp) scheduleLogout(payload.exp);
       // 2) Redirect (URL param optional now)
-      window.location.href = `/ritual_service_edit.html?id=${ritualId}`;
+      window.location.replace(`/ritual_service_edit.html?id=${ritualId}`);
     } catch {
       errorEl.textContent = "Невірний логін або пароль";
     }

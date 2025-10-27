@@ -695,9 +695,15 @@ input[type="text"] {
 }
 
 p.ritual-text {
-  width: 90%;
+  width: 100%;
 }
 
+#ritual-text>span {
+  display: block;
+  /* щоб можна було задати ширину */
+  width: 100%;
+  max-width: 100%;
+}
 
 .password-wrapper {
   position: relative;

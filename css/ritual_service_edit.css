@@ -211,7 +211,7 @@ body {
 }
 
 p.ritual-text {
-  width: 90%;
+  width: 100%;
   background: none;
   margin-top: 8px;
   margin-bottom: 0;
@@ -226,6 +226,13 @@ p.ritual-text {
   word-break: break-word;
 }
 
+#ritual-text>span {
+  display: block;
+  /* щоб можна було задати ширину */
+  width: 100%;
+  max-width: 100%;
+}
+
 textarea {
   width: 300px;
   height: 105px;
@@ -233,6 +240,18 @@ textarea {
   font-weight: 480;
   font-size: 15px;
   min-height: 150px;
+}
+
+/* Remove blue outline when editing ritual description */
+.ritual-description textarea.ritual-text {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.ritual-description textarea.ritual-text:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 .ritual-item-section {
@@ -1123,4 +1142,33 @@ textarea {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Drag handle button */
+.image-wrap .drag-handle {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  display: none;
+  /* hidden by default */
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, .95);
+  cursor: grab;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.selection-mode .image-wrap .drag-handle {
+  display: inline-flex;
+  /* visible in selection mode */
+}
+
+.image-wrap.dragging {
+  opacity: .85;
+  outline: 2px dashed #1b8b59;
 }

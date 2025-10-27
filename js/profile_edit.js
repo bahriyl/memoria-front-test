@@ -58,6 +58,38 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.replace(`/profile.html?personId=${encodeURIComponent(personId)}`);
     });
 
+    // ---- Scroll lock helpers ----
+    let __scrollLockCount = 0;
+
+    function lockScroll() {
+        if (__scrollLockCount++ > 0) return; // вже залочено (підтримка вкладених модалок)
+        const y = window.scrollY || document.documentElement.scrollTop || 0;
+        document.body.dataset.lockScrollY = String(y);
+        Object.assign(document.body.style, {
+            position: 'fixed',
+            top: `-${y}px`,
+            left: '0',
+            right: '0',
+            width: '100%',
+            overscrollBehavior: 'contain', // iOS/Android: не віддавати скрол вище
+        });
+    }
+
+    function unlockScroll() {
+        if (--__scrollLockCount > 0) return; // ще є активні модалки
+        const y = parseInt(document.body.dataset.lockScrollY || '0', 10);
+        Object.assign(document.body.style, {
+            position: '',
+            top: '',
+            left: '',
+            right: '',
+            width: '',
+            overscrollBehavior: '',
+        });
+        delete document.body.dataset.lockScrollY;
+        window.scrollTo(0, y);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────
     // Grab key elements
     // ─────────────────────────────────────────────────────────────────────────────
@@ -1498,7 +1530,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const closeBtnX = document.createElement('span');
         closeBtnX.textContent = '✕';
         closeBtnX.className = 'close-slideshow';
-        closeBtnX.onclick = () => document.body.removeChild(modal);
+        closeBtnX.onclick = () => { unlockScroll(); document.body.removeChild(modal); };
 
         const track = document.createElement('div');
         track.className = 'slideshow-track';
@@ -1573,6 +1605,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         modal.append(closeBtnX, track, indicator);
         document.body.appendChild(modal);
+        lockScroll();
 
         requestAnimationFrame(() => {
             const prev = track.style.scrollBehavior;
@@ -1658,7 +1691,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const timeLabel = document.createElement('span');
                 timeLabel.className = 'hud-pill hud-right';
-                timeLabel.textContent = '00:00 / 00:00';
+                timeLabel.textContent = '00:00';
                 controlsBar.appendChild(timeLabel);
 
                 const progress = document.createElement('input');
@@ -1713,7 +1746,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     progress.style.setProperty('--p', `${pct}%`);
                 };
                 const syncTime = () => {
-                    if (timeLabel) timeLabel.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration || 0)}`;
+                    if (timeLabel) timeLabel.textContent = `${fmt(video.currentTime)}`;
                 };
                 const syncState = () => {
                     const paused = video.paused;
@@ -1734,6 +1767,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     video.currentTime = (clamped / 100) * video.duration;
                     syncProgress();
                     syncTime();
+                });
+
+                video.addEventListener('click', () => {
+                    if (!video.paused) video.pause();
                 });
 
                 video.addEventListener('play', () => { syncState(); });
@@ -1829,11 +1866,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         closeBtnX.onclick = () => {
             videoRefs.forEach(({ el }) => el.pause());
+            unlockScroll();
             modal.remove();
         };
 
         modal.append(closeBtnX, track, indicator);
         document.body.appendChild(modal);
+        lockScroll();
 
         let initialIndex = mediaEntries.findIndex(entry => entry.idx === startIndex);
         if (initialIndex < 0) initialIndex = 0;
@@ -1860,6 +1899,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const controls = document.getElementById('ppControls') || document.getElementById('rsControls');
         const closeX = document.getElementById('ppClose') || (modal && modal.querySelector('.close-slideshow'));
 
+        v.addEventListener('click', () => {
+            if (!v.paused) v.pause();
+        });
+
         if (!modal || !v) return;
 
         const pauseIcon = `
@@ -1874,6 +1917,15 @@ document.addEventListener('DOMContentLoaded', () => {
         v.poster = poster || '';
 
         modal.hidden = false;
+        lockScroll();
+
+        if (closeX) {
+            closeX.onclick = () => {
+                try { v.pause(); } catch { }
+                modal.hidden = true;
+                unlockScroll();
+            };
+        }
 
         if (playBtn) {
             playBtn.innerHTML = pauseIcon;
@@ -1991,7 +2043,7 @@ document.addEventListener('DOMContentLoaded', () => {
             photosListEl.style.display = 'none';
             const empty = document.createElement('div');
             empty.className = 'photos-empty';
-            empty.textContent = 'Немає фотографій. Будь ласка, поділіться спогадами';
+            empty.innerHTML = 'Немає фотографій.<br>Будь ласка, поділіться спогадами';
             photosScrollEl?.appendChild(empty);
             return;
         }
@@ -3064,7 +3116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (bioBodyWrap) {
                     const empty = document.createElement('div');
                     empty.className = 'bio-empty';
-                    empty.textContent = 'Життєпис ще не заповнено. Будь ласка, додайте інформацію';
+                    empty.innerHTML = 'Життєпис ще не заповнено.<br>Будь ласка, додайте інформацію';
                     bioBodyWrap.prepend(empty);
                 }
 
@@ -3846,8 +3898,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!panel.hidden) {
                 const hasBirth = !!birthWheel.getValue();
                 const hasDeath = !!deathWheel.getValue();
-                if (hasBirth) birthWheel.snap({ behavior: 'auto', silent: true });
-                if (hasDeath) deathWheel.snap({ behavior: 'auto', silent: true });
+                if (!hasBirth) birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+                if (!hasDeath) deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
             }
         });
 
@@ -3869,12 +3921,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clearYears.addEventListener('click', (e) => {
             e.stopPropagation();
+
+            // 1) reset state + hidden inputs
             selectedBirth = selectedDeath = undefined;
-            birthInput.value = deathInput.value = '';
-            birthWheel.clear({ silent: true, keepActive: false });
-            deathWheel.clear({ silent: true, keepActive: false });
+            birthInput.value = '';
+            deathInput.value = '';
+
+            // 2) tell wheels to clear AND remove any visual .selected
+            birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+            deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+            birthList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+            deathList.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+
+            // 3) constraints + UI
             applyDeathConstraints();
             updateYearsDisplay();
+
+            // 4) snap focus to the placeholder rows ("Від" / "До") so the panel looks reset
+            requestAnimationFrame(() => {
+                birthWheel.snap({ behavior: 'auto', silent: true });
+                deathWheel.snap({ behavior: 'auto', silent: true });
+            });
+
+            // 5) re-fetch results
             triggerFetch();
         });
 
