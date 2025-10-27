@@ -231,13 +231,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const hasBirth = !!birthWheel.getValue();
             const hasDeath = !!deathWheel.getValue();
 
-            // Снепимо тільки якщо є зафіксоване значення (щоб не тягнутися до "Від/До")
             if (hasBirth) {
-                D('display.click → opening: snap birth (has value)');
+                birthWheel.snap({ behavior: 'auto', silent: true });
+            } else {
+                birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
                 birthWheel.snap({ behavior: 'auto', silent: true });
             }
+
             if (hasDeath) {
-                D('display.click → opening: snap death (has value)');
+                deathWheel.snap({ behavior: 'auto', silent: true });
+            } else {
+                deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
                 deathWheel.snap({ behavior: 'auto', silent: true });
             }
         }
@@ -289,13 +293,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     clearBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        D('clearBtn.click() → clearing both wheels & selections', {
-            before: { selectedBirth, selectedDeath }
-        });
         selectedBirth = undefined;
         selectedDeath = undefined;
-        birthWheel.clear({ silent: true, keepActive: false });
-        deathWheel.clear({ silent: true, keepActive: false });
+
+        birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+        deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+
+        // Примусово центруємося на "Від/До"
+        birthWheel.snap({ behavior: 'auto', silent: true });
+        deathWheel.snap({ behavior: 'auto', silent: true });
+
         applyDeathConstraints();
         updateDisplay();
     });
@@ -735,12 +742,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const nf = document.getElementById('notable-fields');
         if (nf) nf.style.display = 'none';
 
-        // reset years panel
-        D('clearForm(): reset years');
+        // reset years panel:
         selectedBirth = selectedDeath = undefined;
-        birthUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-        deathUl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-        deathUl.querySelectorAll('.disabled').forEach(el => el.classList.remove('disabled'));
+        birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+        deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+        birthWheel.snap({ behavior: 'auto', silent: true });
+        deathWheel.snap({ behavior: 'auto', silent: true });
+        applyDeathConstraints();
         updateDisplay();
         panel.hidden = true;
     }

@@ -434,12 +434,12 @@ function renderData(data) {
         handle.className = "drag-handle";
         handle.title = "Перетягнути для зміни порядку";
         handle.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round">
-        <circle cx="7" cy="6" r="1.5"></circle><circle cx="12" cy="6" r="1.5"></circle><circle cx="17" cy="6" r="1.5"></circle>
-        <circle cx="7" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="17" cy="12" r="1.5"></circle>
-        <circle cx="7" cy="18" r="1.5"></circle><circle cx="12" cy="18" r="1.5"></circle><circle cx="17" cy="18" r="1.5"></circle>
-      </svg>
-    `;
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round">
+            <circle cx="7" cy="6" r="1.5"></circle><circle cx="12" cy="6" r="1.5"></circle><circle cx="17" cy="6" r="1.5"></circle>
+            <circle cx="7" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="17" cy="12" r="1.5"></circle>
+            <circle cx="7" cy="18" r="1.5"></circle><circle cx="12" cy="18" r="1.5"></circle><circle cx="17" cy="18" r="1.5"></circle>
+          </svg>
+        `;
 
         const img = document.createElement("img");
         img.src = cover;
