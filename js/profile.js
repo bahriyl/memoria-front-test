@@ -189,13 +189,14 @@ document.addEventListener('DOMContentLoaded', () => {
             </button>
             <p class="modal-text" style="font-weight: 480; font-size: 15px;">Успішно відправлено на модерацію</p>
             <div class="modal-actions">
-                <button id="shared-upload-ok" class="modal-ok">OK</button>
+                <button id="shared-upload-ok" class="modal-ok">Готово</button>
             </div>
             `;
             document.body.appendChild(modal);
         }
 
         const ok = modal.querySelector('#shared-upload-ok');
+        const closeBtn = modal.querySelector('#shared-upload-close');
 
         // show
         overlayEl.hidden = false;
@@ -209,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         ok?.addEventListener('click', close, { once: true });
+        closeBtn?.addEventListener('click', close, { once: true });
         // also close by tapping outside the card
         overlayEl.addEventListener('click', close, { once: true });
     }
@@ -3500,6 +3502,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function switchToLogin() {
             box.classList.remove('forgot-email');
+            box.classList.remove('reset-password');
             authMode = 'login';
             clearMsg();
             titleEl.textContent = 'Авторизація';
@@ -3529,6 +3532,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function switchToResetStep1() {
             box.classList.remove('forgot-email');
+            box.classList.add('reset-password');
             authMode = 'reset1';
             clearMsg();
             titleEl.textContent = 'Скидання паролю';
@@ -3556,6 +3560,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function switchToResetStep2() {
             box.classList.remove('forgot-email');
+            box.classList.remove('reset-password');
             authMode = 'reset2';
             clearMsg();
             titleEl.textContent = 'Введіть код та новий пароль';

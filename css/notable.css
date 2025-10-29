@@ -665,7 +665,7 @@ main.container {
 .photo-slider {
     /* breakout on both sides */
     margin-left: calc(-1 * var(--spacing-md));
-    padding-left: var(--spacing-md);
+    padding: 0 var(--spacing-md);
     width: calc(100% + 2 * var(--spacing-md));
 
     /* preserve full height and show images */

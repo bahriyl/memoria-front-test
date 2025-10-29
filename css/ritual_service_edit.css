@@ -260,7 +260,6 @@ textarea {
   padding: 20px;
   padding-bottom: 18px;
   padding-top: 0;
-  padding-right: 0;
   border-top: 0.2px solid #bfbfbf;
   border-bottom: 0.2px solid #bfbfbf;
   border-radius: 9px;
@@ -384,7 +383,6 @@ textarea {
   cursor: pointer;
   padding: 4px;
   padding-top: 16px;
-  padding-right: 14px;
 }
 
 .ritual-description .dots-btn {
@@ -393,6 +391,7 @@ textarea {
   cursor: pointer;
   padding: 4px;
   padding-top: 0;
+  margin-right: 10px;
 }
 
 .popup-menu {
@@ -1156,7 +1155,7 @@ textarea {
   height: 28px;
   border-radius: 50%;
   border: 0;
-  background: rgba(255, 255, 255, .95);
+  background: transparent;
   cursor: grab;
   align-items: center;
   justify-content: center;
@@ -1171,4 +1170,36 @@ textarea {
 .image-wrap.dragging {
   opacity: .85;
   outline: 2px dashed #1b8b59;
+}
+
+/* drag handle у прев’ю вікна додавання фото */
+.photo-desc-thumb {
+  position: relative;
+}
+
+.thumb-drag-handle {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  z-index: 2;
+}
+
+.photo-desc-thumb.dragging,
+.photo-desc-thumb:active .thumb-drag-handle {
+  cursor: grabbing;
+}
+
+.photo-desc-thumb.dragging {
+  opacity: .85;
+  outline: 2px dashed #1b8b59;
+  outline-offset: 2px;
 }

@@ -3143,7 +3143,7 @@ body::-webkit-scrollbar {
 
 .code-sent-note {
     margin: 0 0 12px;
-    font-size: 14px;
+    font-size: 12px;
     color: #1B8B59;
 }
 
@@ -3192,4 +3192,26 @@ body::-webkit-scrollbar {
 .login-box.forgot-email .forgot-email-text {
     margin: 0 0 14px;
     /* без верхнього відступу */
+}
+
+/* ─── Login box fixes ─── */
+.login-box.reset-password p:empty,
+.login-box.reset-password .spacer,
+.login-box.reset-password .hidden-block {
+    display: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Зменшуємо відступи спеціально для екрана "Скидання паролю" */
+.login-box.reset-password {
+    gap: 0 !important;
+}
+
+.login-box.reset-password p {
+    margin: 6px 0 !important;
+}
+
+.login-box.reset-password h2 {
+    margin-bottom: 18px;
 }

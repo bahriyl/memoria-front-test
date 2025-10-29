@@ -229,8 +229,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!panel.hidden) {
             const hasBirth = !!birthWheel.getValue();
             const hasDeath = !!deathWheel.getValue();
-            if (hasBirth) birthWheel.snap({ behavior: 'auto', silent: true });
-            if (hasDeath) deathWheel.snap({ behavior: 'auto', silent: true });
+            if (!hasBirth) birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+            if (!hasDeath) deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+            applyDeathConstraints();
+            birthWheel.snap({ behavior: 'auto', silent: true });
+            deathWheel.snap({ behavior: 'auto', silent: true });
         }
     });
     panel.addEventListener('click', e => e.stopPropagation());
@@ -256,8 +259,10 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         selectedBirth = undefined;
         selectedDeath = undefined;
-        birthWheel.clear({ silent: true, keepActive: false });
-        deathWheel.clear({ silent: true, keepActive: false });
+        birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+        deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+        birthWheel.snap({ behavior: 'auto', silent: true });
+        deathWheel.snap({ behavior: 'auto', silent: true });
         applyDeathConstraints();
         updateDisplay();
         triggerFetch();

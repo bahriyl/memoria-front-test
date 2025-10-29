@@ -434,59 +434,49 @@ function renderData(data) {
         handle.className = "drag-handle";
         handle.title = "Перетягнути для зміни порядку";
         handle.innerHTML = `
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round">
-            <circle cx="7" cy="6" r="1.5"></circle><circle cx="12" cy="6" r="1.5"></circle><circle cx="17" cy="6" r="1.5"></circle>
-            <circle cx="7" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="17" cy="12" r="1.5"></circle>
-            <circle cx="7" cy="18" r="1.5"></circle><circle cx="12" cy="18" r="1.5"></circle><circle cx="17" cy="18" r="1.5"></circle>
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-text-align-start-icon lucide-text-align-start"><path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/></svg>
         `;
 
         const img = document.createElement("img");
         img.src = cover;
         img.alt = title;
         img.className = "item-image";
+        img.draggable = true;
 
-        // DRAG START: only works if started from handle
+        let draggedRecently = false;
+
         wrap.addEventListener("dragstart", (e) => {
-          if (!canReorder) {
+          if (!canReorder) { e.preventDefault(); return; }
+
+          const target = e.target;
+          const startedOnHandle = !!target.closest?.(".drag-handle");
+          const startedOnImage = target.classList?.contains("item-image");
+
+          // дозволяємо перетяг з хендла або з самої картинки
+          if (!startedOnHandle && !startedOnImage) {
             e.preventDefault();
             return;
           }
 
-          // Check if drag started from handle area
-          const handleRect = handle.getBoundingClientRect();
-          const x = e.clientX;
-          const y = e.clientY;
-          const fromHandle = (
-            x >= handleRect.left && x <= handleRect.right &&
-            y >= handleRect.top && y <= handleRect.bottom
-          );
-
-          if (!fromHandle) {
-            e.preventDefault();
-            return;
-          }
-
-          try {
-            e.dataTransfer.setData("text/plain", wrap.dataset.idx || "");
-          } catch { }
+          try { e.dataTransfer.setData("text/plain", wrap.dataset.idx || ""); } catch { }
           e.dataTransfer.effectAllowed = "move";
           wrap.classList.add("dragging");
+          draggedRecently = true;            // щоб клік після drag не відкривав слайд-шоу
         });
 
-        // DRAG END: reorder and save
         wrap.addEventListener("dragend", async () => {
           wrap.classList.remove("dragging");
 
+          // оновлюємо порядок
           const newOrderWraps = [...imagesContainer.querySelectorAll(".image-wrap")];
           const newAlbums = newOrderWraps.map(w => albums[Number(w.dataset.idx)]);
           albums.splice(0, albums.length, ...newAlbums);
-
-          [...imagesContainer.querySelectorAll(".image-wrap")].forEach((w, i) => {
-            w.dataset.idx = String(i);
-          });
+          [...imagesContainer.querySelectorAll(".image-wrap")].forEach((w, i) => { w.dataset.idx = String(i); });
 
           await updateItems(ritualData.items);
+
+          // невелика затримка, щоб «клік» після drag не спрацьовував
+          setTimeout(() => { draggedRecently = false; }, 50);
         });
 
         // Image counter badge
@@ -502,6 +492,10 @@ function renderData(data) {
 
         wrap.addEventListener("click", (e) => {
           e.preventDefault();
+
+          // якщо щойно був drag — ігноруємо клік
+          if (draggedRecently) return;
+
           if (isSelecting) {
             toggleSelect(wrap);
             return;
@@ -698,14 +692,15 @@ function renderData(data) {
       const modeAlbum = document.getElementById("mode-album");
       const modeAlbumWrap = document.getElementById("modeAlbumWrap");
       const modePhoto = document.getElementById("mode-photo");
+      const typeWrap = dlg.querySelector(".photo-type");
 
       if (files.length === 1) {
-        // hide album option
+        if (typeWrap) typeWrap.style.display = "none";
         if (modeAlbumWrap) modeAlbumWrap.style.display = "none";
         if (modeAlbum) modeAlbum.checked = false;
         if (modePhoto) modePhoto.checked = true;
       } else {
-        // show album option again
+        if (typeWrap) typeWrap.style.display = "";
         if (modeAlbumWrap) modeAlbumWrap.style.display = "";
       }
 
@@ -729,46 +724,157 @@ function renderData(data) {
         previews.forEach((src, i) => {
           const wrap = document.createElement("div");
           wrap.className = "photo-desc-thumb" + (!disabled && i === sel ? " is-selected" : "");
-          wrap.innerHTML = `
-          <img src="${src}" alt="">
-          <button class="thumb-x" data-i="${i}" ${disabled ? "disabled" : ""}>
-            <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
+          wrap.dataset.i = String(i);
+          wrap.draggable = true; // ← дозволяємо перетяг і за зображення
+
+          // хендл для перетягу (можна тягнути і саму картинку)
+          const handle = document.createElement("button");
+          handle.type = "button";
+          handle.className = "thumb-drag-handle";
+          handle.title = "Перетягнути для зміни порядку";
+          handle.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/>
             </svg>
-          </button>`;
+          `;
+
+          const img = document.createElement("img");
+          img.src = src;
+          img.alt = "";
+
+          const del = document.createElement("button");
+          del.className = "thumb-x";
+          del.dataset.i = String(i);
+          del.innerHTML = `
+          <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        `;
+          if (disabled) del.disabled = true;
+
+          // drag’n’drop
+          let draggedRecently = false;
+          wrap.addEventListener("dragstart", (e) => {
+            const startedOnHandle = !!(e.target.closest && e.target.closest(".thumb-drag-handle"));
+            const startedOnImg = e.target.tagName === "IMG";
+
+            // дозволяємо починати або з хендла, або з картинки
+            if (!startedOnHandle && !startedOnImg) {
+              e.preventDefault();
+              return;
+            }
+            try { e.dataTransfer.setData("text/plain", wrap.dataset.i || ""); } catch { }
+            e.dataTransfer.effectAllowed = "move";
+            wrap.classList.add("dragging");
+            draggedRecently = true;
+          });
+          wrap.addEventListener("dragend", () => {
+            wrap.classList.remove("dragging");
+            // після пересортовки DOM — оновлюємо масиви під новий порядок
+            applyNewOrder();
+            // дрібна затримка, щоб клік після drag не спрацьовував
+            setTimeout(() => { draggedRecently = false; }, 50);
+          });
+
           if (!disabled) {
+            // клік по прев’ю — вибір активного для опису (PHOTO-mode)
             wrap.addEventListener("click", (ev) => {
-              if (ev.target.closest(".thumb-x")) return; // ignore delete button
-              commitCurrent();                            // keep text of previous
-              sel = i;                                    // set new selection
-              renderThumbs(false);                        // re-render with highlight
-              textEl.value = tempCaptions[sel] || "";     // load text for new sel
+              if (ev.target.closest(".thumb-x")) return; // ігноруємо клік по хрестикові
+              if (draggedRecently) return;               // не відкриваємо після drag
+              commitCurrent();                           // зберегти попередній текст
+              sel = Number(wrap.dataset.i);
+              renderThumbs(false);
+              textEl.value = tempCaptions[sel] || "";
             });
           }
+
+          wrap.append(handle, img, del);
           thumbsEl.appendChild(wrap);
         });
-        countEl.textContent = String(previews.length);    // update counter
+        countEl.textContent = String(previews.length);
+      }
+
+      // Контейнерні обробники для DnD (раз додати після renderThumbs)
+      thumbsEl.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        const dragging = thumbsEl.querySelector(".dragging");
+        if (!dragging) return;
+
+        const afterEl = getAfterThumb(thumbsEl, e.clientX);
+        if (afterEl == null) thumbsEl.appendChild(dragging);
+        else thumbsEl.insertBefore(dragging, afterEl);
+      });
+
+      thumbsEl.addEventListener("drop", (e) => {
+        e.preventDefault();
+      });
+
+      // Допоміжні
+      function getAfterThumb(container, x) {
+        const els = [...container.querySelectorAll(".photo-desc-thumb:not(.dragging)")];
+        let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
+        for (const child of els) {
+          const box = child.getBoundingClientRect();
+          const offset = x - (box.left + box.width / 2);
+          if (offset < 0 && offset > closest.offset) {
+            closest = { offset, element: child };
+          }
+        }
+        return closest.element;
+      }
+
+      // Перекладає порядок у DOM → на масиви previews/files/tempCaptions
+      function applyNewOrder() {
+        // порядок по data-i у поточному DOM
+        const order = [...thumbsEl.querySelectorAll(".photo-desc-thumb")].map(w => Number(w.dataset.i));
+        if (!order.length) return;
+
+        const newPreviews = order.map(i => previews[i]);
+        const newFiles = order.map(i => files[i]);
+        const newCaptions = order.map(i => tempCaptions[i]);
+
+        previews.splice(0, previews.length, ...newPreviews);
+        files.splice(0, files.length, ...newFiles);
+        tempCaptions.splice(0, tempCaptions.length, ...newCaptions);
+
+        // перемальовуємо з оновленими індексами та підсвіткою активного
+        if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
+        const disabled = modeAlbum.checked; // у режимі альбому кліки/видалення заблоковані
+        renderThumbs(disabled);
+        textEl.value = tempCaptions[sel] || "";
       }
 
       // deletion of a preview in PHOTO mode
       thumbsEl.onclick = (ev) => {
         const btn = ev.target.closest('.thumb-x');
         if (!btn) return;
-        if (modeAlbum.checked) return;                   // deletion disabled in album
+        if (modeAlbum.checked) return;
 
         const i = Number(btn.dataset.i);
-        commitCurrent();                                 // keep current text
+        commitCurrent();
 
-        // revoke blob, remove from all arrays so it won't upload later
         try { URL.revokeObjectURL(previews[i]); } catch { }
 
         previews.splice(i, 1);
         tempCaptions.splice(i, 1);
         files.splice(i, 1);
 
-        // fix selection index
         if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
+
+        const typeWrap = dlg.querySelector(".photo-type");
+        const modeAlbumWrap = document.getElementById("modeAlbumWrap");
+        if (previews.length === 1) {
+          // hide both options if only one image left
+          if (typeWrap) typeWrap.style.display = "none";
+          if (modeAlbumWrap) modeAlbumWrap.style.display = "none";
+          modeAlbum.checked = false;
+          modePhoto.checked = true;
+        } else {
+          // show back if more than one image
+          if (typeWrap) typeWrap.style.display = "";
+          if (modeAlbumWrap) modeAlbumWrap.style.display = "";
+        }
 
         // if nothing left, close modal
         if (previews.length === 0) {
