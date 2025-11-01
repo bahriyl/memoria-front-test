@@ -226,6 +226,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 6) Interactions
     display.addEventListener('click', () => {
         panel.hidden = !panel.hidden;
+
+        const submitBtn = document.querySelector('.submit-btn');
+        if (submitBtn) {
+            submitBtn.style.display = panel.hidden ? 'block' : 'none';
+        }
+
         if (!panel.hidden) {
             const hasBirth = !!birthWheel.getValue();
             const hasDeath = !!deathWheel.getValue();
@@ -236,9 +242,24 @@ document.addEventListener('DOMContentLoaded', () => {
             deathWheel.snap({ behavior: 'auto', silent: true });
         }
     });
+
     panel.addEventListener('click', e => e.stopPropagation());
-    document.addEventListener('click', e => { if (!picker.contains(e.target)) panel.hidden = true; });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.hidden = true; });
+    document.addEventListener('click', e => {
+        if (!picker.contains(e.target)) {
+            panel.hidden = true;
+
+            const submitBtn = document.querySelector('.submit-btn');
+            if (submitBtn) submitBtn.style.display = 'block';
+        }
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            panel.hidden = true;
+
+            const submitBtn = document.querySelector('.submit-btn');
+            if (submitBtn) submitBtn.style.display = 'block';
+        }
+    });
 
     doneBtn.addEventListener('click', () => {
         const birthValue = birthWheel.getValue();
@@ -252,6 +273,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateDisplay();
         panel.hidden = true;
+
+        const submitBtn = document.querySelector('.submit-btn');
+        if (submitBtn) submitBtn.style.display = 'block';
+
         triggerFetch();
     });
 

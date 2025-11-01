@@ -2168,7 +2168,7 @@ body::-webkit-scrollbar {
 #relativesModal .years-panel {
     position: fixed !important;
     /* escape local stacking contexts */
-    top: 50%;
+    top: 46%;
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 1100 !important;
@@ -3145,6 +3145,7 @@ body::-webkit-scrollbar {
     margin: 0 0 12px;
     font-size: 12px;
     color: #1B8B59;
+    font-weight: 470;
 }
 
 /* Small play mark centered over video thumbnails */

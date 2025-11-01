@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
                 </svg>
             </button>
-            <p class="modal-text" style="font-weight: 480; font-size: 15px;">Успішно відправлено на модерацію</p>
+            <p class="modal-text" style="font-weight: 480; font-size: 15px;">Успішно відправлено на модерацію.<br>Після модераціі фото буде доступно для перегляду</p>
             <div class="modal-actions">
                 <button id="shared-upload-ok" class="modal-ok">Готово</button>
             </div>
@@ -1394,18 +1394,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- SHARED: keep photos-only (backend shared/offer expects {url}) ---
     if (sharedInput) sharedInput.accept = 'image/*';
 
-    sharedInput?.addEventListener('change', async (e) => {
+    sharedInput?.addEventListener('change', async () => {
         const files = Array.from(sharedInput.files || []);
         if (!files.length) return;
 
-        // Block videos here (until backend supports shared video)
-        const hasVideo = files.some(f => f.type.startsWith('video/'));
-        if (hasVideo) {
-            alert('Відео поки що не підтримується у Спільному альбомі.');
-        }
+        // не даємо відео
         const imageFiles = files.filter(f => f.type.startsWith('image/'));
-        if (!imageFiles.length) { sharedInput.value = ''; return; }
+        if (!imageFiles.length) {
+            sharedInput.value = '';
+            return;
+        }
 
+        // 1) додамо одразу локальні blob-и, щоб показати "Завантаження..."
+        const optimisticBlobs = [];
+        imageFiles.forEach((file) => {
+            const blobUrl = URL.createObjectURL(file);
+            // показуємо ПЕРШИМИ
+            sharedPending.unshift({ url: blobUrl });
+            optimisticBlobs.push({ file, blobUrl });
+        });
+        // одразу перемальовуємо з оверлеєм
+        refreshSharedUI?.();
+
+        // локальна функція аплоаду (ми її вже мали вище, але щоб не шукати)
         async function uploadToImgBB(file) {
             const form = new FormData();
             form.append('image', file);
@@ -1419,20 +1430,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            // Upload one-by-one and offer each
-            for (const img of imageFiles) {
-                const url = await uploadToImgBB(img);
+            // 2) аплоадимо по одному
+            for (const item of optimisticBlobs) {
+                const hostedUrl = await uploadToImgBB(item.file);
+
+                // відправляємо оффер на бек
                 await fetch(`${API_BASE}/${personId}/shared/offer`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
+                    body: JSON.stringify({ url: hostedUrl })
                 });
+
+                // 3) після успішного аплоаду — прибираємо саме цей blob
+                const idx = sharedPending.findIndex(p => p.url === item.blobUrl);
+                if (idx !== -1) {
+                    sharedPending.splice(idx, 1);
+                }
+                refreshSharedUI?.();
+
+                // приберемо blob з пам’яті
+                try { URL.revokeObjectURL(item.blobUrl); } catch (e) { }
             }
-            openSharedUploadedModal();
+
+            // 4) показуємо модал "відправлено на модерацію"
+            openSharedUploadedModal?.();
         } catch (err) {
             console.error('Shared upload failed', err);
             alert('Не вдалося надіслати у Спільний альбом');
+
+            // при помилці — прибираємо ВСІ наші тимчасові блоби
+            optimisticBlobs.forEach((item) => {
+                const idx = sharedPending.findIndex(p => p.url === item.blobUrl);
+                if (idx !== -1) sharedPending.splice(idx, 1);
+                try { URL.revokeObjectURL(item.blobUrl); } catch (e) { }
+            });
+            refreshSharedUI?.();
         } finally {
+            // очистити інпут
             sharedInput.value = '';
         }
     });
@@ -2163,9 +2197,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const previews = files.map(f => URL.createObjectURL(f));
                 const tempCaptions = new Array(previews.length).fill('');
 
-                previews.forEach((url) => {
-                    photos.push({ url, description: '', _temp: true });
-                });
+                for (let i = previews.length - 1; i >= 0; i--) {
+                    const url = previews[i];
+                    photos.unshift({ url, description: '', _temp: true });
+                }
+
                 refreshPhotosUI();
 
                 // --- new gallery modal ---
@@ -3427,7 +3463,7 @@ document.addEventListener('DOMContentLoaded', () => {
             authMode = 'forgotEmail';
 
             clearMsg();
-            titleEl.textContent = 'Скидання паролю';
+            titleEl.textContent = 'Забули пошту';
 
             // Сховати всі стандартні поля та підказки
             loginEl.hidden = true;
@@ -3582,6 +3618,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // 1) insert fields into DOM first
             resetEmailEl.after(resetCodeEl);
             resetCodeEl.after(resetNewPassEl);
+
+            // 2) then attach the toggle specifically to NEW PASSWORD
+            hideAllPasswordToggles();
+            const resetEye = attachPasswordToggle(resetNewPassEl);
+            if (resetEye) resetEye.hidden = false;
 
             // note under the code input
             if (typeof codeNoteEl === 'undefined') var codeNoteEl = null; // keep in outer scope if needed
@@ -3920,7 +3961,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hasAny = !!(selectedBirth || selectedDeath);
             const text = hasAny
                 ? `${selectedBirth ?? ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath ?? ''}`
-                : 'Рік народження та смерті';
+                : 'Роки життя';
             display.textContent = text;
             display.classList.toggle('has-value', hasAny);
             clearYears.hidden = !hasAny;
@@ -4214,7 +4255,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 yearsState: {
                     selectedBirth,
                     selectedDeath,
-                    displayText: display?.textContent || 'Рік народження та смерті',
+                    displayText: display?.textContent || 'Роки життя',
                     hasValue: display?.classList?.contains('has-value') || false
                 }
             };
@@ -4478,7 +4519,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectedDeath = saved.yearsState.selectedDeath;
 
                     if (display) {
-                        display.textContent = saved.yearsState.displayText || 'Рік народження та смерті';
+                        display.textContent = saved.yearsState.displayText || 'Роки життя';
                         if (saved.yearsState.hasValue) {
                             display.classList.add('has-value');
                         } else {
@@ -4530,7 +4571,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cemSugList.classList.remove('show');
 
                 birthInput.value = deathInput.value = '';
-                display.textContent = 'Рік народження та смерті';
+                display.textContent = 'Роки життя';
                 display.classList.remove('has-value');
                 clearYears.hidden = true;
 

@@ -23,7 +23,7 @@ function parseJwt(t) {
 
 function doLogout() {
   localStorage.removeItem("token");
-  window.location.href = `/ritual_service_profile.html?id=${ritualId}`;
+  window.location.replace(`/ritual_service_profile.html?id=${ritualId}`);
 }
 
 let __logoutTimer;
@@ -82,15 +82,14 @@ if (!ritualId) {
   window.location.href = "/ritual_services.html";
 }
 if (!token) {
-  // no token → go to public profile where user can log in
-  window.location.href = `/ritual_service_profile.html?id=${ritualId}`;
+  window.location.replace(`/ritual_service_profile.html?id=${ritualId}`);
 }
 
 const logoutBtn = document.querySelector(".ritual-login-btn");
 if (logoutBtn) {
   logoutBtn.addEventListener("click", () => {
     localStorage.removeItem("token");
-    window.location.href = `/ritual_service_profile.html?id=${ritualId}`;
+    window.location.replace(`/ritual_service_profile.html?id=${ritualId}`);
   });
 }
 
@@ -334,6 +333,15 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
+window.addEventListener("pageshow", (e) => {
+  // якщо сторінка відновилась зі сховища (bfcache) або просто показалась
+  const t = localStorage.getItem("token");
+  if (!t) {
+    // користувач уже вийшов → назад на публічну
+    window.location.replace(`/ritual_service_profile.html?id=${ritualId}`);
+  }
+});
+
 function renderData(data) {
   document.querySelector(".ritual-banner").src = data.banner;
   document.querySelector(".ritual-name").textContent = data.name;
@@ -473,7 +481,7 @@ function renderData(data) {
           albums.splice(0, albums.length, ...newAlbums);
           [...imagesContainer.querySelectorAll(".image-wrap")].forEach((w, i) => { w.dataset.idx = String(i); });
 
-          await updateItems(ritualData.items);
+          await updateItems(ritualData.items, false);
 
           // невелика затримка, щоб «клік» після drag не спрацьовував
           setTimeout(() => { draggedRecently = false; }, 50);
@@ -728,15 +736,15 @@ function renderData(data) {
           wrap.draggable = true; // ← дозволяємо перетяг і за зображення
 
           // хендл для перетягу (можна тягнути і саму картинку)
-          const handle = document.createElement("button");
-          handle.type = "button";
-          handle.className = "thumb-drag-handle";
-          handle.title = "Перетягнути для зміни порядку";
-          handle.innerHTML = `
-            <svg width="18" height="18" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/>
-            </svg>
-          `;
+          // const handle = document.createElement("button");
+          // handle.type = "button";
+          // handle.className = "thumb-drag-handle";
+          // handle.title = "Перетягнути для зміни порядку";
+          // handle.innerHTML = `
+          //  <svg width="18" height="18" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          //    <path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/>
+          //  </svg>
+          // `;
 
           const img = document.createElement("img");
           img.src = src;
@@ -789,7 +797,8 @@ function renderData(data) {
             });
           }
 
-          wrap.append(handle, img, del);
+          // wrap.append(handle, img, del);
+          wrap.append(img, del);
           thumbsEl.appendChild(wrap);
         });
         countEl.textContent = String(previews.length);
@@ -1007,38 +1016,31 @@ function renderData(data) {
       // perform uploads in selected mode and persist
       try {
         if (modeAlbum.checked) {
-          // one album with N photos and a single shared description
           const urls = [];
           for (let i = 0; i < files.length; i++) {
             const u = await uploadToImgBB(files[i]);
             urls.push(u);
           }
           const commonDesc = (tempCaptions[0] || "").trim();
-          albums.push({ photos: urls, description: commonDesc });
+          albums.unshift({ photos: urls, description: commonDesc });
         } else {
-          // N albums, each with 1 photo and its own description
-          for (let i = 0; i < files.length; i++) {
+          for (let i = files.length - 1; i >= 0; i--) {
             const u = await uploadToImgBB(files[i]);
             const d = (tempCaptions[i] || "").trim();
-            albums.push({ photos: [u], description: d });
+            albums.unshift({ photos: [u], description: d });
           }
         }
 
-        // rebuild UI from canonical data (removes temp tiles)
         renderImages();
 
-        // persist to backend
         await updateItems(ritualData.items);
 
-        // belt-and-suspenders: ensure temp tiles are gone
         tempWraps.forEach(w => w.remove());
       } catch (err) {
         console.error("Upload failed", err);
         alert("Не вдалося завантажити фото");
-        // remove temp tiles on error
         tempWraps.forEach(w => w.remove());
       } finally {
-        // free blobs and reset input
         previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
         e.target.value = "";
       }
@@ -1069,7 +1071,7 @@ function renderData(data) {
 }
 
 // --- make updateItems() report server errors clearly ---
-async function updateItems(items) {
+async function updateItems(items, reload = true) {
   try {
     const res = await fetchWithAuth(`${API}/ritual_services/${ritualId}`, {
       method: "PUT",
@@ -1078,16 +1080,31 @@ async function updateItems(items) {
       },
       body: JSON.stringify({ items }),
     });
+
     if (!res.ok) {
       const t = await res.text();
       throw new Error(`Save failed ${res.status}: ${t}`);
     }
-    location.reload();
+
+    // Update local data to reflect latest state
+    if (ritualData) {
+      ritualData.items = items;
+    }
+
+    if (reload) {
+      location.reload();
+    } else {
+      console.log("Items updated without reload ✅");
+    }
+
+    return true;
   } catch (err) {
     console.error(err);
     alert("Не вдалося зберегти фото. Перевірте токен доступу та мережу.");
+    return false;
   }
 }
+
 
 function openDescriptionEditor() {
   const section = document.querySelector(".ritual-description");

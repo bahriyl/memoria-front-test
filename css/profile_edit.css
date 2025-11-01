@@ -259,7 +259,7 @@
 /* (optional, to match profile) keep the years picker floating above */
 #relativesModal .years-panel {
   position: fixed !important;
-  top: 50%;
+  top: 46%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 1100 !important;

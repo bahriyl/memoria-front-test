@@ -2563,9 +2563,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Add instant previews into UI list (photos array) as temp items
                 const startIndex = photos.length;
                 const tempCaptions = new Array(validPreviews.length).fill('');
-                validPreviews.forEach(p => {
-                    photos.push({ url: p.src, description: '', _temp: true, _kind: p.kind });
-                });
+
+                for (let i = validPreviews.length - 1; i >= 0; i--) {
+                    const p = validPreviews[i];
+                    photos.unshift({ url: p.src, description: '', _temp: true, _kind: p.kind });
+                }
+
                 refreshPhotosUI();
 
                 // --- caption modal wiring (reusing your existing modal) ------------------
@@ -3814,7 +3817,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hasAny = !!(selectedBirth || selectedDeath);
             const text = hasAny
                 ? `${selectedBirth ?? ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath ?? ''}`
-                : 'Рік народження та смерті';
+                : 'Роки життя';
             display.textContent = text;
             display.classList.toggle('has-value', hasAny);
             clearYears.hidden = !hasAny;
