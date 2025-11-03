@@ -618,26 +618,28 @@ function renderData(data) {
       cancelBtn.addEventListener("click", exitSelectionMode);
 
       deleteBtn.addEventListener("click", async () => {
-        const selected = Array.from(imagesContainer.querySelectorAll(".image-wrap.selected"));
-        if (!selected.length) return;
+        // використовуємо selectedOrder, який ти вже ведеш
+        if (!selectedOrder.length) return;
 
-        const modal = createConfirmModal(
-          `Видалити ${selected.length} елемент${selected.length > 1 ? "и" : ""}?`
-        );
-        document.body.appendChild(modal);
-        modal.showModal();
-
-        const confirmed = await new Promise(resolve => {
-          modal.querySelector(".confirm").addEventListener("click", () => resolve(true));
-          modal.querySelector(".cancel").addEventListener("click", () => resolve(false));
-        });
-        modal.close();
-        modal.remove();
-
+        const confirmed = await openConfirmDeleteModal(selectedOrder.length);
         if (!confirmed) return;
 
-        selected.forEach(el => el.remove());
-        updateBadges();
+        // індекси альбомів, які треба видалити
+        const idxs = selectedOrder
+          .map(w => Number(w.dataset.idx))
+          .filter(n => !Number.isNaN(n))
+          .sort((a, b) => b - a); // з кінця, щоб splice не зрушував наступні
+
+        idxs.forEach(i => {
+          if (i >= 0 && i < albums.length) {
+            albums.splice(i, 1);
+          }
+        });
+
+        // перемальовуємо й зберігаємо
+        renderImages();
+        await updateItems(ritualData.items);
+
         exitSelectionMode();
       });
 
@@ -652,7 +654,7 @@ function renderData(data) {
 
       imagesContainer.querySelectorAll(".image-wrap").forEach(w => {
         w.draggable = canReorder;
-        w.classList.remove("selected");
+        w.classList.remove("is-selected");
       });
 
       // Clear the control buttons
@@ -1238,6 +1240,58 @@ function ensureOverlay() {
   const legacy = document.querySelector(".modal-overlay");
   if (legacy && legacy !== overlay) legacy.remove();
   return overlay;
+}
+
+function openConfirmDeleteModal(count) {
+  const overlay = ensureOverlay();
+
+  const dlg = document.getElementById("confirm-delete-modal");
+  const textEl = document.getElementById("confirm-delete-modal-text");
+  const closeBtn = document.getElementById("confirm-delete-close");
+  const cancelBtn = document.getElementById("confirm-delete-cancel");
+  const okBtn = document.getElementById("confirm-delete-ok");
+
+  if (!dlg || !textEl || !closeBtn || !cancelBtn || !okBtn) {
+    console.error("Confirm delete modal structure missing");
+    return Promise.resolve(false);
+  }
+
+  // текст в модалці
+  textEl.textContent =
+    count > 1
+      ? `Видалити ${count} елемент${count > 1 ? "и" : ""}?`
+      : "Видалити вибрану фотографію?";
+
+  overlay.hidden = false;
+  dlg.hidden = false;
+
+  return new Promise((resolve) => {
+    function finish(result) {
+      dlg.hidden = true;
+      overlay.hidden = true;
+      cleanup();
+      resolve(result);
+    }
+
+    const onOk = () => finish(true);
+    const onCancel = () => finish(false);
+    const onOverlay = (e) => { if (e.target === overlay) finish(false); };
+    const onKey = (e) => { if (e.key === "Escape") finish(false); };
+
+    function cleanup() {
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      closeBtn.removeEventListener("click", onCancel);
+      overlay.removeEventListener("click", onOverlay);
+      document.removeEventListener("keydown", onKey);
+    }
+
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    closeBtn.addEventListener("click", onCancel);
+    overlay.addEventListener("click", onOverlay);
+    document.addEventListener("keydown", onKey);
+  });
 }
 
 function openRenameModal(titleEl) {

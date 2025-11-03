@@ -1330,7 +1330,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // PUBLIC PAGE: show only accepted photos + local blob previews
         const localPendingBlobs = sharedPending.filter(p => isBlob(p.url));
-        const renderItems = [...localPendingBlobs, ...sharedPhotos];
+        const renderItems = [...localPendingBlobs, ...sharedPhotos].slice().reverse();
         sharedListEl.classList.remove('rows-1', 'rows-2');
         sharedListEl.classList.add('rows-1');
 
@@ -2049,8 +2049,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         photosListEl.classList.add(photos.length <= 5 ? 'rows-1' : 'rows-2');
 
-        // render items
-        photos.forEach((p, idx) => {
+        // render items in reverse order, but KEEP original indexes in all logic
+        const order = photos.map((_, i) => i).slice().reverse();
+
+        order.forEach((idx) => {
+            const p = photos[idx];
             const media = normalizeMediaItem(p);
             const isTempVideo = !media && p && p._temp && p._kind === 'video';
             if (!media && !isTempVideo) return;
@@ -2061,7 +2064,9 @@ document.addEventListener('DOMContentLoaded', () => {
             li.classList.toggle('video-tile', isVideo);
 
             const img = document.createElement('img');
-            img.src = isVideo ? videoThumbSrc(media) : (media?.url || (typeof p?.url === 'string' ? p.url : ''));
+            img.src = isVideo
+                ? videoThumbSrc(media)
+                : (media?.url || (typeof p?.url === 'string' ? p.url : ''));
             img.alt = '';
 
             if ((typeof p?.url === 'string' && p.url.startsWith('blob:')) || isTempVideo) {
@@ -2084,19 +2089,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const play = document.createElement('span');
                 play.className = 'video-play-small';
                 play.innerHTML = `
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="white" aria-hidden="true">
-        <path d="M8 5v14l11-7z"></path>
-      </svg>`;
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="white" aria-hidden="true">
+            <path d="M8 5v14l11-7z"></path>
+          </svg>`;
                 play.style.display = isSelecting ? 'none' : '';
                 li.appendChild(play);
             }
 
             li.addEventListener('click', () => {
                 if (isSelecting) {
+                    // index in selectedOrder is ORIGINAL idx
                     toggleSelectPhoto(idx);
                     return;
                 }
                 if (!media) return;
+                // ORIGINAL idx again → slideshow uses original order
                 openMediaSlideshow(idx);
             });
 
@@ -2129,6 +2136,46 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to save profile photos:', e);
             alert('Не вдалося зберегти фотографії профілю.');
         }
+    }
+
+    // INFO modal на базі confirm-delete
+    function openInfoModal(message) {
+        const overlay = document.getElementById('modal-overlay');
+        const dlg = document.getElementById('confirm-delete-modal');
+        if (!overlay || !dlg) { alert(message); return; }
+
+        // заголовок/текст
+        const titleEl = dlg.querySelector('.modal-title') || dlg.querySelector('#confirm-delete-title');
+        const textEl = dlg.querySelector('.modal-text') || dlg.querySelector('#confirm-delete-text');
+        if (titleEl) titleEl.textContent = 'Обмеження фото';
+        if (textEl) textEl.textContent = message;
+
+        // кнопки
+        const cancelBtn = document.getElementById('confirm-delete-cancel');
+        const okBtn = document.getElementById('confirm-delete-ok');
+
+        // показуємо лише ОК, ховаємо "Скасувати"
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        if (okBtn) okBtn.textContent = 'Ок';
+
+        // відкрити
+        overlay.hidden = false;
+        dlg.hidden = false;
+
+        const close = () => {
+            overlay.hidden = true;
+            dlg.hidden = true;
+            // повернути стан кнопок
+            if (cancelBtn) cancelBtn.style.display = '';
+            if (okBtn) okBtn.textContent = 'Видалити';
+        };
+
+        // закриття по overlay і ОК
+        overlay.onclick = close;
+        if (okBtn) okBtn.onclick = close;
+        // якщо є хрестик
+        const closeX = document.getElementById('confirm-delete-close');
+        if (closeX) closeX.onclick = close;
     }
 
     function hookPhotoButtons() {
@@ -2182,6 +2229,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 let files = Array.from(e.target.files || []);
                 if (!files.length) return;
 
+                const currentCount = persistedMedia().length; // лише збережені (без blob)
+                const remaining = Math.max(0, (window.MAX_PHOTOS || 20) - currentCount);
+
+                if (remaining <= 0) {
+                    openInfoModal(`Досягнуто ліміту ${MAX_PHOTOS} фото. Видаліть зайві або перейдіть на преміум.`);
+                    e.target.value = '';
+                    return;
+                }
+                if (files.length > remaining) {
+                    openInfoModal(`Можна додати ще лише ${remaining} фото (загальний ліміт — ${MAX_PHOTOS}).`);
+                    e.target.value = '';
+                    return; // не відкриваємо photo-desc-modal зовсім
+                }
+
                 const videoFiles = files.filter(f => f.type.startsWith('video/'));
                 if (videoFiles.length) {
                     alert('Відео можна завантажити лише на сторінці редагування профілю.');
@@ -2197,9 +2258,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const previews = files.map(f => URL.createObjectURL(f));
                 const tempCaptions = new Array(previews.length).fill('');
 
-                for (let i = previews.length - 1; i >= 0; i--) {
+                // додаємо тимчасові фото В КІНЕЦЬ масиву
+                for (let i = 0; i < previews.length; i++) {
                     const url = previews[i];
-                    photos.unshift({ url, description: '', _temp: true });
+                    photos.push({ url, description: '', _temp: true });
                 }
 
                 refreshPhotosUI();
@@ -2497,6 +2559,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // PREMIUM lock (означає, що сторінка преміум і редагування заблоковане поки не увійти)
             premiumLock = !!data.premium;
             premiumCreds = data.premium || null;
+
+            window.MAX_PHOTOS = data?.premium ? 100 : 20;
 
             if (premiumLock) {
                 const photosTitleEl = document.querySelector('.photos-title');
@@ -3542,9 +3606,17 @@ document.addEventListener('DOMContentLoaded', () => {
             authMode = 'login';
             clearMsg();
             titleEl.textContent = 'Авторизація';
+
             loginEl.hidden = false;
-            passEl.hidden = false;
             forgotEl.hidden = false;
+
+            const pwWrap = passEl.closest('.password-wrapper');
+            if (pwWrap) {
+                pwWrap.hidden = false;
+            } else {
+                passEl.hidden = false;
+            }
+
             submitBtn.textContent = 'Увійти';
             removeResetFields();
             hideForgotEmailLink();
@@ -3574,17 +3646,26 @@ document.addEventListener('DOMContentLoaded', () => {
             titleEl.textContent = 'Скидання паролю';
             // hide default fields
             loginEl.hidden = true;
-            passEl.hidden = true;
             forgotEl.hidden = true;
 
-            // create email input (same look as your modal inputs)
+            // ховаємо весь wrapper з паролем
+            const pwWrap = passEl.closest('.password-wrapper');
+            if (pwWrap) {
+                pwWrap.hidden = true;
+            } else {
+                passEl.hidden = true;
+            }
+
+            // create email input ...
             resetEmailEl = document.createElement('input');
             resetEmailEl.type = 'email';
             resetEmailEl.id = 'resetEmail';
             resetEmailEl.placeholder = 'Електронна пошта';
             resetEmailEl.autocomplete = 'email';
             resetEmailEl.className = loginEl.className;
-            passEl.after(resetEmailEl);
+
+            // вставляємо email ПІСЛЯ wrapper’а
+            (pwWrap || passEl).after(resetEmailEl);
 
             submitBtn.textContent = 'Надіслати код';
             ensureBackLink();
@@ -3632,11 +3713,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             resetCodeEl.after(codeNoteEl);
             codeNoteEl.textContent = ''; // clear by default
-
-            // 2) then attach the toggle specifically to NEW PASSWORD
-            hideAllPasswordToggles();
-            // const resetEye = attachPasswordToggle(resetNewPassEl);
-            // if (resetEye) resetEye.hidden = false;
 
             submitBtn.textContent = 'Змінити пароль';
             ensureBackLink();

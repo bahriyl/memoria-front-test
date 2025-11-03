@@ -1098,6 +1098,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let sharedSelecting = false;
     let sharedSelectedOrder = [];
 
+    // Accepted shared photos that are *really* saved (no blob URLs)
+    const sharedRealPhotos = () =>
+        (sharedPhotos || []).filter(p =>
+            p &&
+            typeof p.url === 'string' &&
+            !p.url.startsWith('blob:')
+        );
+
     const nonBlobPhotos = () =>
         (photos || []).filter((u) => typeof u === 'string' && u && !u.startsWith('blob:'));
     const persistedMedia = () =>
@@ -1193,9 +1201,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // підтвердження/відхилення pending
     async function acceptPending(i) {
-        const item = sharedPending[i]; if (!item) return;
-        sharedPending.splice(i, 1); sharedPhotos.unshift({ url: item.url }); // accepted на початок accepted-масиву?
-        await saveSharedAlbum(); refreshSharedUI();
+        const item = sharedPending[i];
+        if (!item) return;
+        sharedPending.splice(i, 1);
+        sharedPhotos.push({ url: item.url }); // додаємо в КІНЕЦЬ
+        await saveSharedAlbum();
+        refreshSharedUI();
     }
 
     async function declinePending(i) {
@@ -1264,11 +1275,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         ul.innerHTML = '';
 
-        // Merge pending (first) + accepted (second)
+        // Merge pending (first) + accepted (second),
+        // але зберігаємо оригінальний index у _sourceIndex
         const all = [
-            ...sharedPending.map(p => ({ ...p, _pending: true })),
-            ...sharedPhotos.map(p => ({ ...p, _pending: false }))
-        ];
+            ...sharedPending.map((p, i) => ({ ...p, _pending: true, _sourceIndex: i })),
+            ...sharedPhotos.map((p, i) => ({ ...p, _pending: false, _sourceIndex: i }))
+        ].slice().reverse(); // тільки UI reverse
 
         // Arrays for slideshow (match visible order)
         const allUrls = all.map(p => p.url);
@@ -1304,12 +1316,18 @@ document.addEventListener('DOMContentLoaded', () => {
               <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
                 <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>`;
-                close.addEventListener('click', (e) => { e.stopPropagation(); declinePending(visibleIdx); });
+                close.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    declinePending(p._sourceIndex);  // ОРИГІНАЛЬНИЙ індекс у sharedPending
+                });
 
                 const acceptBtn = document.createElement('button');
                 acceptBtn.className = 'shared-accept';
                 acceptBtn.textContent = 'Додати';
-                acceptBtn.addEventListener('click', (e) => { e.stopPropagation(); acceptPending(visibleIdx); });
+                acceptBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    acceptPending(p._sourceIndex);   // ОРИГІНАЛЬНИЙ індекс
+                });
 
                 li.append(close, acceptBtn);
             } else {
@@ -1317,8 +1335,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.classList.add('accepted');
 
                 if (sharedSelecting) {
-                    // map visibleIdx → accepted index
-                    const acceptedIdx = visibleIdx - sharedPending.length;
+                    // ОРИГІНАЛЬНИЙ індекс у sharedPhotos
+                    const acceptedIdx = p._sourceIndex;
                     const pos = sharedSelectedOrder.indexOf(acceptedIdx);
                     const isSel = pos > -1;
 
@@ -1353,6 +1371,20 @@ document.addEventListener('DOMContentLoaded', () => {
     sharedInput?.addEventListener('change', async (e) => {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
+
+        const current = totalPersistedCount();
+        const remaining = Math.max(0, MAX_PHOTOS - current);
+
+        if (remaining <= 0) {
+            openInfoModal(`Досягнуто ліміту ${MAX_PHOTOS} фото. Видаліть зайві або перейдіть на преміум.`);
+            e.target.value = '';
+            return;
+        }
+        if (files.length > remaining) {
+            openInfoModal(`Можна додати ще лише ${remaining} фото (загальний ліміт — ${MAX_PHOTOS}).`);
+            e.target.value = '';
+            return;
+        }
 
         // Local previews & temp captions kept only until user confirms
         const previews = files.map(f => URL.createObjectURL(f));
@@ -2051,8 +2083,10 @@ document.addEventListener('DOMContentLoaded', () => {
         photosListEl.style.display = '';
         photosListEl.classList.add(photos.length <= 5 ? 'rows-1' : 'rows-2');
 
-        // render items
-        photos.forEach((p, idx) => {
+        const order = photos.map((_, i) => i).slice().reverse();
+
+        order.forEach((idx) => {
+            const p = photos[idx];
             const media = normalizeMediaItem(p);
             const isTempVideo = !media && p && p._temp && p._kind === 'video';
             if (!media && !isTempVideo) return;
@@ -2063,7 +2097,9 @@ document.addEventListener('DOMContentLoaded', () => {
             li.classList.toggle('video-tile', isVideo);
 
             const img = document.createElement('img');
-            img.src = isVideo ? videoThumbSrc(media) : (media?.url || (typeof p?.url === 'string' ? p.url : ''));
+            img.src = isVideo
+                ? videoThumbSrc(media)
+                : (media?.url || (typeof p?.url === 'string' ? p.url : ''));
             img.alt = '';
 
             if ((typeof p?.url === 'string' && p.url.startsWith('blob:')) || isTempVideo) {
@@ -2086,20 +2122,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const play = document.createElement('span');
                 play.className = 'video-play-small';
                 play.innerHTML = `
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="white" aria-hidden="true">
-        <path d="M8 5v14l11-7z"></path>
-      </svg>`;
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="white" aria-hidden="true">
+            <path d="M8 5v14l11-7z"></path>
+          </svg>`;
                 play.style.display = isSelecting ? 'none' : '';
                 li.appendChild(play);
             }
 
             li.addEventListener('click', () => {
                 if (isSelecting) {
-                    toggleSelectPhoto(idx);
-                } else {
-                    if (!media) return;
-                    openMediaSlideshow(idx);
+                    toggleSelectPhoto(idx); // ORIGINAL index
+                    return;
                 }
+                if (!media) return;
+                openMediaSlideshow(idx);   // ORIGINAL index again
             });
 
             li.append(img);
@@ -2140,6 +2176,18 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to save profile photos:', e);
             alert('Не вдалося зберегти фотографії профілю.');
         }
+    }
+
+    function totalPersistedCount() {
+        // your existing normalized/persisted collection for main gallery
+        const main = persistedMedia().length;      // фото/відео галереї (без blob)
+
+        // accepted shared photos (без blob), if helper exists
+        const shared = typeof sharedRealPhotos === 'function'
+            ? sharedRealPhotos().length
+            : 0;
+
+        return main + shared;
     }
 
     async function uploadToImgBB(file) {
@@ -2445,6 +2493,46 @@ document.addEventListener('DOMContentLoaded', () => {
         return { player: playerUrl, poster };
     }
 
+    // INFO modal на базі confirm-delete
+    function openInfoModal(message) {
+        const overlay = document.getElementById('modal-overlay');
+        const dlg = document.getElementById('confirm-delete-modal');
+        if (!overlay || !dlg) { alert(message); return; }
+
+        // заголовок/текст
+        const titleEl = dlg.querySelector('.modal-title') || dlg.querySelector('#confirm-delete-title');
+        const textEl = dlg.querySelector('.modal-text') || dlg.querySelector('#confirm-delete-text');
+        if (titleEl) titleEl.textContent = 'Обмеження фото';
+        if (textEl) textEl.textContent = message;
+
+        // кнопки
+        const cancelBtn = document.getElementById('confirm-delete-cancel');
+        const okBtn = document.getElementById('confirm-delete-ok');
+
+        // показуємо лише ОК, ховаємо "Скасувати"
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        if (okBtn) okBtn.textContent = 'Ок';
+
+        // відкрити
+        overlay.hidden = false;
+        dlg.hidden = false;
+
+        const close = () => {
+            overlay.hidden = true;
+            dlg.hidden = true;
+            // повернути стан кнопок
+            if (cancelBtn) cancelBtn.style.display = '';
+            if (okBtn) okBtn.textContent = 'Видалити';
+        };
+
+        // закриття по overlay і ОК
+        overlay.onclick = close;
+        if (okBtn) okBtn.onclick = close;
+        // якщо є хрестик
+        const closeX = document.getElementById('confirm-delete-close');
+        if (closeX) closeX.onclick = close;
+    }
+
     function hookPhotoButtons() {
         if (addPhotoBtn)
             addPhotoBtn.addEventListener('click', () => {
@@ -2499,6 +2587,20 @@ document.addEventListener('DOMContentLoaded', () => {
             fileInput.addEventListener('change', async (e) => {
                 let files = Array.from(fileInput.files || []);
                 if (!files.length) return;
+
+                const currentCount = persistedMedia().length; // лише збережені (без blob)
+                const remaining = Math.max(0, (window.MAX_PHOTOS || 20) - currentCount);
+
+                if (remaining <= 0) {
+                    openInfoModal(`Досягнуто ліміту ${MAX_PHOTOS} фото. Видаліть зайві або перейдіть на преміум.`);
+                    e.target.value = '';
+                    return;
+                }
+                if (files.length > remaining) {
+                    openInfoModal(`Можна додати ще лише ${remaining} фото (загальний ліміт — ${MAX_PHOTOS}).`);
+                    e.target.value = '';
+                    return;
+                }
 
                 const existingVideoCount = photos.reduce((count, item) => {
                     if (!item || typeof item !== 'object') return count;
@@ -2561,13 +2663,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Add instant previews into UI list (photos array) as temp items
+                // Add instant previews into UI list (photos array) as temp items
                 const startIndex = photos.length;
                 const tempCaptions = new Array(validPreviews.length).fill('');
 
-                for (let i = validPreviews.length - 1; i >= 0; i--) {
-                    const p = validPreviews[i];
-                    photos.unshift({ url: p.src, description: '', _temp: true, _kind: p.kind });
-                }
+                // append new items at the end so indexes line up with startIndex
+                validPreviews.forEach((p) => {
+                    photos.push({ url: p.src, description: '', _temp: true, _kind: p.kind });
+                });
 
                 refreshPhotosUI();
 
@@ -2994,6 +3097,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(`${API_BASE}/${personId}`);
             if (!res.ok) throw new Error(res.statusText);
             const data = await res.json();
+
+            window.MAX_PHOTOS = data?.premium ? 100 : 20;
 
             // ─── COMMENTS ───
             comments = Array.isArray(data.comments) ? data.comments : [];
