@@ -2075,7 +2075,7 @@ document.addEventListener('DOMContentLoaded', () => {
             photosListEl.style.display = 'none';
             const empty = document.createElement('div');
             empty.className = 'photos-empty';
-            empty.innerHTML = 'Немає фотографій.<br>Будь ласка, поділіться спогадами';
+            empty.innerHTML = 'Немає фотографій<br>Будь ласка, поділіться спогадами';
             photosScrollEl?.appendChild(empty);
             return;
         }
@@ -3224,7 +3224,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (bioBodyWrap) {
                     const empty = document.createElement('div');
                     empty.className = 'bio-empty';
-                    empty.innerHTML = 'Життєпис ще не заповнено.<br>Будь ласка, додайте інформацію';
+                    empty.innerHTML = 'Життєпис ще не заповнено<br>Будь ласка, додайте інформацію';
                     bioBodyWrap.prepend(empty);
                 }
 

@@ -90,7 +90,7 @@ body {
 .ritual-description {
   background: #ffffff;
   margin-top: 6px;
-  padding: 20px 20px 18px 20px;
+  padding: 16px 16px 18px 16px;
   border-top: 0.2px solid #bfbfbf;
   border-bottom: 0.2px solid #bfbfbf;
   border-radius: 9px;
@@ -574,6 +574,14 @@ body {
   word-break: break-word;
 }
 
+.ritual-text.manual-clamp {
+  display: block;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+  overflow: visible;
+  max-height: none;
+}
+
 /* розгорнутий стан — кламп вимкнено */
 .ritual-text.expanded {
   display: block;
@@ -698,9 +706,8 @@ p.ritual-text {
 }
 
 #ritual-text>span {
-  display: block;
-  /* щоб можна було задати ширину */
-  width: 100%;
+  display: inline;
+  width: auto;
   max-width: 100%;
 }
 

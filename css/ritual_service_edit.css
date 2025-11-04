@@ -170,7 +170,7 @@ body {
 .ritual-description {
   background: #ffffff;
   margin-top: 6px;
-  padding: 10px 10px 18px 20px;
+  padding: 16px 10px 18px 20px;
   border-top: 0.2px solid #bfbfbf;
   border-bottom: 0.2px solid #bfbfbf;
   border-radius: 9px;
@@ -227,9 +227,8 @@ p.ritual-text {
 }
 
 #ritual-text>span {
-  display: block;
-  /* щоб можна було задати ширину */
-  width: 100%;
+  display: inline;
+  width: auto;
   max-width: 100%;
 }
 
@@ -1202,4 +1201,16 @@ textarea {
   opacity: .85;
   outline: 2px dashed #1b8b59;
   outline-offset: 2px;
+}
+
+/* Album mode: трохи збільшуємо прев'юшки */
+#photo-desc-modal .photo-desc-thumb {
+  overflow: hidden;
+  /* безпечний запас, якщо ще не стоїть */
+}
+
+#photo-desc-modal .photo-desc-thumbs.album-mode .photo-desc-thumb {
+  transform: scale(1.04);
+  transition: transform 0.15s ease;
+  transform-origin: center center;
 }

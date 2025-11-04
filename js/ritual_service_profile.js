@@ -204,6 +204,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const LINES = 4;
       const moreLabel = "більше";
       const lessLabel = "менше";
+      const aboutEl = document.getElementById("ritual-text");
 
       aboutEl.innerHTML = "";
 
@@ -215,52 +216,37 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
-      const textSpan = document.createElement("span");
-      const createToggle = (label = "більше") => {
-        const t = document.createElement("span");
-        t.className = "bio-toggle";
-        t.setAttribute("role", "button");
-        t.tabIndex = 0;
-        t.textContent = label;
-        return t;
-      };
+      // like profile bio: TEXT + NBSP + TOGGLE (toggle is *not* inside textSpan)
+      aboutEl.classList.add("manual-clamp");
+      aboutEl.innerHTML = "";
 
-      // базові метрики
+      const textSpan = document.createElement("span");
+      const nbsp = document.createTextNode("\u00A0");
+      const toggle = document.createElement("span");
+      toggle.className = "bio-toggle";
+      toggle.setAttribute("role", "button");
+      toggle.tabIndex = 0;
+
       const cs = getComputedStyle(aboutEl);
       const line =
         parseFloat(cs.lineHeight) || 1.5 * parseFloat(cs.fontSize) || 21;
       const maxH = Math.round(LINES * line);
 
-      // --- вимір повного тексту БЕЗ клампу ---
-      aboutEl.classList.add("__measure");
-      aboutEl.innerHTML = "";
+      // quick path: whole text fits → no toggle
       textSpan.textContent = text;
       aboutEl.appendChild(textSpan);
-      const fullH = aboutEl.clientHeight;
-      aboutEl.innerHTML = "";
-      aboutEl.classList.remove("__measure");
+      if (aboutEl.clientHeight <= maxH + 1) return;
 
-      if (fullH <= maxH + 1) {
-        // все влізло → без toggle
-        aboutEl.appendChild(textSpan);
-        return;
-      }
-
-      // хелпер вимірювання префікса: теж БЕЗ клампу
+      // measure "prefix + ' …' + NBSP + toggle"
       function heightForPrefix(prefixLen) {
-        aboutEl.classList.add("__measure");
         aboutEl.innerHTML = "";
-        const s = document.createElement("span");
-        s.textContent = text.slice(0, prefixLen).trimEnd() + " … ";
-        s.appendChild(createToggle()); // toggle inside the same span
-        aboutEl.appendChild(s);
-        const h = aboutEl.clientHeight;
-        aboutEl.innerHTML = "";
-        aboutEl.classList.remove("__measure");
-        return h;
+        textSpan.textContent = text.slice(0, prefixLen).trimEnd() + " …";
+        toggle.textContent = moreLabel;
+        aboutEl.append(textSpan, nbsp, toggle);
+        return aboutEl.clientHeight;
       }
 
-      // бінарний пошук максимальної довжини, що влазить у 4 рядки
+      // binary search for longest prefix that still fits in 4 lines
       let lo = 0,
         hi = text.length,
         best = 0;
@@ -274,31 +260,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       }
 
-      // фінальний рендер (уже З клампом, без __measure)
-      const toggle = createToggle(moreLabel);
-      textSpan.textContent = text.slice(0, best).trimEnd() + " … ";
-      toggle.textContent = moreLabel;
-      textSpan.appendChild(toggle);
+      // final render: TEXT + NBSP + TOGGLE (exactly as measured)
       aboutEl.innerHTML = "";
-      aboutEl.appendChild(textSpan);
+      textSpan.textContent = text.slice(0, best).trimEnd() + " …";
+      toggle.textContent = moreLabel;
+      aboutEl.append(textSpan, document.createTextNode("\u00A0"), toggle);
 
+      // expand/collapse handlers
       let expanded = false;
       const expand = () => {
         expanded = true;
-        aboutEl.classList.add("expanded");
         aboutEl.innerHTML = "";
         textSpan.textContent = text + " ";
-        toggle.textContent = "менше";
-        textSpan.appendChild(toggle);
-        aboutEl.appendChild(textSpan);
+        toggle.textContent = lessLabel;
+        aboutEl.append(textSpan, toggle); // NBSP not needed when fully expanded
       };
-
       const collapse = () => {
         expanded = false;
-        aboutEl.classList.remove("expanded"); // <<< важливо
-        applyAbout(text);
+        applyAbout(text); // recompute so toggle returns to end of 4th line
       };
       const onToggle = () => (expanded ? collapse() : expand());
+
       toggle.addEventListener("click", onToggle);
       toggle.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {

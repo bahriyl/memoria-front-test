@@ -241,42 +241,35 @@ function applyAbout(text) {
     return;
   }
 
+  // same pattern as profile bio
+  aboutEl.classList.add("manual-clamp");
+  aboutEl.innerHTML = "";
+
   const textSpan = document.createElement("span");
-  const createToggle = (label = "більше") => {
-    const t = document.createElement("span");
-    t.className = "bio-toggle";
-    t.setAttribute("role", "button");
-    t.tabIndex = 0;
-    t.textContent = label;
-    return t;
-  };
+  const nbsp = document.createTextNode("\u00A0");
+  const toggle = document.createElement("span");
+  toggle.className = "bio-toggle";
+  toggle.setAttribute("role", "button");
+  toggle.tabIndex = 0;
 
   const cs = getComputedStyle(aboutEl);
-  const line = parseFloat(cs.lineHeight) || 1.5 * parseFloat(cs.fontSize) || 21;
+  const line =
+    parseFloat(cs.lineHeight) || 1.5 * parseFloat(cs.fontSize) || 21;
   const maxH = Math.round(LINES * line);
 
-  // Швидка гілка: текст вміщається — toggle не потрібен
+  // quick path: fits into 4 lines
   textSpan.textContent = text;
   aboutEl.appendChild(textSpan);
-  if (aboutEl.clientHeight <= maxH + 1) {
-    return;
-  }
+  if (aboutEl.clientHeight <= maxH + 1) return;
 
-  // Вимірювач висоти для префікса
   function heightForPrefix(prefixLen) {
-    aboutEl.classList.add("__measure");
     aboutEl.innerHTML = "";
-    const s = document.createElement("span");
-    s.textContent = text.slice(0, prefixLen).trimEnd() + " … ";
-    s.appendChild(createToggle()); // toggle inside the same span
-    aboutEl.appendChild(s);
-    const h = aboutEl.clientHeight;
-    aboutEl.innerHTML = "";
-    aboutEl.classList.remove("__measure");
-    return h;
+    textSpan.textContent = text.slice(0, prefixLen).trimEnd() + " …";
+    toggle.textContent = moreLabel;
+    aboutEl.append(textSpan, nbsp, toggle);
+    return aboutEl.clientHeight;
   }
 
-  // Бінарний пошук максимальної довжини, що вміщається у 4 рядки (з урахуванням toggle)
   let lo = 0,
     hi = text.length,
     best = 0;
@@ -290,15 +283,11 @@ function applyAbout(text) {
     }
   }
 
-  // Фінальна розмітка
-  const toggle = createToggle(moreLabel);
-  textSpan.textContent = text.slice(0, best).trimEnd() + " … ";
-  toggle.textContent = moreLabel;
-  textSpan.appendChild(toggle);
   aboutEl.innerHTML = "";
-  aboutEl.appendChild(textSpan);
+  textSpan.textContent = text.slice(0, best).trimEnd() + " …";
+  toggle.textContent = moreLabel;
+  aboutEl.append(textSpan, document.createTextNode("\u00A0"), toggle);
 
-  // Обробники
   let expanded = false;
   const expand = () => {
     expanded = true;
@@ -309,7 +298,7 @@ function applyAbout(text) {
   };
   const collapse = () => {
     expanded = false;
-    applyAbout(text); // перерахунок і повернення toggle в кінець 4-го рядка
+    applyAbout(text);
   };
   const onToggle = () => (expanded ? collapse() : expand());
 
@@ -906,6 +895,7 @@ function renderData(data) {
 
       // toggle UI by mode (Album → one shared description; Photo → per-photo)
       function applyModeUI() {
+        thumbsEl.classList.toggle("album-mode", modeAlbum.checked);
         if (modeAlbum.checked) {
           renderThumbs(true);
           sel = 0;
