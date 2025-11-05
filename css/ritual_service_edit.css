@@ -578,6 +578,7 @@ textarea {
   overflow: hidden;
   scroll-snap-align: start;
   flex-shrink: 0;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
 
 .item-images .image-wrap>img.item-image {
@@ -1166,9 +1167,16 @@ textarea {
   /* visible in selection mode */
 }
 
-.image-wrap.dragging {
-  opacity: .85;
+.item-images .image-wrap.holding,
+.item-images .image-wrap.dragging {
+  transform: scale(1.04);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
+.item-images .image-wrap.dragging {
+  opacity: 0.96;
   outline: 2px dashed #1b8b59;
+  cursor: grabbing;
 }
 
 /* drag handle у прев’ю вікна додавання фото */
@@ -1213,4 +1221,33 @@ textarea {
   transform: scale(1.04);
   transition: transform 0.15s ease;
   transform-origin: center center;
+}
+
+/* Long-press affordance on mobile */
+.item-images .image-wrap.holding .item-image,
+.item-images .image-wrap.dragging .item-image {
+  transform: none;
+}
+
+/* Заборона системного прев'ю/меню на iOS Safari */
+.item-images .image-wrap,
+.item-images .image-wrap .item-image {
+  -webkit-touch-callout: none;
+  /* kill long-press menu */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  /* kill native image-drag ghost */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.drag-placeholder {
+  width: 160px;
+  height: 198px;
+  border-radius: 6px;
+  border: 2px dashed rgba(27, 139, 89, 0.45);
+  background: rgba(27, 139, 89, 0.08);
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  pointer-events: none;
 }

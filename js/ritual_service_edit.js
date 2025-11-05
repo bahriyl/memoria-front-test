@@ -417,6 +417,248 @@ function renderData(data) {
         imagesContainer.className = "item-images";
       }
 
+      let dragSession = null;
+      let scrollLocked = false;
+      let prevBodyOverflow = "";
+      let prevBodyTouchAction = "";
+      let prevContainerTouchAction = "";
+      let prevHtmlOverflow = "";
+      let prevBodyPosition = "";
+      let prevBodyTop = "";
+      let prevBodyWidth = "";
+      let scrollLockScrollY = 0;
+
+      const preventTouchScroll = (ev) => {
+        if (dragSession && typeof ev.preventDefault === "function") {
+          ev.preventDefault();
+        }
+      };
+
+      const removeGlobalDragListeners = () => {
+        document.removeEventListener("pointermove", handleDragPointerMove);
+        document.removeEventListener("pointerup", handleDragPointerUp);
+        document.removeEventListener("pointercancel", handleDragPointerCancel);
+      };
+
+      const lockPageScroll = () => {
+        if (scrollLocked) return;
+        scrollLocked = true;
+        prevBodyOverflow = document.body.style.overflow;
+        prevBodyTouchAction = document.body.style.touchAction;
+        prevContainerTouchAction = imagesContainer.style.touchAction;
+        prevHtmlOverflow = document.documentElement.style.overflow;
+        prevBodyPosition = document.body.style.position;
+        prevBodyTop = document.body.style.top;
+        prevBodyWidth = document.body.style.width;
+
+        scrollLockScrollY = window.scrollY || window.pageYOffset || 0;
+
+        document.body.style.overflow = "hidden";
+        document.documentElement.style.overflow = "hidden";
+        document.body.style.touchAction = "none";
+        imagesContainer.style.touchAction = "none";
+        document.body.style.position = "fixed";
+        document.body.style.top = `-${scrollLockScrollY}px`;
+        document.body.style.width = "100%";
+
+        document.addEventListener("touchmove", preventTouchScroll, { passive: false });
+        document.addEventListener("wheel", preventTouchScroll, { passive: false });
+      };
+
+      const unlockPageScroll = () => {
+        if (!scrollLocked) return;
+        scrollLocked = false;
+        document.body.style.overflow = prevBodyOverflow;
+        document.documentElement.style.overflow = prevHtmlOverflow;
+        document.body.style.touchAction = prevBodyTouchAction;
+        imagesContainer.style.touchAction = prevContainerTouchAction;
+        document.body.style.position = prevBodyPosition;
+        document.body.style.top = prevBodyTop;
+        document.body.style.width = prevBodyWidth;
+        window.scrollTo(0, scrollLockScrollY);
+
+        document.removeEventListener("touchmove", preventTouchScroll, { passive: false });
+        document.removeEventListener("wheel", preventTouchScroll, { passive: false });
+
+        prevBodyOverflow = "";
+        prevBodyTouchAction = "";
+        prevContainerTouchAction = "";
+        prevHtmlOverflow = "";
+        prevBodyPosition = "";
+        prevBodyTop = "";
+        prevBodyWidth = "";
+        scrollLockScrollY = 0;
+      };
+
+      function handleDragPointerMove(e) {
+        if (!dragSession || e.pointerId !== dragSession.pointerId) return;
+        if (typeof e.preventDefault === "function") {
+          e.preventDefault();
+        }
+
+        const { wrap, placeholder, offsetX, offsetY } = dragSession;
+
+        wrap.style.left = `${e.clientX - offsetX}px`;
+        wrap.style.top = `${e.clientY - offsetY}px`;
+
+        const containerRect = imagesContainer.getBoundingClientRect();
+        const SCROLL_ZONE = 48;
+        if (e.clientX < containerRect.left + SCROLL_ZONE) {
+          imagesContainer.scrollLeft -= 12;
+        } else if (e.clientX > containerRect.right - SCROLL_ZONE) {
+          imagesContainer.scrollLeft += 12;
+        }
+
+        wrap.style.visibility = "hidden";
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        wrap.style.visibility = "";
+
+        if (el) {
+          let target = el.closest?.(".image-wrap");
+          if (target === wrap) target = null;
+
+          if (target && imagesContainer.contains(target)) {
+            const rect = target.getBoundingClientRect();
+            const before = e.clientY < rect.top + rect.height / 2;
+            imagesContainer.insertBefore(placeholder, before ? target : target.nextSibling);
+            return;
+          }
+
+          const placeholderHit = el.closest?.(".drag-placeholder");
+          if (placeholderHit && placeholderHit !== placeholder && imagesContainer.contains(placeholderHit)) {
+            imagesContainer.insertBefore(placeholder, placeholderHit);
+            return;
+          }
+        }
+
+        if (e.clientX <= containerRect.left) {
+          imagesContainer.insertBefore(placeholder, imagesContainer.firstChild);
+        } else if (e.clientX >= containerRect.right) {
+          imagesContainer.appendChild(placeholder);
+        } else if (e.clientY <= containerRect.top) {
+          imagesContainer.insertBefore(placeholder, imagesContainer.firstChild);
+        } else if (e.clientY >= containerRect.bottom) {
+          imagesContainer.appendChild(placeholder);
+        }
+      }
+
+      async function finalizeDragSession(cancelled = false) {
+        if (!dragSession) return;
+        removeGlobalDragListeners();
+
+        const { wrap, placeholder, helpers } = dragSession;
+
+        unlockPageScroll();
+
+        try {
+          wrap.releasePointerCapture?.(dragSession.pointerId);
+        } catch { }
+
+        wrap.style.pointerEvents = "";
+        wrap.style.position = "";
+        wrap.style.left = "";
+        wrap.style.top = "";
+        wrap.style.width = "";
+        wrap.style.height = "";
+        wrap.style.zIndex = "";
+        wrap.style.touchAction = "";
+        wrap.style.cursor = "";
+        wrap.classList.remove("dragging");
+        wrap.classList.remove("holding");
+
+        if (placeholder.parentNode) {
+          placeholder.parentNode.insertBefore(wrap, placeholder);
+          placeholder.remove();
+        } else {
+          imagesContainer.appendChild(wrap);
+        }
+
+        const wrapOrder = [...imagesContainer.querySelectorAll(".image-wrap")];
+        const order = wrapOrder.map(w => Number(w.dataset.idx));
+        const orderChanged = order.some((idx, pos) => idx !== pos);
+
+        if (orderChanged) {
+          const reordered = order.map(idx => albums[idx]);
+          albums.splice(0, albums.length, ...reordered);
+          wrapOrder.forEach((w, i) => { w.dataset.idx = String(i); });
+          try {
+            await updateItems(ritualData.items, false);
+          } catch (err) {
+            console.error("Failed to update photo order", err);
+          }
+        }
+
+        helpers?.resetHold?.();
+
+        if (helpers?.markDragged) {
+          setTimeout(() => helpers.markDragged(false), 100);
+        }
+
+        dragSession = null;
+      }
+
+      function handleDragPointerUp(e) {
+        if (!dragSession || e.pointerId !== dragSession.pointerId) return;
+        if (typeof e.preventDefault === "function") {
+          e.preventDefault();
+        }
+        finalizeDragSession(false);
+      }
+
+      function handleDragPointerCancel(e) {
+        if (!dragSession || e.pointerId !== dragSession.pointerId) return;
+        if (typeof e.preventDefault === "function") {
+          e.preventDefault();
+        }
+        finalizeDragSession(true);
+      }
+
+      function startDragSession(wrap, e, helpers) {
+        if (!canReorder || dragSession || !isSelecting) return;
+        helpers?.stopHoldTimer?.();
+        helpers?.onStart?.();
+
+        const rect = wrap.getBoundingClientRect();
+        const placeholder = document.createElement("div");
+        placeholder.className = "drag-placeholder";
+        placeholder.style.width = `${rect.width}px`;
+        placeholder.style.height = `${rect.height}px`;
+        placeholder.style.flexShrink = "0";
+
+        imagesContainer.insertBefore(placeholder, wrap);
+
+        lockPageScroll();
+
+        wrap.classList.add("holding");
+        wrap.classList.add("dragging");
+        wrap.style.position = "fixed";
+        wrap.style.left = `${rect.left}px`;
+        wrap.style.top = `${rect.top}px`;
+        wrap.style.width = `${rect.width}px`;
+        wrap.style.height = `${rect.height}px`;
+        wrap.style.zIndex = "1000";
+        wrap.style.pointerEvents = "none";
+        wrap.style.touchAction = "none";
+        wrap.style.cursor = "grabbing";
+
+        dragSession = {
+          wrap,
+          placeholder,
+          pointerId: e.pointerId,
+          offsetX: e.clientX - rect.left,
+          offsetY: e.clientY - rect.top,
+          helpers,
+        };
+
+        helpers?.markDragged?.(true);
+
+        document.addEventListener("pointermove", handleDragPointerMove, { passive: false });
+        document.addEventListener("pointerup", handleDragPointerUp, { passive: false });
+        document.addEventListener("pointercancel", handleDragPointerCancel, { passive: false });
+
+        handleDragPointerMove(e);
+      }
+
       albums.forEach((album, albumIdx) => {
         if (!album.photos?.length) return;
         const cover = album.photos[0];
@@ -424,56 +666,146 @@ function renderData(data) {
         const wrap = document.createElement("div");
         wrap.className = "image-wrap";
         wrap.dataset.idx = String(albumIdx);
-        wrap.draggable = canReorder;
+        wrap.draggable = false;
 
         const handle = document.createElement("button");
         handle.type = "button";
         handle.className = "drag-handle";
         handle.title = "Перетягнути для зміни порядку";
-        handle.innerHTML = `
+        /*handle.innerHTML = `
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-text-align-start-icon lucide-text-align-start"><path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/></svg>
-        `;
+        `;*/
 
         const img = document.createElement("img");
         img.src = cover;
         img.alt = title;
         img.className = "item-image";
-        img.draggable = true;
+
+        // Заборонити нативний контекст-меню/прев'ю
+        wrap.addEventListener("contextmenu", (e) => e.preventDefault());
+        img.addEventListener("contextmenu", (e) => e.preventDefault());
+
+        // Вимкнути нативний drag саме у <img> (щоб тягнувся wrap)
+        img.draggable = false;               // залишаємо wrap.draggable = false
+        img.style.webkitUserDrag = "none";   // дублюємо CSS для старих iOS
 
         let draggedRecently = false;
+        const LONG_PRESS_MS = 220;
+        const MOVE_THRESHOLD = 6; // px
+        let holdTimer = null;
+        let holding = false;
+        let startXY = { x: 0, y: 0 };
 
-        wrap.addEventListener("dragstart", (e) => {
-          if (!canReorder) { e.preventDefault(); return; }
+        const stopHoldTimer = () => {
+          if (holdTimer) {
+            clearTimeout(holdTimer);
+            holdTimer = null;
+          }
+        };
 
-          const target = e.target;
-          const startedOnHandle = !!target.closest?.(".drag-handle");
-          const startedOnImage = target.classList?.contains("item-image");
+        const resetHoldState = () => {
+          stopHoldTimer();
+          holding = false;
+          wrap.classList.remove("holding");
+          wrap.style.touchAction = "";
+        };
 
-          // дозволяємо перетяг з хендла або з самої картинки
-          if (!startedOnHandle && !startedOnImage) {
-            e.preventDefault();
+        let activePointerEvent = null;
+
+        const dragHelpers = {
+          markDragged: (flag) => { draggedRecently = flag; },
+          resetHold: resetHoldState,
+          stopHoldTimer,
+          onStart: () => { holding = false; },
+        };
+
+        wrap.addEventListener("pointerdown", (e) => {
+          if (!canReorder || dragSession) return;
+          if (e.pointerType === "mouse" && e.button !== 0) return;
+
+          startXY = { x: e.clientX, y: e.clientY };
+          draggedRecently = false;
+          activePointerEvent = e;
+
+          if (!isSelecting) {
+            resetHoldState();
             return;
           }
 
-          try { e.dataTransfer.setData("text/plain", wrap.dataset.idx || ""); } catch { }
-          e.dataTransfer.effectAllowed = "move";
-          wrap.classList.add("dragging");
-          draggedRecently = true;            // щоб клік після drag не відкривав слайд-шоу
+          try {
+            wrap.setPointerCapture?.(e.pointerId);
+          } catch { }
+
+          if (e.pointerType === "mouse") {
+            wrap.classList.add("holding");
+            startDragSession(wrap, e, dragHelpers);
+            return;
+          }
+
+          stopHoldTimer();
+          holdTimer = setTimeout(() => {
+            holding = true;
+            wrap.classList.add("holding");
+            wrap.style.touchAction = "none";
+            draggedRecently = true;
+            try {
+              if (navigator.vibrate) navigator.vibrate(10);
+            } catch { }
+            if (!dragSession && isSelecting) {
+              const startEvent = activePointerEvent || e;
+              if (startEvent) {
+                startDragSession(wrap, startEvent, dragHelpers);
+              }
+            }
+          }, LONG_PRESS_MS);
         });
 
-        wrap.addEventListener("dragend", async () => {
-          wrap.classList.remove("dragging");
+        wrap.addEventListener("pointermove", (e) => {
+          activePointerEvent = e;
+          if (!isSelecting) return;
+          if (!canReorder || dragSession || (!holding && !holdTimer)) return;
 
-          // оновлюємо порядок
-          const newOrderWraps = [...imagesContainer.querySelectorAll(".image-wrap")];
-          const newAlbums = newOrderWraps.map(w => albums[Number(w.dataset.idx)]);
-          albums.splice(0, albums.length, ...newAlbums);
-          [...imagesContainer.querySelectorAll(".image-wrap")].forEach((w, i) => { w.dataset.idx = String(i); });
+          const dx = e.clientX - startXY.x;
+          const dy = e.clientY - startXY.y;
+          const distSq = dx * dx + dy * dy;
 
-          await updateItems(ritualData.items, false);
+          if (!holding && distSq > (MOVE_THRESHOLD * MOVE_THRESHOLD)) {
+            stopHoldTimer();
+            draggedRecently = false;
+            return;
+          }
 
-          // невелика затримка, щоб «клік» після drag не спрацьовував
-          setTimeout(() => { draggedRecently = false; }, 50);
+          if (holding && distSq > (MOVE_THRESHOLD * MOVE_THRESHOLD)) {
+            startDragSession(wrap, e, dragHelpers);
+          }
+        });
+
+        wrap.addEventListener("pointerup", (e) => {
+          activePointerEvent = null;
+          try {
+            wrap.releasePointerCapture?.(e.pointerId);
+          } catch { }
+          if (dragSession && dragSession.wrap === wrap) return;
+          if (holding) {
+            setTimeout(() => { draggedRecently = false; }, 100);
+          }
+          resetHoldState();
+        });
+
+        wrap.addEventListener("pointercancel", (e) => {
+          activePointerEvent = null;
+          try {
+            wrap.releasePointerCapture?.(e.pointerId);
+          } catch { }
+          if (dragSession && dragSession.wrap === wrap) return;
+          resetHoldState();
+          draggedRecently = false;
+        });
+
+        wrap.addEventListener("lostpointercapture", () => {
+          if (!dragSession) {
+            unlockPageScroll();
+          }
         });
 
         // Image counter badge
@@ -491,7 +823,7 @@ function renderData(data) {
           e.preventDefault();
 
           // якщо щойно був drag — ігноруємо клік
-          if (draggedRecently) return;
+          if (draggedRecently || dragSession) return;
 
           if (isSelecting) {
             toggleSelect(wrap);
@@ -514,41 +846,6 @@ function renderData(data) {
         imagesContainer.classList.add("two-rows");
         imagesContainer.classList.remove("one-row");
       }
-    }
-
-    // DRAGOVER handler (attach once to container, outside renderImages)
-    // Place this code AFTER the renderImages() function definition:
-
-    imagesContainer.addEventListener("dragover", (e) => {
-      if (!canReorder) return;
-      e.preventDefault();
-
-      const dragging = imagesContainer.querySelector(".dragging");
-      if (!dragging) return;
-
-      const afterEl = getAfterElement(imagesContainer, e.clientX);
-      if (afterEl == null) {
-        imagesContainer.appendChild(dragging);
-      } else {
-        imagesContainer.insertBefore(dragging, afterEl);
-      }
-    });
-    imagesContainer.addEventListener("drop", (e) => {
-      if (!canReorder) return;
-      e.preventDefault();
-    });
-
-    function getAfterElement(container, x) {
-      const els = [...container.querySelectorAll(".image-wrap:not(.dragging)")];
-      let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
-      for (const child of els) {
-        const box = child.getBoundingClientRect();
-        const offset = x - (box.left + box.width / 2);
-        if (offset < 0 && offset > closest.offset) {
-          closest = { offset, element: child };
-        }
-      }
-      return closest.element;
     }
 
     if (hasPhotos) renderImages();
@@ -586,7 +883,7 @@ function renderData(data) {
       section.classList.add("selection-mode");
 
       imagesContainer.querySelectorAll(".image-wrap").forEach(w => {
-        w.draggable = canReorder;
+        w.draggable = false;
       });
 
       // Clear buttons row and rebuild controls
@@ -642,7 +939,7 @@ function renderData(data) {
       section.classList.remove("selection-mode");
 
       imagesContainer.querySelectorAll(".image-wrap").forEach(w => {
-        w.draggable = canReorder;
+        w.draggable = false;
         w.classList.remove("is-selected");
       });
 

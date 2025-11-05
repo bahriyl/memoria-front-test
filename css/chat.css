@@ -255,14 +255,13 @@ main.container {
 .input-bar {
     position: fixed;
     bottom: 0;
-    left: var(--spacing-md);
-    right: var(--spacing-md);
+    left: 10px;
+    right: 18px;
     display: flex;
     align-items: flex-end;
     /* anchor textarea to bottom */
-    padding: 8px 12px 6px;
+    padding: 8px 0 36px;
     background: white;
-    gap: 8px;
     min-height: 50px;
     /* baseline height */
     height: auto;
@@ -278,7 +277,6 @@ main.container {
     cursor: pointer;
     display: flex;
     align-items: center;
-    margin-bottom: 12px;
 }
 
 .input-bar .icon-btn svg {
@@ -309,7 +307,7 @@ main.container {
 
 .attach-btn .attach-icon {
     margin-right: 0 !important;
-    margin-left: 10px;
+    margin-left: 15px;
 }
 
 .input-bar input,
@@ -523,4 +521,8 @@ main.container {
 
 .messages p {
     margin-bottom: 4px;
+}
+
+.send-btn .send-icon {
+    margin-right: 20px;
 }

@@ -47,17 +47,22 @@
                 <div id="messages" class="messages"></div>
             </div>
             <form id="chatForm" class="input-bar">
-                <button type="button" class="icon-btn attach-btn" aria-label="Прикріпити файл">
-                    <img class="attach-icon" src="/img/attach-btn.png" alt="Прикріпити файл" />
-                </button>
+                <!-- превʼю прикріплених фото (залишається окремо над баром) -->
                 <div id="previewContainer" class="preview-container"></div>
                 <input type="file" id="fileInput" accept="image/*" hidden />
+
+                <!-- ВСЕ, що видно користувачу (скрін), тепер всередині msg-input-wrapper -->
                 <div class="msg-input-wrapper">
+                    <button type="button" class="icon-btn attach-btn" aria-label="Прикріпити файл">
+                        <img class="attach-icon" src="/img/attach-btn.png" alt="Прикріпити файл" />
+                    </button>
+
                     <textarea id="msgInput" rows="1" autocomplete="off" placeholder="Повідомлення…"></textarea>
+
+                    <button type="submit" class="icon-btn send-btn" aria-label="Відправити">
+                        <img class="send-icon" src="/img/send-msg-btn.png" alt="Відправити" />
+                    </button>
                 </div>
-                <button type="submit" class="icon-btn send-btn" aria-label="Відправити">
-                    <img class="send-icon" src="/img/send-msg-btn.png" alt="Відправити" />
-                </button>
             </form>
         </div>
     </main>
