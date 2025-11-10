@@ -403,8 +403,6 @@ function renderData(data) {
     imagesContainer.className = "item-images";
     let canReorder = false;
 
-    // Replace the drag'n'drop section in your renderImages() function:
-
     function renderImages() {
       imagesContainer.innerHTML = "";
       canReorder = albums.length > 1;
@@ -1021,7 +1019,7 @@ function renderData(data) {
           const wrap = document.createElement("div");
           wrap.className = "photo-desc-thumb" + (!disabled && i === sel ? " is-selected" : "");
           wrap.dataset.i = String(i);
-          wrap.draggable = true; // ← дозволяємо перетяг і за зображення
+          wrap.draggable = true;
 
           // хендл для перетягу (можна тягнути і саму картинку)
           // const handle = document.createElement("button");
@@ -1051,27 +1049,87 @@ function renderData(data) {
 
           // drag’n’drop
           let draggedRecently = false;
-          wrap.addEventListener("dragstart", (e) => {
-            const startedOnHandle = !!(e.target.closest && e.target.closest(".thumb-drag-handle"));
-            const startedOnImg = e.target.tagName === "IMG";
 
-            // дозволяємо починати або з хендла, або з картинки
-            if (!startedOnHandle && !startedOnImg) {
-              e.preventDefault();
-              return;
-            }
-            try { e.dataTransfer.setData("text/plain", wrap.dataset.i || ""); } catch { }
-            e.dataTransfer.effectAllowed = "move";
-            wrap.classList.add("dragging");
-            draggedRecently = true;
-          });
-          wrap.addEventListener("dragend", () => {
-            wrap.classList.remove("dragging");
-            // після пересортовки DOM — оновлюємо масиви під новий порядок
-            applyNewOrder();
-            // дрібна затримка, щоб клік після drag не спрацьовував
-            setTimeout(() => { draggedRecently = false; }, 50);
-          });
+          // Prevent native image drag & context menu (iOS Safari etc.)
+          wrap.addEventListener("contextmenu", e => e.preventDefault());
+          img.addEventListener("contextmenu", e => e.preventDefault());
+          img.draggable = false;
+          img.style.webkitUserDrag = "none";
+
+          // Skip DnD when disabled (album mode shows only reordering on confirm, not per-photo edits)
+          if (!disabled) {
+            let holdTimer = null;
+            let holding = false;
+            let draggedRecently = false;
+            const LONG_PRESS_MS = 220;
+            const MOVE_THRESHOLD = 6;
+            let startXY = { x: 0, y: 0 };
+            let activePointer = null;
+
+            const stopHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+            const resetHold = () => { stopHold(); holding = false; wrap.classList.remove("holding"); wrap.style.touchAction = ""; };
+
+            wrap.addEventListener("pointerdown", (e) => {
+              if (thumbDrag) return;
+              if (e.pointerType === "mouse" && e.button !== 0) return;
+
+              startXY = { x: e.clientX, y: e.clientY };
+              activePointer = e;
+              draggedRecently = false;
+
+              try { wrap.setPointerCapture?.(e.pointerId); } catch { }
+
+              if (e.pointerType === "mouse") {
+                wrap.classList.add("holding");
+                startThumbDrag(wrap, e);
+                return;
+              }
+
+              stopHold();
+              holdTimer = setTimeout(() => {
+                holding = true;
+                wrap.classList.add("holding");
+                wrap.style.touchAction = "none";
+                draggedRecently = true;
+                try { if (navigator.vibrate) navigator.vibrate(10); } catch { }
+                if (!thumbDrag) startThumbDrag(wrap, activePointer || e);
+              }, LONG_PRESS_MS);
+            });
+
+            wrap.addEventListener("pointermove", (e) => {
+              activePointer = e;
+              const dx = e.clientX - startXY.x;
+              const dy = e.clientY - startXY.y;
+              const dist2 = dx * dx + dy * dy;
+
+              if (!holding && dist2 > MOVE_THRESHOLD * MOVE_THRESHOLD) {
+                stopHold();
+                draggedRecently = false;
+                return;
+              }
+              if (holding && !thumbDrag && dist2 > MOVE_THRESHOLD * MOVE_THRESHOLD) {
+                startThumbDrag(wrap, e);
+              }
+            });
+
+            wrap.addEventListener("pointerup", (e) => {
+              try { wrap.releasePointerCapture?.(e.pointerId); } catch { }
+              if (thumbDrag && thumbDrag.wrap === wrap) return; // finish handler will run globally
+              if (holding) setTimeout(() => { draggedRecently = false; }, 100);
+              resetHold();
+            });
+
+            wrap.addEventListener("pointercancel", () => {
+              resetHold();
+              draggedRecently = false;
+            });
+
+            // Avoid click after drag
+            wrap.addEventListener("click", (ev) => {
+              if (draggedRecently || thumbDrag) { ev.preventDefault(); return; }
+              // your existing selection or focus logic continues...
+            });
+          }
 
           if (!disabled) {
             // клік по прев’ю — вибір активного для опису (PHOTO-mode)
@@ -1092,33 +1150,175 @@ function renderData(data) {
         countEl.textContent = String(previews.length);
       }
 
-      // Контейнерні обробники для DnD (раз додати після renderThumbs)
-      thumbsEl.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        const dragging = thumbsEl.querySelector(".dragging");
-        if (!dragging) return;
+      // ===== Modal DnD helpers (same behavior as grid) =====
+      let thumbDrag = null;
+      let thumbScrollLocked = false;
+      let prevBodyOverflow = "", prevHtmlOverflow = "", prevBodyTouchAction = "", prevBodyPos = "", prevBodyTop = "", prevBodyWidth = "";
+      let scrollLockY = 0;
 
-        const afterEl = getAfterThumb(thumbsEl, e.clientX);
-        if (afterEl == null) thumbsEl.appendChild(dragging);
-        else thumbsEl.insertBefore(dragging, afterEl);
-      });
+      function lockModalScroll() {
+        if (thumbScrollLocked) return;
+        thumbScrollLocked = true;
 
-      thumbsEl.addEventListener("drop", (e) => {
-        e.preventDefault();
-      });
+        prevBodyOverflow = document.body.style.overflow;
+        prevHtmlOverflow = document.documentElement.style.overflow;
+        prevBodyTouchAction = document.body.style.touchAction;
+        prevBodyPos = document.body.style.position;
+        prevBodyTop = document.body.style.top;
+        prevBodyWidth = document.body.style.width;
 
-      // Допоміжні
-      function getAfterThumb(container, x) {
-        const els = [...container.querySelectorAll(".photo-desc-thumb:not(.dragging)")];
-        let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
-        for (const child of els) {
-          const box = child.getBoundingClientRect();
-          const offset = x - (box.left + box.width / 2);
-          if (offset < 0 && offset > closest.offset) {
-            closest = { offset, element: child };
-          }
+        scrollLockY = window.scrollY || window.pageYOffset || 0;
+
+        document.body.style.overflow = "hidden";
+        document.documentElement.style.overflow = "hidden";
+        document.body.style.touchAction = "none";
+        document.body.style.position = "fixed";
+        document.body.style.top = `-${scrollLockY}px`;
+        document.body.style.width = "100%";
+      }
+
+      function unlockModalScroll() {
+        if (!thumbScrollLocked) return;
+        thumbScrollLocked = false;
+
+        document.body.style.overflow = prevBodyOverflow;
+        document.documentElement.style.overflow = prevHtmlOverflow;
+        document.body.style.touchAction = prevBodyTouchAction;
+        document.body.style.position = prevBodyPos;
+        document.body.style.top = prevBodyTop;
+        document.body.style.width = prevBodyWidth;
+
+        window.scrollTo(0, scrollLockY);
+
+        prevBodyOverflow = prevHtmlOverflow = prevBodyTouchAction = prevBodyPos = prevBodyTop = prevBodyWidth = "";
+        scrollLockY = 0;
+      }
+
+      function removeThumbDragListeners() {
+        document.removeEventListener("pointermove", onThumbPointerMove);
+        document.removeEventListener("pointerup", onThumbPointerUp);
+        document.removeEventListener("pointercancel", onThumbPointerCancel);
+      }
+
+      function onThumbPointerMove(e) {
+        if (!thumbDrag || e.pointerId !== thumbDrag.pointerId) return;
+        e.preventDefault?.();
+
+        const { wrap, placeholder, offsetX, offsetY } = thumbDrag;
+
+        // Move the fixed tile under the pointer
+        wrap.style.left = `${e.clientX - offsetX}px`;
+        wrap.style.top = `${e.clientY - offsetY}px`;
+
+        // Auto-scroll the thumbs strip horizontally when near edges
+        const r = thumbsEl.getBoundingClientRect();
+        const SCROLL_ZONE = 48;
+        const SCROLL_STEP = 12;
+        if (e.clientX < r.left + SCROLL_ZONE) thumbsEl.scrollLeft -= SCROLL_STEP;
+        else if (e.clientX > r.right - SCROLL_ZONE) thumbsEl.scrollLeft += SCROLL_STEP;
+
+        // Reposition placeholder by hit-testing neighbors
+        wrap.style.visibility = "hidden";
+        const hit = document.elementFromPoint(e.clientX, e.clientY);
+        wrap.style.visibility = "";
+
+        let target = hit?.closest?.(".photo-desc-thumb");
+        if (target === wrap) target = null;
+
+        if (target && thumbsEl.contains(target)) {
+          const rect = target.getBoundingClientRect();
+          const before = e.clientX < rect.left + rect.width / 2;
+          thumbsEl.insertBefore(placeholder, before ? target : target.nextSibling);
+          return;
         }
-        return closest.element;
+
+        // Fallbacks: to start / end if outside
+        if (e.clientX <= r.left) thumbsEl.insertBefore(placeholder, thumbsEl.firstChild);
+        else if (e.clientX >= r.right) thumbsEl.appendChild(placeholder);
+      }
+
+      async function finishThumbDrag(cancelled = false) {
+        if (!thumbDrag) return;
+        removeThumbDragListeners();
+        unlockModalScroll();
+
+        const { wrap, placeholder } = thumbDrag;
+
+        try { wrap.releasePointerCapture?.(thumbDrag.pointerId); } catch { }
+
+        wrap.style.pointerEvents = "";
+        wrap.style.position = "";
+        wrap.style.left = "";
+        wrap.style.top = "";
+        wrap.style.width = "";
+        wrap.style.height = "";
+        wrap.style.zIndex = "";
+        wrap.style.touchAction = "";
+        wrap.style.cursor = "";
+        wrap.classList.remove("dragging", "holding");
+
+        if (placeholder.parentNode) {
+          placeholder.parentNode.insertBefore(wrap, placeholder);
+          placeholder.remove();
+        } else {
+          thumbsEl.appendChild(wrap);
+        }
+
+        // Persist new order to arrays (uses your existing function)
+        applyNewOrder();
+
+        thumbDrag = null;
+      }
+
+      function onThumbPointerUp(e) {
+        if (!thumbDrag || e.pointerId !== thumbDrag.pointerId) return;
+        e.preventDefault?.();
+        finishThumbDrag(false);
+      }
+
+      function onThumbPointerCancel(e) {
+        if (!thumbDrag || e.pointerId !== thumbDrag.pointerId) return;
+        e.preventDefault?.();
+        finishThumbDrag(true);
+      }
+
+      function startThumbDrag(wrap, e) {
+        if (thumbDrag) return;
+
+        const rect = wrap.getBoundingClientRect();
+
+        const placeholder = document.createElement("div");
+        placeholder.className = "thumb-placeholder";
+        placeholder.style.width = `${rect.width}px`;
+        placeholder.style.height = `${rect.height}px`;
+        thumbsEl.insertBefore(placeholder, wrap);
+
+        lockModalScroll();
+
+        wrap.classList.add("holding", "dragging");
+        wrap.style.position = "fixed";
+        wrap.style.left = `${rect.left}px`;
+        wrap.style.top = `${rect.top}px`;
+        wrap.style.width = `${rect.width}px`;
+        wrap.style.height = `${rect.height}px`;
+        wrap.style.zIndex = "1000";
+        wrap.style.pointerEvents = "none";
+        wrap.style.touchAction = "none";
+        wrap.style.cursor = "grabbing";
+
+        thumbDrag = {
+          wrap,
+          placeholder,
+          pointerId: e.pointerId,
+          offsetX: e.clientX - rect.left,
+          offsetY: e.clientY - rect.top
+        };
+
+        document.addEventListener("pointermove", onThumbPointerMove, { passive: false });
+        document.addEventListener("pointerup", onThumbPointerUp, { passive: false });
+        document.addEventListener("pointercancel", onThumbPointerCancel, { passive: false });
+
+        onThumbPointerMove(e);
       }
 
       // Перекладає порядок у DOM → на масиви previews/files/tempCaptions

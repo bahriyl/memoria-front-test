@@ -1330,7 +1330,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // PUBLIC PAGE: show only accepted photos + local blob previews
         const localPendingBlobs = sharedPending.filter(p => isBlob(p.url));
-        const renderItems = [...localPendingBlobs, ...sharedPhotos].slice().reverse();
+        const renderItems = [...localPendingBlobs, ...sharedPhotos];
         sharedListEl.classList.remove('rows-1', 'rows-2');
         sharedListEl.classList.add('rows-1');
 
@@ -2156,7 +2156,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // показуємо лише ОК, ховаємо "Скасувати"
         if (cancelBtn) cancelBtn.style.display = 'none';
-        if (okBtn) okBtn.textContent = 'Ок';
+        if (okBtn) okBtn.textContent = 'Готово';
 
         // відкрити
         overlay.hidden = false;
@@ -2560,7 +2560,7 @@ document.addEventListener('DOMContentLoaded', () => {
             premiumLock = !!data.premium;
             premiumCreds = data.premium || null;
 
-            window.MAX_PHOTOS = data?.premium ? 100 : 20;
+            window.MAX_PHOTOS = data?.premium ? 120 : 20;
 
             if (premiumLock) {
                 const photosTitleEl = document.querySelector('.photos-title');

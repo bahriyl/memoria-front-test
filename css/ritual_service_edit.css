@@ -1175,7 +1175,6 @@ textarea {
 
 .item-images .image-wrap.dragging {
   opacity: 0.96;
-  outline: 2px dashed #1b8b59;
   cursor: grabbing;
 }
 
@@ -1205,10 +1204,21 @@ textarea {
   cursor: grabbing;
 }
 
+.photo-desc-thumb.holding,
 .photo-desc-thumb.dragging {
-  opacity: .85;
-  outline: 2px dashed #1b8b59;
-  outline-offset: 2px;
+  transform: scale(1.04);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+  opacity: 0.96;
+  cursor: grabbing;
+}
+
+.thumb-placeholder {
+  width: 129px;
+  height: 152px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
 }
 
 /* Album mode: трохи збільшуємо прев'юшки */

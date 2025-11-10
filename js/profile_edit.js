@@ -2511,7 +2511,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // показуємо лише ОК, ховаємо "Скасувати"
         if (cancelBtn) cancelBtn.style.display = 'none';
-        if (okBtn) okBtn.textContent = 'Ок';
+        if (okBtn) okBtn.textContent = 'Готово';
 
         // відкрити
         overlay.hidden = false;
@@ -3098,7 +3098,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error(res.statusText);
             const data = await res.json();
 
-            window.MAX_PHOTOS = data?.premium ? 100 : 20;
+            window.MAX_PHOTOS = data?.premium ? 120 : 20;
 
             // ─── COMMENTS ───
             comments = Array.isArray(data.comments) ? data.comments : [];

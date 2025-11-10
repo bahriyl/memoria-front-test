@@ -2173,7 +2173,7 @@ body::-webkit-scrollbar {
     transform: translate(-50%, -50%);
     z-index: 1100 !important;
     /* higher than modal-submit-btn (1000) */
-    width: min(92vw, 460px);
+    width: min(90vw, 460px);
     max-height: 80vh;
     overflow: hidden;
 }
