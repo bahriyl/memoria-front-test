@@ -1091,7 +1091,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingUploads = 0;
     let comments = [];  // profile comments array
     let premiumLock = false;
-    let premiumCreds = null;
+    let premiumPhoneMasked = '';
+    let premiumHasPhone = false;
     let sharedPending = []; // [{url}]  — запропоновані гостями (pending)
     let sharedPhotos = []; // [{url, description?}] — прийняті
     let sharedSelecting = false;     // режим вибору для прийнятих (не використовується гостем)
@@ -2517,9 +2518,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setupLoginModalOpenClose() {
         const loginModal = document.getElementById('loginModal');
-        const loginBox = loginModal?.querySelector('.login-box');
+        const loginBox = document.getElementById('loginMainBox') || loginModal?.querySelector('.login-box');
+        const notMyPhoneBox = document.getElementById('notMyPhoneBox');
         const loginBtn = document.getElementById('profile-login-btn');
         const closeBtn = document.getElementById('loginClose');
+        const notMyPhoneClose = document.getElementById('notMyPhoneClose');
 
         if (!loginModal || !loginBox || !loginBtn) {
             console.warn('One or more login modal elements not found');
@@ -2528,21 +2531,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const open = () => {
             loginModal.dispatchEvent(new CustomEvent('login:reset'));
+            loginBox.hidden = false;
+            if (notMyPhoneBox) notMyPhoneBox.hidden = true;
             loginModal.style.display = 'flex';
         };
+
         const close = () => {
             loginModal.style.display = 'none';
-            document.getElementById('loginInput').value = '';
-            document.getElementById('passwordInput').value = '';
             document.getElementById('loginError').textContent = '';
             loginModal.dispatchEvent(new CustomEvent('login:reset'));
+            loginBox.hidden = false;
+            if (notMyPhoneBox) notMyPhoneBox.hidden = true;
         };
 
         loginBtn.addEventListener('click', open);
         closeBtn?.addEventListener('click', close);
-        loginModal.addEventListener('click', (e) => { if (!loginBox.contains(e.target)) close(); });
-        loginBox.addEventListener('click', (e) => e.stopPropagation());
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && loginModal.style.display === 'flex') close(); });
+        notMyPhoneClose?.addEventListener('click', close);
+
+        loginModal.addEventListener('click', (e) => {
+            const target = e.target;
+            const activeBox = [loginBox, notMyPhoneBox].find(b => b && !b.hidden);
+            if (activeBox && activeBox.contains(target)) return;
+            close();
+        });
+
+        [loginBox, notMyPhoneBox].forEach(box => box && box.addEventListener('click', (e) => e.stopPropagation()));
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && loginModal.style.display === 'flex') close();
+        });
     }
 
     let selectedChurchName = null;
@@ -2558,7 +2575,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // PREMIUM lock (означає, що сторінка преміум і редагування заблоковане поки не увійти)
             premiumLock = !!data.premium;
-            premiumCreds = data.premium || null;
+            premiumHasPhone = !!(data.premium && data.premium.hasPhone);
+            premiumPhoneMasked = data?.premium?.phoneMasked || '';
 
             window.MAX_PHOTOS = data?.premium ? 120 : 20;
 
@@ -2576,16 +2594,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 // дублюємо безпечне підв’язування
                 const loginBtn = document.getElementById('profile-login-btn');
                 const loginModal = document.getElementById('loginModal');
-                const loginBox = loginModal?.querySelector('.login-box');
+                const loginBox = document.getElementById('loginMainBox') || loginModal?.querySelector('.login-box');
+                const notMyPhoneBox = document.getElementById('notMyPhoneBox');
+
                 if (loginBtn && loginModal && loginBox) {
                     const open = () => {
                         loginModal.dispatchEvent(new CustomEvent('login:reset'));
+                        loginBox.hidden = false;
+                        if (notMyPhoneBox) notMyPhoneBox.hidden = true;
                         loginModal.style.display = 'flex';
                     };
                     loginBtn.onclick = open;
-                    loginBox.onclick = (e) => e.stopPropagation();
+                    [loginBox, notMyPhoneBox].forEach(box => box && box.addEventListener('click', (e) => e.stopPropagation()));
                     loginModal.onclick = (e) => {
-                        if (!loginBox.contains(e.target)) loginModal.style.display = 'none';
+                        const target = e.target;
+                        const activeBox = [loginBox, notMyPhoneBox].find(b => b && !b.hidden);
+                        if (activeBox && activeBox.contains(target)) return;
+                        loginModal.style.display = 'none';
                     };
                 }
             }
@@ -3404,437 +3429,314 @@ document.addEventListener('DOMContentLoaded', () => {
         relatives = details.filter(Boolean);
         refreshRelativesUI();
     }
-
     // Handle click "Увійти" – same UX as ritual_service pages
     (() => {
-        // Grab login modal pieces
         const modal = document.getElementById('loginModal');
-        const box = modal?.querySelector('.login-box');
+        if (!modal) return;
+
+        const box = modal.querySelector('.login-box');
         const titleEl = box?.querySelector('h2');
-        const loginEl = document.getElementById('loginInput');     // login (email)
-        const passEl = document.getElementById('passwordInput');   // password
-        const submitBtn = document.getElementById('loginSubmit');  // main button
-        const errEl = document.getElementById('loginError');       // error text
-        const forgotEl = document.getElementById('forgotPassword'); // "Забули…"
+        const passWrap = document.getElementById('loginPasswordWrap');
+        const passEl = document.getElementById('passwordInput');
+        const submitBtn = document.getElementById('loginSubmit');
+        const errEl = document.getElementById('loginError');
+        const forgotEl = document.getElementById('forgotPassword');
+        const phoneBlock = document.getElementById('resetPhoneBlock');
+        const phoneInput = document.getElementById('resetPhone');
+        const codeBlock = document.getElementById('resetCodeBlock');
+        const codeInput = document.getElementById('resetCode');
+        const resendBtn = document.getElementById('resendCodeBtn');
+        const codeNoteEl = document.getElementById('codeNote');
+        const newPassWrap = document.getElementById('resetNewPasswordWrap');
+        const newPassEl = document.getElementById('resetNewPassword');
 
-        if (!modal || !box || !titleEl || !loginEl || !passEl || !submitBtn || !forgotEl) return;
+        const notMyPhoneLink = document.getElementById('notMyPhoneLink');
+        const notMyPhoneBox = document.getElementById('notMyPhoneBox');
+        const notMyPhoneBackBtn = document.getElementById('notMyPhoneBackBtn');
 
-        // Modes: login (default), reset1 (enter email), reset2 (enter code+new pw)
+        if (!box || !titleEl || !passEl || !submitBtn || !errEl || !forgotEl) return;
+
         let authMode = 'login';
-        let resetEmailEl = null;
-        let resetCodeEl = null;
-        let resetNewPassEl = null;
-        let backToLoginEl = null;
+        let backLinkEl = null;
+        let resendTimerId = null;
+        let resendUnlockTs = 0;
+        const tokenKey = `people_token_${personId}`;
 
-        let forgotEmailEl;
-        let forgotInfoEl;
-        let restoreSubmitOnClick = null;
-
-        function clearMsg() { if (errEl) { errEl.textContent = ''; errEl.style.color = ''; } }
-
-        function attachPasswordToggle(inputEl) {
-            if (!inputEl) return null;
-
-            // загортаємо в .password-wrapper, якщо ще ні
-            let wrap = inputEl.closest('.password-wrapper');
-            if (!wrap) {
-                wrap = document.createElement('div');
-                wrap.className = 'password-wrapper';
-                inputEl.replaceWith(wrap);
-                wrap.appendChild(inputEl);
-            }
-
-            // додаємо кнопку-око, якщо її немає
-            let btn = wrap.querySelector('.toggle-password');
-            if (!btn) {
-                btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'toggle-password';
-                btn.setAttribute('aria-label', 'Показати пароль');
-                btn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5z"/>
-                    <circle cx="12" cy="12" r="3.5"></circle>
-                </svg>
-                `;
-                btn.addEventListener('click', () => {
-                    const visible = inputEl.type === 'text';
-                    inputEl.type = visible ? 'password' : 'text';
-                    btn.classList.toggle('active', !visible);
-                    btn.setAttribute('aria-label', visible ? 'Показати пароль' : 'Приховати пароль');
-                });
-                wrap.appendChild(btn);
-            }
-            return btn;
-        }
-
-        function hideAllPasswordToggles() {
-            document.querySelectorAll('.toggle-password').forEach(b => b.hidden = true);
+        function clearMsg() {
+            errEl.textContent = '';
+            errEl.style.color = '#e11d48';
         }
 
         function ensureBackLink() {
-            if (backToLoginEl) return;
-            backToLoginEl = document.createElement('p');
-            backToLoginEl.className = 'forgot-password';
-            backToLoginEl.textContent = 'Повернутися до входу';
-            backToLoginEl.style.textAlign = 'center';
-            backToLoginEl.style.marginTop = '4px';
-            backToLoginEl.addEventListener('click', switchToLogin);
-            errEl?.before(backToLoginEl);
+            if (backLinkEl) return;
+            backLinkEl = document.createElement('p');
+            backLinkEl.className = 'forgot-password';
+            backLinkEl.textContent = 'Повернутися до входу';
+            backLinkEl.style.textAlign = 'center';
+            backLinkEl.style.marginTop = '4px';
+            backLinkEl.addEventListener('click', switchToLogin);
+            errEl?.before(backLinkEl);
         }
 
-        function ensureForgotEmailLink() {
-            if (forgotEmailEl) return;
-            forgotEmailEl = document.createElement('p');
-            forgotEmailEl.className = 'forgot-password';
-            forgotEmailEl.textContent = 'Забули пошту?';
-            forgotEmailEl.style.textAlign = 'center';
-            forgotEmailEl.style.marginTop = '4px';
-            forgotEmailEl.style.cursor = 'pointer';
-            forgotEmailEl.addEventListener('click', switchToForgotEmail);
+        function showPhoneInfo() {
+            if (!phoneInput) return;
+            phoneInput.value = premiumPhoneMasked || 'Номер телефону не вказано';
+        }
 
-            // розміщуємо САМЕ ПІД "Повернутися до входу"
-            if (backToLoginEl && backToLoginEl.parentNode) {
-                backToLoginEl.after(forgotEmailEl);
-            } else if (errEl && errEl.parentNode) {
-                errEl.before(forgotEmailEl);
+        function stopResendTimer() {
+            if (resendTimerId) {
+                clearInterval(resendTimerId);
+                resendTimerId = null;
+            }
+            resendUnlockTs = 0;
+            if (resendBtn) {
+                resendBtn.disabled = false;
+                resendBtn.textContent = 'Надіслати ще раз';
             }
         }
 
-        function showForgotEmailLink() {
-            // create once, place under "Повернутися до входу"
-            if (!forgotEmailEl) {
-                forgotEmailEl = document.createElement('p');
-                forgotEmailEl.className = 'forgot-password';
-                forgotEmailEl.textContent = 'Забули пошту?';
-                forgotEmailEl.style.textAlign = 'center';
-                forgotEmailEl.style.marginTop = '4px';
-                forgotEmailEl.style.cursor = 'pointer';
-                forgotEmailEl.addEventListener('click', switchToForgotEmail);
-                if (backToLoginEl?.parentNode) backToLoginEl.after(forgotEmailEl);
-                else if (errEl?.parentNode) errEl.before(forgotEmailEl);
+        function updateResendButton() {
+            if (!resendBtn || !resendUnlockTs) return;
+            const remaining = Math.max(0, Math.ceil((resendUnlockTs - Date.now()) / 1000));
+            if (remaining <= 0) {
+                stopResendTimer();
+                return;
             }
-            forgotEmailEl.hidden = false; // ensure visible on step 1
+            resendBtn.disabled = true;
+            resendBtn.textContent = `Надіслати ще раз (${remaining})`;
         }
 
-        function hideForgotEmailLink() {
-            if (forgotEmailEl) forgotEmailEl.hidden = true;
-        }
-
-        function switchToForgotEmail() {
-            box.classList.add('forgot-email');
-
-            authMode = 'forgotEmail';
-
-            clearMsg();
-            titleEl.textContent = 'Забули пошту';
-
-            // Сховати всі стандартні поля та підказки
-            loginEl.hidden = true;
-            passEl.hidden = true;
-            forgotEl.hidden = true;
-
-            // Сховати динамічні елементи reset-step1/2, якщо вони додані
-            if (typeof resetEmailEl !== 'undefined' && resetEmailEl) resetEmailEl.hidden = true;
-            if (typeof resetCodeEl !== 'undefined' && resetCodeEl) resetCodeEl.hidden = true;
-            if (typeof resetNewPassEl !== 'undefined' && resetNewPassEl) resetNewPassEl.hidden = true;
-
-            // Сховати/прибрати лінки під формою
-            if (backToLoginEl) backToLoginEl.hidden = true;
-            if (forgotEmailEl) forgotEmailEl.hidden = true;
-
-            // Показати текст-підказку
-            if (!forgotInfoEl) {
-                forgotInfoEl = document.createElement('p');
-                forgotInfoEl.style.fontSize = '15px';
-                forgotInfoEl.style.lineHeight = '1.5';
-                forgotInfoEl.style.textAlign = 'center';
-                forgotInfoEl.style.margin = '12px 0 20px';
-                forgotInfoEl.textContent = 'Напишіть, будь-ласка, у чат-підтримку щоб дізнатись, або змінити пошту';
-                submitBtn.before(forgotInfoEl);
-            } else {
-                forgotInfoEl.hidden = false;
-            }
-
-            // Кнопка "Назад"
-            submitBtn.textContent = 'Назад';
-
-            // зберігаємо поточний onclick, щоб потім відновити
-            if (restoreSubmitOnClick === null) {
-                restoreSubmitOnClick = submitBtn.onclick || null;
-            }
-            submitBtn.onclick = (e) => {
-                e?.preventDefault?.();
-                if (forgotInfoEl) forgotInfoEl.hidden = true;
-                if (backToLoginEl) backToLoginEl.hidden = false;
-                if (forgotEmailEl) forgotEmailEl.hidden = false;
-
-                // відновлюємо первинний обробник кнопки
-                submitBtn.onclick = restoreSubmitOnClick;
-                restoreSubmitOnClick = null;
-
-                switchToResetStep1();
-            };
-
-            // на цьому екрані іконка ока не потрібна
-            hideAllPasswordToggles();
-            hideForgotEmailLink();
-        }
-
-        function removeResetFields() {
-            resetEmailEl?.remove(); resetEmailEl = null;
-            resetCodeEl?.remove(); resetCodeEl = null;
-            resetNewPassEl?.remove(); resetNewPassEl = null;
-            backToLoginEl?.remove(); backToLoginEl = null;
-            if (typeof codeNoteEl !== 'undefined' && codeNoteEl) { codeNoteEl.remove(); codeNoteEl = null; }
-        }
-
-        // helper: extract visible text from first <p>...</p> in HTML error
-        function extractParagraphText(html) {
-            try {
-                const doc = new DOMParser().parseFromString(html, 'text/html');
-                const p = doc.querySelector('p');
-                return (p?.textContent || '').trim();
-            } catch (_) {
-                return '';
-            }
+        function startResendTimer(seconds = 60) {
+            if (!resendBtn) return;
+            resendUnlockTs = Date.now() + seconds * 1000;
+            updateResendButton();
+            if (resendTimerId) clearInterval(resendTimerId);
+            resendTimerId = setInterval(updateResendButton, 1000);
         }
 
         function switchToLogin() {
-            box.classList.remove('forgot-email');
-            box.classList.remove('reset-password');
+            document.querySelector('.login-modal')?.classList.remove('is-reset-step1');
             authMode = 'login';
             clearMsg();
+            stopResendTimer();
             titleEl.textContent = 'Авторизація';
-
-            loginEl.hidden = false;
+            passWrap.hidden = false;
             forgotEl.hidden = false;
-
-            const pwWrap = passEl.closest('.password-wrapper');
-            if (pwWrap) {
-                pwWrap.hidden = false;
-            } else {
-                passEl.hidden = false;
-            }
-
+            phoneBlock.hidden = true;
+            codeBlock.hidden = true;
+            newPassWrap.hidden = true;
+            codeNoteEl.hidden = true;
+            codeInput.value = '';
+            newPassEl.value = '';
+            passEl.value = '';
+            if (backLinkEl) backLinkEl.hidden = true;
+            if (resendBtn) resendBtn.hidden = true;
+            if (notMyPhoneLink) notMyPhoneLink.hidden = true;
+            if (box) box.hidden = false;
+            if (notMyPhoneBox) notMyPhoneBox.hidden = true;
             submitBtn.textContent = 'Увійти';
-            removeResetFields();
-            hideForgotEmailLink();
-
-            // ensure the “Забули пошту?” note is gone
-            if (typeof forgotInfoEl !== 'undefined' && forgotInfoEl) {
-                forgotInfoEl.remove();
-                forgotInfoEl = null;
-            }
-            // also restore the submit handler if it was overridden
-            if (typeof restoreSubmitOnClick !== 'undefined' && restoreSubmitOnClick !== null) {
-                submitBtn.onclick = restoreSubmitOnClick;
-                restoreSubmitOnClick = null;
-            }
-
-            // show eye only for login password
-            hideAllPasswordToggles();
-            const loginEye = attachPasswordToggle(passEl);
-            if (loginEye) loginEye.hidden = false;
         }
 
         function switchToResetStep1() {
-            box.classList.remove('forgot-email');
-            box.classList.add('reset-password');
+            document.querySelector('.login-modal')?.classList.add('is-reset-step1');
+            clearMsg();
+            if (!premiumLock) {
+                errEl.textContent = 'Скидання доступне лише для преміум профілів';
+                return;
+            }
+            if (!premiumHasPhone) {
+                errEl.textContent = 'Для цієї особи не додано номер телефону';
+                return;
+            }
             authMode = 'reset1';
-            clearMsg();
-            titleEl.textContent = 'Скидання паролю';
-            // hide default fields
-            loginEl.hidden = true;
+            titleEl.textContent = 'Для зміни паролю вам буде надіслано код на номер телефону';
+            passWrap.hidden = true;
             forgotEl.hidden = true;
-
-            // ховаємо весь wrapper з паролем
-            const pwWrap = passEl.closest('.password-wrapper');
-            if (pwWrap) {
-                pwWrap.hidden = true;
-            } else {
-                passEl.hidden = true;
-            }
-
-            // create email input ...
-            resetEmailEl = document.createElement('input');
-            resetEmailEl.type = 'email';
-            resetEmailEl.id = 'resetEmail';
-            resetEmailEl.placeholder = 'Електронна пошта';
-            resetEmailEl.autocomplete = 'email';
-            resetEmailEl.className = loginEl.className;
-
-            // вставляємо email ПІСЛЯ wrapper’а
-            (pwWrap || passEl).after(resetEmailEl);
-
+            phoneBlock.hidden = false;
+            showPhoneInfo();
+            codeBlock.hidden = true;
+            newPassWrap.hidden = true;
+            codeNoteEl.hidden = true;
+            if (resendBtn) resendBtn.hidden = true;
+            ensureBackLink();
+            if (backLinkEl) backLinkEl.hidden = false;
+            if (notMyPhoneLink) notMyPhoneLink.hidden = false;
+            if (box) box.hidden = true ? false : false; // просто гарантуємо, що головний бокс видимий
+            if (notMyPhoneBox) notMyPhoneBox.hidden = true;
             submitBtn.textContent = 'Надіслати код';
-            ensureBackLink();
-            showForgotEmailLink();
-
-            // 👁️ На reset step 1 іконки бути не повинно
-            hideAllPasswordToggles();
+            stopResendTimer();
         }
 
-        function switchToResetStep2() {
-            box.classList.remove('forgot-email');
-            box.classList.remove('reset-password');
+        function switchToResetStep2(showNote = false, { resetCode = true, resetPassword = true } = {}) {
+            document.querySelector('.login-modal')?.classList.remove('is-reset-step1');
             authMode = 'reset2';
-            clearMsg();
-            titleEl.textContent = 'Введіть код та новий пароль';
-
-            if (!resetEmailEl) switchToResetStep1();
-
-            resetCodeEl = document.createElement('input');
-            resetCodeEl.type = 'text';
-            resetCodeEl.id = 'resetCode';
-            resetCodeEl.placeholder = 'Код підтвердження';
-            resetCodeEl.className = loginEl.className;
-
-            resetNewPassEl = document.createElement('input');
-            resetNewPassEl.type = 'password';
-            resetNewPassEl.id = 'resetNewPassword';
-            resetNewPassEl.placeholder = 'Новий пароль';
-            resetNewPassEl.className = passEl.className;
-
-            // 1) insert fields into DOM first
-            resetEmailEl.after(resetCodeEl);
-            resetCodeEl.after(resetNewPassEl);
-
-            // 2) then attach the toggle specifically to NEW PASSWORD
-            hideAllPasswordToggles();
-            const resetEye = attachPasswordToggle(resetNewPassEl);
-            if (resetEye) resetEye.hidden = false;
-
-            // note under the code input
-            if (typeof codeNoteEl === 'undefined') var codeNoteEl = null; // keep in outer scope if needed
-            if (!codeNoteEl) {
-                codeNoteEl = document.createElement('p');
-                codeNoteEl.className = 'code-sent-note';
+            titleEl.textContent = 'Змінити пароль';
+            passWrap.hidden = true;
+            forgotEl.hidden = true;
+            phoneBlock.hidden = false;
+            showPhoneInfo();
+            codeBlock.hidden = false;
+            newPassWrap.hidden = false;
+            if (resetCode) codeInput.value = '';
+            if (resetPassword) newPassEl.value = '';
+            if (codeNoteEl) {
+                if (showNote) {
+                    codeNoteEl.hidden = true;
+                    codeNoteEl.textContent = 'Код надіслано на ваш номер телефону';
+                } else if (!codeNoteEl.textContent) {
+                    codeNoteEl.hidden = true;
+                }
             }
-            resetCodeEl.after(codeNoteEl);
-            codeNoteEl.textContent = ''; // clear by default
-
-            submitBtn.textContent = 'Змінити пароль';
+            if (resendBtn) resendBtn.hidden = false;
             ensureBackLink();
-            hideForgotEmailLink();
+            if (backLinkEl) backLinkEl.hidden = false;
+            if (notMyPhoneLink) notMyPhoneLink.hidden = true;
+            submitBtn.textContent = 'Змінити пароль';
         }
 
-        // Allow external open/close handlers to force the login view
+        async function sendSmsCode({ advance = false } = {}) {
+            if (!premiumHasPhone) {
+                throw new Error('Для цієї особи не додано номер телефону');
+            }
+
+            const response = await fetch(`${API_URL}/api/send-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ personId })
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                const msg = data?.error || data?.details || 'Не вдалося надіслати код';
+                throw new Error(msg);
+            }
+
+            if (advance) {
+                switchToResetStep2(true);
+            } else {
+                switchToResetStep2(true, { resetCode: true, resetPassword: false });
+            }
+            startResendTimer();
+        }
+
+        async function completeReset() {
+            const code = codeInput.value.trim();
+            const newPassword = newPassEl.value.trim();
+            if (!code || !newPassword) {
+                throw new Error('Заповніть код та новий пароль');
+            }
+
+            const response = await fetch(`${PREMIUM_AUTH}/reset`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ personId, code, newPassword })
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok || data?.ok === false) {
+                const msg = data?.error || data?.description || 'Не вдалося змінити пароль';
+                throw new Error(msg);
+            }
+
+            switchToLogin();
+            errEl.style.color = '#1B8B59';
+            errEl.textContent = 'Пароль змінено. Увійдіть з новим паролем.';
+        }
+
         modal.addEventListener('login:reset', switchToLogin);
-
-        // Hook the "forgot password" link
         forgotEl.addEventListener('click', switchToResetStep1);
+        codeInput?.addEventListener('input', () => {
+            codeInput.value = codeInput.value.replace(/\D+/g, '');
+        });
 
-        // Reuse the same submit button for all modes
+        resendBtn?.addEventListener('click', async () => {
+            if (resendBtn.disabled) return;
+            clearMsg();
+            try {
+                await sendSmsCode({ advance: false });
+            } catch (error) {
+                errEl.textContent = error?.message || 'Не вдалося надіслати код';
+            }
+        });
+
         submitBtn.addEventListener('click', async () => {
             clearMsg();
-
+            submitBtn.disabled = true;
             try {
                 if (authMode === 'login') {
-                    // keep your login request behavior: redirect to /profile_edit.html?personId=...
-                    const login = loginEl.value.trim();
                     const password = passEl.value.trim();
-                    if (!login || !password) { errEl.textContent = 'Вкажіть логін і пароль'; return; }
+                    if (!password) {
+                        errEl.textContent = 'Вкажіть пароль';
+                        return;
+                    }
 
                     const res = await fetch(`${API_BASE}/login`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ person_id: personId, login, password })
+                        body: JSON.stringify({ person_id: personId, password })
                     });
-                    if (!res.ok) throw new Error('Невірний логін або пароль');
-                    const result = await res.json();
+                    const data = await res.json().catch(() => ({}));
 
-                    const parts = [];
+                    if (!res.ok) {
+                        const msg = data?.error || data?.description || 'Невірний пароль';
+                        throw new Error(msg);
+                    }
+
                     const params = new URLSearchParams(window.location.search);
                     const from = params.get('from');
                     const backTo = params.get('backTo');
+                    const parts = [];
                     if (from) parts.push(`from=${encodeURIComponent(from)}`);
                     if (backTo) parts.push(`backTo=${encodeURIComponent(backTo)}`);
                     const suffix = parts.length ? `&${parts.join('&')}` : '';
 
-                    // Persist token scoped per person (you already use this pattern above)
-                    const tokenKey = `people_token_${personId}`;
-                    localStorage.setItem(tokenKey, result.token);
-
+                    localStorage.setItem(tokenKey, data.token);
                     window.location.href = `/profile_edit.html?personId=${encodeURIComponent(personId)}${suffix}`;
                     return;
                 }
 
                 if (authMode === 'reset1') {
-                    const email = resetEmailEl?.value.trim();
-                    if (!email) {
-                        errEl.textContent = 'Вкажіть електронну пошту';
-                        return;
-                    }
-
-                    try {
-                        const res = await fetch(`${PREMIUM_AUTH}/request-reset`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email })
-                        });
-
-                        const data = await res.json().catch(() => ({}));
-
-                        if (!res.ok || data.ok === false) {
-                            // If backend sends error message
-                            const msg = data.error || 'Не вдалося надіслати код';
-                            errEl.style.color = '#e11d48';
-                            errEl.textContent = msg;
-                            return;
-                        }
-
-                        // Success → go to step 2
-                        switchToResetStep2();
-                        codeNoteEl = document.querySelector('.code-sent-note');
-                        if (codeNoteEl) {
-                            codeNoteEl.hidden = false;
-                            codeNoteEl.textContent = 'Код надіслано вам на пошту';
-                        }
-                        setTimeout(() => { clearMsg(); }, 3000);
-                        return;
-
-                    } catch (e) {
-                        errEl.style.color = '#e11d48';
-                        errEl.textContent = 'Помилка з’єднання з сервером';
-                    }
+                    // TEMP: skip /api/send-code while we tweak step 2 UI
+                    // await sendSmsCode({ advance: true });
+                    switchToResetStep2(true);
+                    return;
                 }
 
                 if (authMode === 'reset2') {
-                    const email = resetEmailEl?.value.trim();
-                    const code = resetCodeEl?.value.trim();
-                    const newPassword = resetNewPassEl?.value.trim();
-                    if (!email || !code || !newPassword) {
-                        errEl.textContent = 'Заповніть всі поля';
-                        return;
-                    }
-
-                    const res = await fetch(`${PREMIUM_AUTH}/reset`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email, code, newPassword })
-                    });
-
-                    if (!res.ok) {
-                        const raw = await res.text().catch(() => '');
-                        const msg = extractParagraphText(raw) || 'Не вдалося змінити пароль';
-                        throw new Error(msg);
-                    }
-
-                    // success → back to login
-                    switchToLogin();
-                    errEl.style.color = '#1B8B59';
-                    errEl.textContent = 'Пароль змінено. Увійдіть з новим паролем.';
-                    setTimeout(() => { clearMsg(); }, 3000);
+                    await completeReset();
                     return;
                 }
-            } catch (e) {
+            } catch (error) {
+                errEl.textContent = error?.message || 'Сталася помилка';
                 errEl.style.color = '#e11d48';
-                errEl.textContent = (e && e.message) ? e.message : 'Сталася помилка';
+            } finally {
+                submitBtn.disabled = false;
             }
         });
 
-        // Ensure the modal always opens in login mode
+        // "Не мій номер телефону" → показати окремий модал з інструкцією
+        if (notMyPhoneLink && notMyPhoneBox && box) {
+            notMyPhoneLink.addEventListener('click', () => {
+                document.querySelector('.login-modal')?.classList.remove('is-reset-step1');
+                if (authMode !== 'reset1') return; // тільки на кроці 1
+                clearMsg();
+                box.hidden = true;
+                notMyPhoneBox.hidden = false;
+            });
+        }
+
+        if (notMyPhoneBackBtn && notMyPhoneBox && box) {
+            notMyPhoneBackBtn.addEventListener('click', () => {
+                document.querySelector('.login-modal')?.classList.remove('is-reset-step1');
+                notMyPhoneBox.hidden = true;
+                box.hidden = false;
+                // Повертаємось до кроку 1 reset
+                if (authMode === 'reset1') {
+                    switchToResetStep1();
+                }
+            });
+        }
+
         switchToLogin();
     })();
 

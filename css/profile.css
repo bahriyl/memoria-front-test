@@ -2524,6 +2524,63 @@ input[type="number"] {
     margin-left: 4px;
 }
 
+.reset-block {
+    width: 100%;
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.input-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #5C6169;
+}
+
+.readonly-input,
+#resetCode {
+    width: 100%;
+    height: 54px;
+    padding: 12px 18px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: #EFF2F5;
+    font-size: 16px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 460;
+    color: #1A1D1F;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.readonly-input[disabled] {
+    cursor: not-allowed;
+    opacity: 0.85;
+}
+
+.resend-code-btn {
+    margin-top: 4px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #1B8B59;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.resend-code-btn:disabled {
+    color: #A0A7B4;
+    cursor: default;
+}
+
+.code-note {
+    font-size: 12px;
+    color: #6B6F79;
+    margin: 6px 0 0;
+}
+
 .forgot-email-link {
     color: #1B8B59;
     font-weight: 550;
@@ -3215,4 +3272,63 @@ body::-webkit-scrollbar {
 
 .login-box.reset-password h2 {
     margin-bottom: 18px;
+}
+
+.not-my-phone-link {
+    font-size: 12px;
+    font-family: "Montserrat", sans-serif;
+    font-weight: 460;
+    color: #72767D;
+    text-align: center;
+    margin: 4px 0 0;
+    cursor: pointer;
+}
+
+.not-my-phone-box h2 {
+    text-align: center;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.not-my-phone-text {
+    font-size: 15px;
+    font-family: "Montserrat", sans-serif;
+    font-weight: 480;
+    text-align: center;
+    margin: 12px 0 24px;
+}
+
+.not-my-phone-box button#notMyPhoneBackBtn {
+    width: 60%;
+    align-self: center;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 550;
+    font-family: 'Montserrat', sans-serif;
+}
+
+#notMyPhoneClose {
+    top: 2px;
+    right: 16px;
+}
+
+.login-box .readonly-input[disabled] {
+    color: #72767D;
+}
+
+/* Apply only on reset step 1 */
+.login-modal.is-reset-step1 h2 {
+    font-size: 15px;
+    font-weight: 480;
+}
+
+#resendCodeBtn {
+    background: transparent;
+    color: #72767D;
+    text-align: left;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 460;
+    font-family: 'Montserrat';
+    margin: 0;
 }

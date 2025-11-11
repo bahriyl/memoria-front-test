@@ -314,14 +314,13 @@
 
     <!-- Same modal markup as ritual_service_profile -->
     <div class="login-modal" id="loginModal">
-        <div class="login-box">
+        <div class="login-box" id="loginMainBox">
             <button id="loginClose" class="login-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
                     height="28" aria-hidden="true">
                     <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
                 </svg></button>
             <h2>Авторизація</h2>
-            <input type="text" id="loginInput" placeholder="Логін" />
-            <div class="password-wrapper">
+            <div class="password-wrapper" id="loginPasswordWrap">
                 <input type="password" id="passwordInput" placeholder="Пароль" />
                 <button type="button" class="toggle-password" aria-label="Показати пароль">
                     <svg viewBox="0 0 24 24" width="18" height="18" stroke-width="2">
@@ -331,8 +330,39 @@
                 </button>
             </div>
             <p id="forgotPassword" class="forgot-password">Забули або змінити пароль</p>
+            <div class="reset-block" id="resetPhoneBlock" hidden>
+                <input type="text" id="resetPhone" class="readonly-input" disabled>
+            </div>
+            <p id="notMyPhoneLink" class="not-my-phone-link" hidden>Не мій номер телефону</p>
+            <p id="codeNote" class="code-note" hidden></p>
+            <div class="reset-block" id="resetCodeBlock" hidden>
+                <input type="text" id="resetCode" placeholder="Код підтвердження" inputmode="numeric" maxlength="6" />
+                <button type="button" id="resendCodeBtn" class="resend-code-btn" hidden>Надіслати ще раз</button>
+            </div>
+            <div class="password-wrapper" id="resetNewPasswordWrap" hidden>
+                <input type="password" id="resetNewPassword" placeholder="Новий пароль" />
+                <button type="button" class="toggle-password" aria-label="Показати пароль">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke-width="2">
+                        <path
+                            d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10z" />
+                    </svg>
+                </button>
+            </div>
             <p id="loginError" class="error-message"></p>
             <button id="loginSubmit">Увійти</button>
+        </div>
+        <!-- Модал "Не мій номер телефону" -->
+        <div class="login-box not-my-phone-box" id="notMyPhoneBox" hidden>
+            <button id="notMyPhoneClose" class="login-close" aria-label="Закрити">
+                <svg viewBox="0 0 30 30" width="28" height="28" aria-hidden="true">
+                    <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+                </svg>
+            </button>
+            <h2>Не мій номер телефону</h2>
+            <p class="not-my-phone-text">
+                Напишіть, будь-ласка, у чат підтримку щоб змінити номер
+            </p>
+            <button type="button" id="notMyPhoneBackBtn">Назад</button>
         </div>
     </div>
 
