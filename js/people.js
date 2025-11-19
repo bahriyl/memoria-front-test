@@ -1,8 +1,8 @@
 // js/people.js
 
-const API_URL = 'http://localhost:5000/api/people';
-const LOC_API = 'http://localhost:5000/api/locations';
-const CEM_API = 'http://localhost:5000/api/cemeteries';
+const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app/api/people';
+const LOC_API = 'https://memoria-test-app-ifisk.ondigitalocean.app/api/locations';
+const CEM_API = 'https://memoria-test-app-ifisk.ondigitalocean.app/api/cemeteries';
 
 let activeFilter = 'person';
 let renderTimer;
