@@ -1,8 +1,8 @@
 // js/people.js
 
-const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app/api/people';
-const LOC_API = 'https://memoria-test-app-ifisk.ondigitalocean.app/api/locations';
-const CEM_API = 'https://memoria-test-app-ifisk.ondigitalocean.app/api/cemeteries';
+const API_URL = 'http://localhost:5000/api/people';
+const LOC_API = 'http://localhost:5000/api/locations';
+const CEM_API = 'http://localhost:5000/api/cemeteries';
 
 let activeFilter = 'person';
 let renderTimer;
@@ -19,6 +19,7 @@ const filterState = {
   birthYear: undefined,
   deathYear: undefined,
   area: '',
+  areaId: '',
   cemetery: '',
   notableOnly: false
 };
@@ -29,6 +30,45 @@ const defaultHeader = headerEl.textContent;
 
 headerEl.classList.remove('clickable');
 headerEl.onclick = null;
+
+// Відновлюємо збережений у сесії фільтр за кладовищем (та його area) — тільки для головної
+try {
+  const savedCemetery = sessionStorage.getItem('memoria_cemetery_filter');
+  const savedArea = sessionStorage.getItem('memoria_cemetery_area');
+  const savedAreaId = sessionStorage.getItem('memoria_cemetery_area_id');
+
+  if (savedCemetery) {
+    filterState.cemetery = savedCemetery;
+  }
+  if (savedArea) {
+    filterState.area = savedArea;
+  }
+  if (savedAreaId) {
+    filterState.areaId = savedAreaId;
+  }
+
+  if (savedCemetery) {
+    const cemTab = document.querySelector('.filter[data-filter="cemetery"]');
+    const areaTab = document.querySelector('.filter[data-filter="area"]');
+
+    if (cemTab) {
+      cemTab.textContent = savedCemetery;
+    }
+
+    if (savedArea && areaTab) {
+      const shortArea = savedArea.split(',')[0].trim();
+      areaTab.textContent = shortArea || 'Населений пункт';
+    }
+
+    headerEl.textContent = savedCemetery;
+    headerEl.classList.add('clickable');
+    headerEl.onclick = () => {
+      window.location.href = `cemetery.html?name=${encodeURIComponent(savedCemetery)}`;
+    };
+  }
+} catch (e) {
+  console.warn('Cannot access sessionStorage for cemetery filter', e);
+}
 
 // Ініціалізація табів
 document.querySelectorAll('.filter').forEach(btn => {
@@ -326,14 +366,34 @@ function renderFilterControls() {
         fetchAndRender();
       });
 
+      const resetYearsToFilterState = () => {
+        // повертаємо локальний вибір до зафіксованого у filterState
+        selectedBirth = filterState.birthYear ? Number(filterState.birthYear) : undefined;
+        selectedDeath = filterState.deathYear ? Number(filterState.deathYear) : undefined;
+
+        const birthVal = filterState.birthYear ? String(filterState.birthYear) : '';
+        const deathVal = filterState.deathYear ? String(filterState.deathYear) : '';
+
+        // оновлюємо колеса до зафіксованих значень (або плейсхолдерів)
+        birthWheel.setValue(birthVal, { silent: true, behavior: 'auto' });
+        deathWheel.setValue(deathVal, { silent: true, behavior: 'auto' });
+
+        applyDeathConstraints();
+        updateDisplay();
+      };
+
       const onDocClick = (e) => {
         if (!picker.contains(e.target)) {
+          // закриття кліком назовні НЕ повинно застосовувати тимчасовий вибір
+          resetYearsToFilterState();
           panel.hidden = true;
         }
       };
 
       const onDocKeyDown = (e) => {
         if (e.key === 'Escape') {
+          // закриття по Esc також скидає незастосований вибір
+          resetYearsToFilterState();
           panel.hidden = true;
         }
       };
@@ -388,52 +448,72 @@ function renderFilterControls() {
       const cemTab = document.querySelector('.filter[data-filter="cemetery"]');
 
       // 4. Initial clear‐button visibility
-      clearBtn.style.display = filterState.area ? 'flex' : 'none';
+      clearBtn.style.display = (filterState.area || areaInput.value.trim()) ? 'flex' : 'none';
 
-      // 5. Show/hide dropdown on focus/blur
+      // 5. Show dropdown on focus (do NOT auto-hide on blur)
       areaInput.addEventListener('focus', () => {
-        if (suggestions.children.length) suggestions.style.display = 'block';
-      });
-      areaInput.addEventListener('blur', () => {
-        setTimeout(() => suggestions.style.display = 'none', 200);
+        if (areaInput.value.trim() && suggestions.children.length) {
+          suggestions.style.display = 'block';
+        }
       });
 
       // 6. Debounced fetch & render
       areaInput.addEventListener('input', () => {
-        filterState.area = areaInput.value;
+        const q = areaInput.value.trim();
+
+        // typing cancels previously selected Area filter (and its id),
+        // until a suggestion is chosen again
+        if (filterState.area && q !== filterState.area) {
+          filterState.area = '';
+          filterState.areaId = '';
+          areaTab.textContent = 'Населений пункт';
+          headerEl.textContent = defaultHeader;
+          fetchAndRender();
+        }
+
+        // clear button visible whenever there is text or a committed filter
+        clearBtn.style.display = (q || filterState.area) ? 'flex' : 'none';
+
+        // when input is empty → hide suggestions and, if needed, clear filter
+        if (!q) {
+          suggestions.innerHTML = '';
+          suggestions.style.display = 'none';
+          if (filterState.area || filterState.areaId) {
+            filterState.area = '';
+            filterState.areaId = '';
+            areaTab.textContent = 'Населений пункт';
+            headerEl.textContent = defaultHeader;
+            fetchAndRender();
+          }
+          return;
+        }
+
         clearTimeout(suggestionTimerArea);
         suggestionTimerArea = setTimeout(async () => {
-          // a) Refresh main list
-          fetchAndRender();
-
-          // b) Fetch area suggestions
+          // Fetch area suggestions based on current text only;
+          // do NOT filter people until a suggestion is selected.
           try {
-            const res = await fetch(`${LOC_API}?search=${encodeURIComponent(areaInput.value)}`);
+            const res = await fetch(`${LOC_API}?search=${encodeURIComponent(q)}`);
             const items = await res.json();
 
+            // Очікуємо масив об'єктів { id, display }
+            const list = Array.isArray(items) ? items : [];
+
             // c) Populate the <ul>
-            if (!items.length) {
+            if (!list.length) {
               suggestions.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
             } else {
-              suggestions.innerHTML = items
-                .map(a => `<li class="sugg-item-area" data-area="${a.replace(/"/g, '&quot;')}">${a}</li>`)
+              suggestions.innerHTML = list
+                .map(item => {
+                  const id = (item.id ?? '').toString();
+                  const display = (item.display ?? '').toString();
+                  const safeDisplay = display.replace(/"/g, '&quot;');
+                  return `<li class="sugg-item-area" data-area-id="${id}" data-area="${safeDisplay}">${safeDisplay}</li>`;
+                })
                 .join('');
             }
-            // decide whether to show or hide based on exact match
-            const isExact = items.includes(areaInput.value);
-            suggestions.style.display = isExact ? 'none' : 'block';
-
-            // d) If exact match, lock it in
-            if (items.includes(areaInput.value)) {
-              const shortName = areaInput.value.split(',')[0].trim();
-              areaTab.textContent = shortName;
-              headerEl.textContent = shortName;
-              clearBtn.style.display = 'flex';
-            } else {
-              areaTab.textContent = 'Населений пункт';
-              headerEl.textContent = defaultHeader;
-              clearBtn.style.display = 'none';
-            }
+            // suggestions should stay visible while there is text
+            suggestions.style.display = 'block';
           } catch (e) {
             console.error('Area suggestions error', e);
           }
@@ -446,12 +526,14 @@ function renderFilterControls() {
         if (!li) return;
 
         const areaNameFull = li.dataset.area || li.textContent.trim();
+        const areaId = li.dataset.areaId || '';
 
         // встановити значення в поле area
         areaInput.value = areaNameFull;
 
-        // оновлюємо state
+        // оновлюємо state — тільки тут (лише вибрана підказка фільтрує людей)
         filterState.area = areaNameFull;
+        filterState.areaId = areaId;
 
         // оновлюємо таб і хедер
         const shortName = areaNameFull.split(',')[0].trim();
@@ -470,7 +552,15 @@ function renderFilterControls() {
       clearBtn.addEventListener('click', () => {
         // 1) reset both filters in state
         filterState.area = '';
+        filterState.areaId = '';
         filterState.cemetery = '';
+        try {
+          sessionStorage.removeItem('memoria_cemetery_filter');
+          sessionStorage.removeItem('memoria_cemetery_area');
+          sessionStorage.removeItem('memoria_cemetery_area_id');
+        } catch (e) {
+          console.warn('Cannot clear cemetery filter from sessionStorage', e);
+        }
 
         // 2) clear the Area field & dropdown
         areaInput.value = '';
@@ -535,10 +625,15 @@ function renderFilterControls() {
       const areaTab = document.querySelector('.filter[data-filter="area"]');
 
       // helper: завантажити всі кладовища для вибраної Area
-      async function fetchCemeteriesForArea(area) {
-        if (!area) return [];
+      async function fetchCemeteriesForArea(areaId, areaLabel) {
+        if (!areaId && !areaLabel) return [];
         try {
-          const params = new URLSearchParams({ area });
+          const params = new URLSearchParams();
+          if (areaId) {
+            params.set('areaId', areaId);
+          } else if (areaLabel) {
+            params.set('area', areaLabel);
+          }
           const res = await fetch(`${CEM_API}?${params.toString()}`);
           if (!res.ok) return [];
           const arr = await res.json();
@@ -551,6 +646,7 @@ function renderFilterControls() {
       // helper: показати список для вибраної Area, якщо інпут порожній
       async function showCemeteriesForSelectedAreaIfEmpty() {
         const area = (filterState.area || '').trim();
+        const areaId = (filterState.areaId || '').trim();
         const val = cemInput.value.trim();
         if (!area || val) {
           if (suggestions.children.length) suggestions.style.display = 'block';
@@ -560,15 +656,25 @@ function renderFilterControls() {
         suggestions.innerHTML = '<li class="loading">Завантаження…</li>';
         suggestions.style.display = 'block';
 
-        const items = await fetchCemeteriesForArea(area);
+        const items = await fetchCemeteriesForArea(areaId, area);
         suggestions.innerHTML = items.length
-          ? items.map(c => `
+          ? items.map(c => {
+              const name = (c.name || '').replace(/"/g, '&quot;');
+              const areaLabel = (c.area || '').replace(/"/g, '&quot;');
+              // always take areaId from backend if present
+              const rawAreaId = c.areaId != null ? String(c.areaId) : '';
+              const safeAreaId = rawAreaId && rawAreaId !== 'undefined'
+                ? rawAreaId.replace(/"/g, '&quot;')
+                : '';
+              return `
       <li class="sugg-item" 
-          data-name="${(c.name || '').replace(/"/g, '&quot;')}"
-          data-area="${(c.area || '').replace(/"/g, '&quot;')}">
-        <span class="cem-name">${c.name}</span>
-      </li>`).join('')
-          : '<li class="no-results">Збігів не знайдено</li>';
+          data-name="${name}"
+          data-area="${areaLabel}"
+          data-area-id="${safeAreaId}">
+        <span class="cem-name">${name}</span>
+      </li>`;
+            }).join('')
+          : '<li class="no-results">Наразі нас ще тут немає</li>';
       }
 
       // Тригеримо при фокусі/кліку на інпут (коли порожній і Area вибрана)
@@ -576,78 +682,107 @@ function renderFilterControls() {
       cemInput.addEventListener('click', showCemeteriesForSelectedAreaIfEmpty);
 
       // 4. Initial clear‐button visibility
-      clearCem.style.display = filterState.cemetery ? 'flex' : 'none';
+      clearCem.style.display = (filterState.cemetery || cemInput.value.trim()) ? 'flex' : 'none';
 
-      // 5. Show/hide dropdown on focus/blur
+      // 5. Show dropdown on focus (do NOT auto-hide on blur)
       cemInput.addEventListener('focus', () => {
-        if (suggestions.children.length) suggestions.style.display = 'block';
-      });
-      cemInput.addEventListener('blur', () => {
-        setTimeout(() => suggestions.style.display = 'none', 200);
+        if (cemInput.value.trim() && suggestions.children.length) {
+          suggestions.style.display = 'block';
+        }
       });
 
       // 6. Debounced fetch & render
       cemInput.addEventListener('input', () => {
-        // синхронізуємо стан
-        filterState.cemetery = cemInput.value;
+        const q = cemInput.value.trim();
+
+        // typing cancels previously selected Cemetery filter until a suggestion is chosen again
+        if (filterState.cemetery && q !== filterState.cemetery) {
+          filterState.cemetery = '';
+          cemTab.textContent = 'Кладовище';
+          headerEl.textContent = filterState.area
+            ? areaTab.textContent
+            : defaultHeader;
+
+          headerEl.classList.remove('clickable');
+          headerEl.onclick = null;
+          try {
+            sessionStorage.removeItem('memoria_cemetery_filter');
+            sessionStorage.removeItem('memoria_cemetery_area');
+            sessionStorage.removeItem('memoria_cemetery_area_id');
+          } catch (e) {
+            console.warn('Cannot clear cemetery filter from sessionStorage', e);
+          }
+          fetchAndRender();
+        }
+
+        // clear button visible whenever there is text or a committed filter
+        clearCem.style.display = (q || filterState.cemetery) ? 'flex' : 'none';
+
+        // when input is empty → hide suggestions and, if needed, clear filter
+        if (!q) {
+          suggestions.innerHTML = '';
+          suggestions.style.display = 'none';
+          if (filterState.cemetery) {
+            filterState.cemetery = '';
+            cemTab.textContent = 'Кладовище';
+            headerEl.textContent = filterState.area
+              ? areaTab.textContent
+              : defaultHeader;
+            headerEl.classList.remove('clickable');
+            headerEl.onclick = null;
+            fetchAndRender();
+          }
+          return;
+        }
 
         // debounce
         clearTimeout(suggestionTimerCem);
         suggestionTimerCem = setTimeout(async () => {
-          // a) миттєво оновлюємо основний список людей
-          fetchAndRender();
-
-          // b) тягнемо підказки (з урахуванням area, якщо вибрана)
-          const q = cemInput.value.trim();
-          const url = `${CEM_API}?area=${encodeURIComponent(filterState.area || '')}&search=${encodeURIComponent(q)}`;
+          // тягнемо підказки (з урахуванням areaId/area, якщо вибрана);
+          // але НЕ фільтруємо людей, поки користувач не вибере підказку.
+          const params = new URLSearchParams();
+          if (filterState.areaId) {
+            params.set('areaId', filterState.areaId);
+          } else if (filterState.area) {
+            params.set('area', filterState.area);
+          }
+          params.set('search', q);
+          const url = `${CEM_API}?${params.toString()}`;
 
           try {
             const resp = await fetch(url);
-            const items = await resp.json(); // очікуємо масив об’єктів: { name, area }
+            const items = await resp.json(); // очікуємо масив об’єктів: { name, area, areaId? }
 
             // c) рендеримо підказки
             if (!Array.isArray(items) || !items.length) {
-              suggestions.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
+              suggestions.innerHTML = `<li class="no-results">Наразі нас ще тут немає</li>`;
             } else {
               suggestions.innerHTML = items
-                .map(item => `
+                .map(item => {
+                  const name = (item.name || '').replace(/"/g, '&quot;');
+                  const areaLabel = (item.area || '').replace(/"/g, '&quot;');
+                  // always take areaId from backend if present
+                  const rawAreaId = item.areaId != null ? String(item.areaId) : '';
+                  const safeAreaId = rawAreaId && rawAreaId !== 'undefined'
+                    ? rawAreaId.replace(/"/g, '&quot;')
+                    : '';
+                  return `
             <li class="sugg-item"
-                data-name="${(item.name || '').replace(/"/g, '&quot;')}"
-                data-area="${(item.area || '').replace(/"/g, '&quot;')}">
-              <span class="cem-name">${item.name}</span>
+                data-name="${name}"
+                data-area="${areaLabel}"
+                data-area-id="${safeAreaId}">
+              <span class="cem-name">${name}</span>
             </li>
-          `)
+          `;
+                })
                 .join('');
             }
 
-            // d) показуємо/ховаємо список як у "area": якщо точний збіг — ховаємо
-            const names = (Array.isArray(items) ? items : []).map(i => (i.name || '').trim());
-            const isExact = !!q && names.includes(q);
-            suggestions.style.display = isExact ? 'none' : 'block';
-
-            // e) якщо є точний збіг — синхронізуємо таб/хедер/кнопку очистки як у "area"
-            if (isExact) {
-              cemTab.textContent = q;
-              headerEl.textContent = q;
-              clearCem.style.display = 'flex';
-
-              headerEl.classList.add('clickable');
-              headerEl.onclick = () => {
-                window.location.href = `cemetery.html?name=${encodeURIComponent(q)}`;
-              };
-            } else {
-              // без точного збігу — повертаємося до стану "за замовчуванням" (або area, якщо є)
-              cemTab.textContent = filterState.cemetery ? filterState.cemetery : 'Кладовище';
-              headerEl.textContent = filterState.area
-                ? document.querySelector('.filter[data-filter="area"]').textContent
-                : document.getElementById('pageTitle').textContent; // дефолтний заголовок
-              headerEl.classList.remove('clickable');
-              headerEl.onclick = null;
-              if (!filterState.cemetery) clearCem.style.display = 'none';
-            }
+            // список має залишатися видимим, поки є текст
+            suggestions.style.display = 'block';
           } catch (e) {
             console.error('Cemetery suggestions error', e);
-            suggestions.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
+            suggestions.innerHTML = `<li class="no-results">Наразі нас ще тут немає</li>`;
             suggestions.style.display = 'block';
           }
         }, 300);
@@ -660,17 +795,42 @@ function renderFilterControls() {
 
         const cemeteryName = li.dataset.name;
         const areaNameFull = li.dataset.area || '';
+        const rawAreaIdFromCem = li.dataset.areaId || '';
+        const areaIdFromCem = rawAreaIdFromCem && rawAreaIdFromCem !== 'undefined'
+          ? rawAreaIdFromCem
+          : '';
 
         // встановити значення в поле
         cemInput.value = cemeteryName;
 
         // оновити state
         filterState.cemetery = cemeteryName;
+        try {
+          sessionStorage.setItem('memoria_cemetery_filter', cemeteryName);
+          // зберігаємо area, прив'язану до кладовища
+          const areaToSave = areaNameFull || filterState.area || '';
+          if (areaToSave) {
+            sessionStorage.setItem('memoria_cemetery_area', areaToSave);
+          } else {
+            sessionStorage.removeItem('memoria_cemetery_area');
+          }
+          // зберігаємо areaId, якщо воно є
+          if (areaIdFromCem) {
+            sessionStorage.setItem('memoria_cemetery_area_id', areaIdFromCem);
+          } else {
+            sessionStorage.removeItem('memoria_cemetery_area_id');
+          }
+        } catch (e) {
+          console.warn('Cannot persist cemetery filter to sessionStorage', e);
+        }
 
         // якщо area ще не вибрано вручну → підставляємо з кладовища
         const hadArea = !!(filterState.area && filterState.area.trim());
         if (!hadArea && areaNameFull) {
           filterState.area = areaNameFull;
+          if (areaIdFromCem) {
+            filterState.areaId = areaIdFromCem;
+          }
 
           const areaInputEl = document.getElementById('area');
           const clearAreaBtn = document.getElementById('clear-area');
@@ -707,6 +867,14 @@ function renderFilterControls() {
         headerEl.classList.remove('clickable');
         headerEl.onclick = null;
 
+        try {
+          sessionStorage.removeItem('memoria_cemetery_filter');
+          sessionStorage.removeItem('memoria_cemetery_area');
+          sessionStorage.removeItem('memoria_cemetery_area_id');
+        } catch (e) {
+          console.warn('Cannot clear cemetery filter from sessionStorage', e);
+        }
+
         fetchAndRender();
       });
 
@@ -722,10 +890,16 @@ async function fetchAndRender() {
   loadingEl.style.display = 'block';
   const params = new URLSearchParams();
 
-  if (filterState.search) params.set('search', filterState.search);
   if (filterState.birthYear) params.set('birthYear', filterState.birthYear);
   if (filterState.deathYear) params.set('deathYear', filterState.deathYear);
-  if (filterState.area) params.set('area', filterState.area);
+  // Передаємо і areaId, і area (якщо є) —
+  // бекенд об'єднає їх через $or, щоб не загубити людей без areaId.
+  if (filterState.areaId) {
+    params.set('areaId', filterState.areaId);
+  }
+  if (filterState.area) {
+    params.set('area', filterState.area);
+  }
   if (filterState.cemetery) params.set('cemetery', filterState.cemetery);
 
   try {
@@ -733,10 +907,41 @@ async function fetchAndRender() {
     if (!res.ok) throw new Error(res.statusText);
     const { total, people } = await res.json();
 
+    // Stable randomized order per person id so that
+    // switching between filters without changing them
+    // does not reshuffle the visible order.
+    window._peopleRandomOrder = window._peopleRandomOrder || {};
+    const orderMap = window._peopleRandomOrder;
+    people.forEach(p => {
+      const id = p.id;
+      if (!id) return;
+      if (orderMap[id] == null) {
+        orderMap[id] = Math.random();
+      }
+    });
+
+    let listToShow = [...people].sort((a, b) => {
+      const oa = orderMap[a.id] ?? 0;
+      const ob = orderMap[b.id] ?? 0;
+      return oa - ob;
+    });
+
     // apply notable-only filter if requested
-    let listToShow = people;
     if (filterState.notableOnly) {
       listToShow = listToShow.filter(p => p.notable);
+    }
+
+    // person-name filtering: only prefix of first/middle/last name
+    if (activeFilter === 'person') {
+      const q = (filterState.search || '').trim().toLowerCase();
+      if (q) {
+        listToShow = listToShow.filter(p => {
+          const name = (p.name || '').toLowerCase();
+          if (!name) return false;
+          const parts = name.split(/\s+/).filter(Boolean);
+          return parts.some(part => part.startsWith(q));
+        });
+      }
     }
 
     // update the counter

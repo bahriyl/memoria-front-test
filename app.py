@@ -83,6 +83,7 @@ ALLOWED_UPDATE_FIELDS = {
     "avatarUrl",
     "portraitUrl",
     "area",
+    "areaId",
     "cemetery",
     "location",
     "bio",
@@ -93,6 +94,9 @@ ALLOWED_UPDATE_FIELDS = {
     "relatives",
     "heroImage",
 }
+
+GEONAMES_USER = os.environ.get("GEONAMES_USER", "memoria")
+GEONAMES_LANG = "uk"
 
 try:
     liturgies_collection.create_index([("personId", ASCENDING), ("serviceDate", ASCENDING)])
@@ -183,27 +187,48 @@ def people():
     search_query = request.args.get('search', '').strip()
     birth_year = request.args.get('birthYear')
     death_year = request.args.get('deathYear')
+    area_id = request.args.get('areaId', '').strip()
     area = request.args.get('area', '').strip()
     cemetery = request.args.get('cemetery', '').strip()
 
-    query_filter = {}
+    # Будуємо список умов і комбінуємо їх через $and,
+    # при цьому areaId та area об'єднуємо через $or (як дублюючі ключі місця).
+    conditions = []
 
     if search_query:
-        query_filter['name'] = {'$regex': re.escape(search_query), '$options': 'i'}
+        conditions.append({'name': {'$regex': re.escape(search_query), '$options': 'i'}})
 
     if birth_year and birth_year.isdigit():
-        query_filter['birthYear'] = int(birth_year)
+        conditions.append({'birthYear': int(birth_year)})
 
     if death_year and death_year.isdigit():
-        query_filter['deathYear'] = int(death_year)
+        conditions.append({'deathYear': int(death_year)})
 
+    area_or = []
+    if area_id:
+        area_or.append({'areaId': area_id})
     if area:
-        query_filter['area'] = {'$regex': re.escape(area), '$options': 'i'}  # частковий, нечутливий до регістру пошук
+        # area з фронта може бути у форматі "Місто, Область, ...".
+        # Для фільтрації по документах осіб використовуємо лише перше слово/частину (місто),
+        # щоб збігатися з рядками виду "м. Самбір, Львівська обл.".
+        city_part = area.split(',')[0].strip()
+        if city_part:
+            pattern = r'\b' + re.escape(city_part) + r'\b'
+            area_or.append({'area': {'$regex': pattern, '$options': 'i'}})
+    if area_or:
+        conditions.append({'$or': area_or})
 
     if cemetery:
-        query_filter['cemetery'] = {'$regex': re.escape(cemetery), '$options': 'i'}
+        conditions.append({'cemetery': {'$regex': re.escape(cemetery), '$options': 'i'}})
 
-    people_cursor = people_collection.find(query_filter)
+    if not conditions:
+        mongo_filter = {}
+    elif len(conditions) == 1:
+        mongo_filter = conditions[0]
+    else:
+        mongo_filter = {'$and': conditions}
+
+    people_cursor = people_collection.find(mongo_filter)
 
     people_list = []
     for person in people_cursor:
@@ -215,6 +240,7 @@ def people():
             "notable": person.get('notable'),
             "avatarUrl": person.get('avatarUrl'),
             "portraitUrl": person.get('portraitUrl'),
+            "areaId": person.get('areaId'),
             "area": person.get('area'),
             "cemetery": person.get('cemetery')
         })
@@ -399,6 +425,7 @@ def get_person(person_id):
         "avatarUrl": person.get('avatarUrl'),
         "portraitUrl": person.get('portraitUrl'),  # ← NEW
         "heroImage": person.get('heroImage'),
+        "areaId": person.get('areaId'),
         "area": person.get('area'),
         "cemetery": person.get('cemetery'),
         "location": person.get('location'),
@@ -566,6 +593,7 @@ def update_person(person_id):
         "avatarUrl": person.get('avatarUrl'),
         "portraitUrl": person.get('portraitUrl'),  # ← NEW
         "heroImage": person.get('heroImage'),
+        "areaId": person.get('areaId'),
         "area": person.get('area'),
         "cemetery": person.get('cemetery'),
         "location": person.get('location'),
@@ -678,30 +706,66 @@ def get_cemetery_page(cemetery_id):
 @application.route('/api/locations', methods=['GET'])
 def locations():
     """
-    Повертає список унікальних назв «area»,
-    що починаються (з 4-го символа) з рядка search, нечутливого до регістру.
-    Наприклад: у БД "м. Львів" -> користувач шукає "л" -> буде знайдено.
+    Повертає список назв населених пунктів (area),
+    використовуючи той самий GeoNames API, що й сторінка ритуальних послуг.
+
+    Параметри:
+      - search — початок назви міста (name_startsWith).
+
+    Відповідь: масив об'єктів:
+      - id      — GeoNames geonameId (рядок)
+      - display — "Місто, Область, Країна"
+      - lat/lng — координати (float), опційно
     """
     search = request.args.get('search', '').strip()
-    query = {}
+    if not search:
+        return jsonify([])
 
-    if search:
-        # Використовуємо $expr, щоб взяти підрядок починаючи з 4-го символа
-        query = {
-            '$expr': {
-                '$regexMatch': {
-                    'input': {'$substrCP': ['$area', 3, {'$strLenCP': '$area'}]},
-                    'regex': f'^{re.escape(search)}',
-                    'options': 'i'
-                }
-            }
-        }
+    try:
+        url = (
+            "https://secure.geonames.org/searchJSON?"
+            f"name_startsWith={requests.utils.quote(search)}"
+            "&country=UA"
+            "&featureClass=P"
+            "&maxRows=10"
+            f"&lang={GEONAMES_LANG}"
+            f"&username={GEONAMES_USER}"
+        )
+        resp = requests.get(url, timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
+        geonames = data.get("geonames") or []
+    except Exception as exc:
+        print(f"[GeoNames] locations error for search='{search}': {exc}")
+        return jsonify([])
 
-    # отримуємо усі унікальні значення area з нової колекції
-    areas = areas_collection.distinct('area', query)
-
-    # відфільтруємо порожні, відсортуємо та обмежимо 10 результатами
-    areas = sorted([a for a in areas if a])[:10]
+    seen = set()
+    areas = []
+    for place in geonames:
+        name = (place.get("name") or "").strip()
+        admin = (place.get("adminName1") or "").strip()
+        country = (place.get("countryName") or "").strip()
+        geoname_id = str(place.get("geonameId") or "").strip()
+        lat_raw = place.get("lat")
+        lng_raw = place.get("lng")
+        try:
+            lat = float(lat_raw) if lat_raw is not None else None
+        except (TypeError, ValueError):
+            lat = None
+        try:
+            lng = float(lng_raw) if lng_raw is not None else None
+        except (TypeError, ValueError):
+            lng = None
+        parts = [p for p in (name, admin, country) if p]
+        display = ", ".join(parts)
+        if geoname_id and display and geoname_id not in seen:
+            seen.add(geoname_id)
+            areas.append({
+                "id": geoname_id,
+                "display": display,
+                "lat": lat,
+                "lng": lng,
+            })
 
     return jsonify(areas)
 
@@ -709,31 +773,47 @@ def locations():
 @application.route('/api/cemeteries', methods=['GET'])
 def cemeteries():
     """
-    Повертає список об'єктів { name, area }:
+    Повертає список об'єктів { name, area, areaId }:
       - name: назва кладовища
       - area: населений пункт / область, з документа areas_collection.area
+      - areaId: GeoNames ID населеного пункту (areas_collection.areaId)
 
-    Фільтри:
-      - area   — початок рядка, case-insensitive по полю area
+    Фільтри (будь-який з них опційний):
+      - areaId — унікальний GeoNames ID населеного пункту
+      - area   — місто (перша частина рядка "Місто, Область, ..."),
+                 шукається як окреме слово в полі area (case-insensitive),
+                 використовується як фолбек, якщо немає areaId
       - search — початок рядка, case-insensitive по елементам масиву cemetries
     """
+    area_id = request.args.get('areaId', '').strip()
     area = request.args.get('area', '').strip()
     search = request.args.get('search', '').strip()
 
     # Будуємо aggregation pipeline
     pipeline = []
 
-    # 1) Фільтр по населеному пункту/області (тільки з початку рядка)
-    if area:
+    # 1) Фільтр по населеному пункту:
+    #    якщо передано areaId — використовуємо його;
+    #    інакше фолбек на текстовий area (місто як окреме слово).
+    if area_id:
         pipeline.append({
             '$match': {
-                'area': {'$regex': f'^{re.escape(area)}', '$options': 'i'}
+                'areaId': area_id
             }
         })
+    elif area:
+        city_part = area.split(',')[0].strip()
+        if city_part:
+            pattern = r'\b' + re.escape(city_part) + r'\b'
+            pipeline.append({
+                '$match': {
+                    'area': {'$regex': pattern, '$options': 'i'}
+                }
+            })
 
     # 2) Беремо лише потрібні поля
     pipeline.extend([
-        {'$project': {'area': 1, 'cemetries': 1}},
+        {'$project': {'area': 1, 'areaId': 1, 'cemetries': 1}},
         {'$unwind': '$cemetries'}
     ])
 
@@ -752,15 +832,16 @@ def cemeteries():
         }
     })
 
-    # 5) Унікальні пари (кладовище, area)
+    # 5) Унікальні пари (кладовище, area, areaId)
     pipeline.extend([
         {'$group': {
-            '_id': {'name': '$cemetries', 'area': '$area'}
+            '_id': {'name': '$cemetries', 'area': '$area', 'areaId': '$areaId'}
         }},
         {'$project': {
             '_id': 0,
             'name': '$_id.name',
-            'area': '$_id.area'
+            'area': '$_id.area',
+            'areaId': '$_id.areaId'
         }},
         {'$sort': {'name': 1}},
         {'$limit': 10}
