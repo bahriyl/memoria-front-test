@@ -849,8 +849,8 @@ body::-webkit-scrollbar {
 }
 
 .donation-options {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     width: 100%;
 }
@@ -869,10 +869,16 @@ body::-webkit-scrollbar {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 32px;
+    white-space: nowrap;
+    min-height: 32px;
     padding: 0 12px;
-    width: 100%;
+    flex: 1 1 0;
+    min-width: 0;
     box-sizing: border-box;
+}
+
+.donation-btn.donation-btn--wrapped {
+    flex: 0 0 auto;
 }
 
 
@@ -1542,7 +1548,7 @@ body::-webkit-scrollbar {
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    display: flex;
+    display: none;
     gap: 8px;
     z-index: 10;
 }

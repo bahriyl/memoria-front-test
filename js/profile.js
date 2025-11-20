@@ -436,6 +436,60 @@ document.addEventListener('DOMContentLoaded', () => {
         btn?.classList.add('selected');
     }
 
+    function updateDonationButtonsLayout() {
+        if (!donationOptions) return;
+        const buttons = Array.from(donationOptions.querySelectorAll('.donation-btn'));
+        if (!buttons.length) return;
+
+        // reset any previous wrapped state / overrides
+        buttons.forEach(btn => {
+            btn.classList.remove('donation-btn--wrapped');
+            btn.style.order = '';
+            btn.style.minWidth = '';
+        });
+
+        // measure after layout:
+        //  - find first row buttons and their width
+        //  - if a first-row button's free horizontal space <= 1px,
+        //    move it to next line and ensure its width is at least
+        //    as wide as first-row buttons.
+        requestAnimationFrame(() => {
+            if (!buttons.length) return;
+
+            const tops = buttons.map(b => b.offsetTop || 0);
+            const firstTop = Math.min(...tops);
+            const firstRow = buttons.filter(b => (b.offsetTop || 0) <= firstTop + 1);
+            if (!firstRow.length) return;
+
+            const firstRowWidth = Math.max(...firstRow.map(b => b.clientWidth || 0));
+
+            buttons.forEach(btn => {
+                const top = btn.offsetTop || 0;
+                const inFirstRow = top <= firstTop + 1;
+                const client = btn.clientWidth || 0;
+                const scroll = btn.scrollWidth || 0;
+                const freeSpace = client - scroll; // may be negative if overflowing
+
+                const needsWrap = inFirstRow && freeSpace <= 1;
+
+                if (needsWrap) {
+                    // push to next line and keep at least first-row width
+                    btn.classList.add('donation-btn--wrapped');
+                    btn.style.order = '1';
+                    if (firstRowWidth > 0) {
+                        btn.style.minWidth = `${firstRowWidth}px`;
+                    }
+                } else if (!inFirstRow) {
+                    // already wrapped by layout – ensure minimum width matches first row
+                    btn.classList.add('donation-btn--wrapped');
+                    if (firstRowWidth > 0) {
+                        btn.style.minWidth = `${firstRowWidth}px`;
+                    }
+                }
+            });
+        });
+    }
+
     donationOptions?.addEventListener('click', (e) => {
         const btn = e.target.closest('.donation-btn');
         if (!btn) return;
@@ -453,6 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Otherwise: normal predefined amount → just select it
         selectDonationButton(btn);
+        updateDonationButtonsLayout();
     });
 
     // Modal buttons
@@ -464,9 +519,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = donationModal?._targetBtn || customDonationBtn;
         const raw = (donationInput?.value || '').trim();
         const amount = parseInt(raw, 10);
+        const isEmpty = !raw || Number.isNaN(amount);
 
-        if (!amount || amount <= 0) {
-            alert('Введіть коректну суму (мінімум 1 грн).');
+        if (isEmpty) {
+            // No sum entered → just close modal and reset button label
+            if (btn && btn.dataset && btn.dataset.custom === '1') {
+                btn.textContent = 'Інше';
+                delete btn.dataset.amount;
+                btn.classList.remove('selected');
+            }
+            closeDonationModal();
+            updateDonationButtonsLayout();
+            return;
+        }
+
+        if (amount <= 49) {
+            alert('Введіть коректну суму (мінімум 50 грн).');
             donationInput?.focus();
             return;
         }
@@ -481,7 +549,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         closeDonationModal();
+        updateDonationButtonsLayout();
     });
+
+    // Initial layout and on resize (e.g. orientation change)
+    updateDonationButtonsLayout();
+    window.addEventListener('resize', updateDonationButtonsLayout);
 
     // Dots popup options (if present)
     document.getElementById('bio-edit-option')?.addEventListener('click', () => bioEditBtn?.click());
