@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // current selections
     let selectedBirth = birthInput.value ? Number(birthInput.value) : undefined;
     let selectedDeath = deathInput.value ? Number(deathInput.value) : undefined;
+    let yearsPanelBackup = null;
     D('INIT: selectedBirth/selectedDeath from hidden inputs', { selectedBirth, selectedDeath });
 
     // populate years
@@ -88,27 +89,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     })();
 
-    function updateDisplay() {
-        let text = 'Роки життя';
-
-        if (selectedBirth && !selectedDeath) {
-            text = `${selectedBirth} – `;
-        } else if (!selectedBirth && selectedDeath) {
-            text = ` – ${selectedDeath}`;
-        } else if (selectedBirth && selectedDeath) {
-            text = `${selectedBirth} – ${selectedDeath}`;
+    function formatYearsText() {
+        if (selectedBirth && selectedDeath) {
+            return `${selectedBirth} – ${selectedDeath}`;
         }
+        if (selectedBirth) {
+            return `${selectedBirth} –`;
+        }
+        if (selectedDeath) {
+            return `– ${selectedDeath}`;
+        }
+        return 'Роки життя';
+    }
 
-        const hasAny = !!(selectedBirth || selectedDeath);
+    function updateDisplay() {
+        const text = formatYearsText();
+        const hasAny = Boolean(selectedBirth || selectedDeath);
         display.textContent = text;
         display.classList.toggle('has-value', hasAny);
         picker.classList.toggle('has-value', hasAny);
         clearBtn.hidden = !hasAny;
-
-        // sync hidden inputs for submission
         birthInput.value = selectedBirth ?? '';
         deathInput.value = selectedDeath ?? '';
-
         D('updateDisplay()', {
             selectedBirth,
             selectedDeath,
@@ -116,6 +118,26 @@ document.addEventListener('DOMContentLoaded', () => {
             birthInput: birthInput.value,
             deathInput: deathInput.value
         });
+    }
+
+    function storeYearsState() {
+        yearsPanelBackup = {
+            birthValue: birthWheel.getValue(),
+            deathValue: deathWheel.getValue(),
+            selectedBirth,
+            selectedDeath
+        };
+    }
+
+    function restoreYearsState() {
+        if (!yearsPanelBackup) return;
+        selectedBirth = yearsPanelBackup.selectedBirth;
+        selectedDeath = yearsPanelBackup.selectedDeath;
+        birthWheel.setValue(yearsPanelBackup.birthValue || '', { silent: true, behavior: 'auto' });
+        deathWheel.setValue(yearsPanelBackup.deathValue || '', { silent: true, behavior: 'auto' });
+        updateDisplay();
+        yearsPanelBackup = null;
+        yearsPanelBackup = null;
     }
 
     const enforceChronology = (source = 'birth', behavior = 'smooth') => {
@@ -217,55 +239,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // open/close panel
     display.addEventListener('click', () => {
-        const before = { birth: birthWheel.getValue(), death: deathWheel.getValue() };
+        const willOpen = panel.hidden;
         panel.hidden = !panel.hidden;
-        D('display.click → toggle panel', { hidden: panel.hidden, before });
-
-        // Hide submit button when years-panel is open
+        D('display.click → toggle panel', { hidden: panel.hidden });
         const submitBtn = document.querySelector('.submit-btn');
         if (submitBtn) {
             submitBtn.style.display = panel.hidden ? 'block' : 'none';
         }
-
-        if (!panel.hidden) {
+        if (willOpen) {
+            storeYearsState();
             const hasBirth = !!birthWheel.getValue();
             const hasDeath = !!deathWheel.getValue();
-
-            if (hasBirth) {
-                birthWheel.snap({ behavior: 'auto', silent: true });
-            } else {
+            if (!hasBirth) {
                 birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
-                birthWheel.snap({ behavior: 'auto', silent: true });
             }
-
-            if (hasDeath) {
-                deathWheel.snap({ behavior: 'auto', silent: true });
-            } else {
+            if (!hasDeath) {
                 deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
-                deathWheel.snap({ behavior: 'auto', silent: true });
             }
+            birthWheel.snap({ behavior: 'auto', silent: true });
+            deathWheel.snap({ behavior: 'auto', silent: true });
+        } else {
+            restoreYearsState();
         }
     });
 
     panel.addEventListener('click', e => e.stopPropagation());
-    document.addEventListener('click', e => {
-        if (!picker.contains(e.target)) {
-            panel.hidden = true;
-            D('document.click → close panel');
-
-            const submitBtn = document.querySelector('.submit-btn');
-            if (submitBtn) submitBtn.style.display = 'block';
-        }
-    });
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') {
-            panel.hidden = true;
-            D('keydown[Escape] → close panel');
-
-            const submitBtn = document.querySelector('.submit-btn');
-            if (submitBtn) submitBtn.style.display = 'block';
-        }
-    });
+    const closePanelViaDoc = (e) => {
+        if (panel.hidden) return;
+        if (picker.contains(e.target)) return;
+        panel.hidden = true;
+        restoreYearsState();
+        D('document.click → close panel');
+        const submitBtn = document.querySelector('.submit-btn');
+        if (submitBtn) submitBtn.style.display = 'block';
+    };
+    document.addEventListener('click', closePanelViaDoc);
+    const closePanelViaEsc = (e) => {
+        if (panel.hidden || e.key !== 'Escape') return;
+        panel.hidden = true;
+        restoreYearsState();
+        D('keydown[Escape] → close panel');
+        const submitBtn = document.querySelector('.submit-btn');
+        if (submitBtn) submitBtn.style.display = 'block';
+    };
+    document.addEventListener('keydown', closePanelViaEsc);
 
     doneBtn.addEventListener('click', () => {
         const birthValue = birthWheel.getValue();
@@ -286,6 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDisplay();
         panel.hidden = true;
         D('doneBtn.click() → panel.hidden=true');
+        yearsPanelBackup = null;
 
         const submitBtn = document.querySelector('.submit-btn');
         if (submitBtn) submitBtn.style.display = 'block';
@@ -355,21 +373,35 @@ document.addEventListener('DOMContentLoaded', () => {
         clearTimeout(cityTimer);
         cityTimer = setTimeout(async () => {
             if (cityInput.value.length < 1) {
-                citySuggest.innerHTML = ''; citySuggest.style.display = 'none'; return;
+                citySuggest.innerHTML = '';
+                citySuggest.style.display = 'none';
+                return;
             }
             try {
                 const res = await fetch(`${API_URL}/api/locations?search=${encodeURIComponent(cityInput.value)}`);
-                const list = await res.json();
-                citySuggest.innerHTML = list.length
-                    ? list.map(a => `<li>${a}</li>`).join('')
-                    : `<li class="no-results">Збігів не знайдено</li>`;
+                const items = await res.json();
+                const list = Array.isArray(items) ? items : [];
+                if (!list.length) {
+                    citySuggest.innerHTML = '<li class="no-results">Збігів не знайдено</li>';
+                } else {
+                    citySuggest.innerHTML = list
+                        .map(item => {
+                            const display = (item.display ?? '').toString();
+                            const safe = display.replace(/"/g, '&quot;');
+                            return `<li data-area-id="${(item.id ?? '').toString()}">${safe}</li>`;
+                        })
+                        .join('');
+                }
                 citySuggest.style.display = 'block';
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         }, 300);
     });
     citySuggest.addEventListener('click', e => {
-        if (e.target.tagName === 'LI' && !e.target.classList.contains('no-results')) {
-            cityInput.value = e.target.textContent;
+        const li = e.target.closest('li');
+        if (li && !li.classList.contains('no-results')) {
+            cityInput.value = li.textContent.trim();
             citySuggest.style.display = 'none';
             clearCityBtn.style.display = 'flex';
         }

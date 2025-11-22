@@ -19,6 +19,7 @@ const filterState = {
     birthYear: undefined,
     deathYear: undefined,
     area: '',
+    areaId: '',
     cemetery: '',
     notableOnly: true
 };
@@ -26,6 +27,15 @@ const filterState = {
 // cache the header and its default text
 const headerEl = document.querySelector('main h2');
 const defaultHeader = headerEl.textContent;
+
+function matchesNamePrefix(name, query) {
+    if (!query) return true;
+    if (!name) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    const parts = name.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    return parts.some(part => part.startsWith(q));
+}
 
 function initPhotoSlider() {
     const sliderEl = document.getElementById('photo-slider');
@@ -190,25 +200,49 @@ function renderFilterControls() {
 
             let selectedBirth = filterState.birthYear ? Number(filterState.birthYear) : undefined;
             let selectedDeath = filterState.deathYear ? Number(filterState.deathYear) : undefined;
+            let yearsPanelBackup = null;
+
+            const formatYearsText = () => {
+                if (selectedBirth && selectedDeath) {
+                    return `${selectedBirth} – ${selectedDeath}`;
+                }
+                if (selectedBirth) {
+                    return `${selectedBirth} –`;
+                }
+                if (selectedDeath) {
+                    return `– ${selectedDeath}`;
+                }
+                return 'Роки життя';
+            };
 
             const updateDisplay = () => {
-                let text = 'Роки життя';
-
-                if (selectedBirth && !selectedDeath) {
-                    text = `${selectedBirth} – `;
-                } else if (!selectedBirth && selectedDeath) {
-                    text = ` – ${selectedDeath}`;
-                } else if (selectedBirth && selectedDeath) {
-                    text = `${selectedBirth} – ${selectedDeath}`;
-                }
-
-                const hasAny = !!(selectedBirth || selectedDeath);
-
+                const text = formatYearsText();
+                const hasAny = Boolean(selectedBirth || selectedDeath);
                 display.textContent = text;
                 display.classList.toggle('has-value', hasAny);
                 picker.classList.toggle('has-value', hasAny);
                 clearBtn.hidden = !hasAny;
             };
+
+            function storeYearsState() {
+                if (!birthWheel || !deathWheel) return;
+                yearsPanelBackup = {
+                    birthValue: birthWheel.getValue(),
+                    deathValue: deathWheel.getValue(),
+                    selectedBirth,
+                    selectedDeath
+                };
+            }
+
+            function restoreYearsState() {
+                if (!yearsPanelBackup || !birthWheel || !deathWheel) return;
+                selectedBirth = yearsPanelBackup.selectedBirth;
+                selectedDeath = yearsPanelBackup.selectedDeath;
+                birthWheel.setValue(yearsPanelBackup.birthValue || '', { silent: true, behavior: 'auto' });
+                deathWheel.setValue(yearsPanelBackup.deathValue || '', { silent: true, behavior: 'auto' });
+                updateDisplay();
+                yearsPanelBackup = null;
+            }
 
             const enforceChronology = (source = 'birth', behavior = 'smooth') => {
                 if (!selectedBirth || !selectedDeath) return false;
@@ -298,21 +332,30 @@ function renderFilterControls() {
             updateDisplay();
 
             display.addEventListener('click', () => {
+                const willOpen = panel.hidden;
                 panel.hidden = !panel.hidden;
-                if (!panel.hidden) {
+                if (willOpen) {
+                    storeYearsState();
                     const hasBirth = !!birthWheel.getValue();
                     const hasDeath = !!deathWheel.getValue();
                     if (hasBirth) birthWheel.snap({ behavior: 'auto', silent: true });
                     if (hasDeath) deathWheel.snap({ behavior: 'auto', silent: true });
+                } else {
+                    restoreYearsState();
                 }
             });
             panel.addEventListener('click', e => e.stopPropagation());
 
             const onDocClick = (e) => {
-                if (!picker.contains(e.target)) panel.hidden = true;
+                if (!panel || panel.hidden) return;
+                if (picker.contains(e.target)) return;
+                panel.hidden = true;
+                restoreYearsState();
             };
             const onDocKeyDown = (e) => {
-                if (e.key === 'Escape') panel.hidden = true;
+                if (!panel || panel.hidden || e.key !== 'Escape') return;
+                panel.hidden = true;
+                restoreYearsState();
             };
 
             document.addEventListener('click', onDocClick);
@@ -338,6 +381,7 @@ function renderFilterControls() {
 
                 updateDisplay();
                 panel.hidden = true;
+                yearsPanelBackup = null;
                 fetchAndRender();          // apply filter
             });
 
@@ -351,6 +395,7 @@ function renderFilterControls() {
                 deathWheel.clear({ silent: true, keepActive: false });
                 applyDeathConstraints();
                 updateDisplay();
+                yearsPanelBackup = null;
                 fetchAndRender();
             });
 
@@ -409,6 +454,7 @@ function renderFilterControls() {
             // 6. Debounced fetch & render
             areaInput.addEventListener('input', () => {
                 filterState.area = areaInput.value;
+                filterState.areaId = '';
                 clearTimeout(suggestionTimerArea);
                 suggestionTimerArea = setTimeout(async () => {
                     // a) Refresh main list
@@ -418,17 +464,25 @@ function renderFilterControls() {
                     try {
                         const res = await fetch(`${LOC_API}?search=${encodeURIComponent(areaInput.value)}`);
                         const items = await res.json();
+                        const list = Array.isArray(items) ? items : [];
 
-                        // c) рендеримо підказки (тільки рядки)
-                        if (!items.length) {
+                        // c) рендеримо підказки з display
+                        if (!list.length) {
                             suggestions.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
                         } else {
-                            suggestions.innerHTML = items.map(a => `<li>${a}</li>`).join('');
+                            suggestions.innerHTML = list
+                                .map(item => {
+                                    const display = (item.display ?? '').toString();
+                                    const safe = display.replace(/"/g, '&quot;');
+                                    return `<li data-area-id="${(item.id ?? '').toString()}">${safe}</li>`;
+                                })
+                                .join('');
                         }
 
                         // d) exact-match перевіряємо по trimmed
                         const normalized = areaInput.value.trim();
-                        const match = items.find(a => a.trim() === normalized);
+                        const matchObj = list.find(it => (it.display || '').trim() === normalized);
+                        const match = matchObj ? (matchObj.display || '').trim() : null;
                         const isExact = Boolean(match);
 
                         // показувати дропдаун лише коли немає точного збігу
@@ -437,6 +491,7 @@ function renderFilterControls() {
                         if (isExact) {
                             // 1) фіксуємо state
                             filterState.area = match;
+                            filterState.areaId = (matchObj.id ?? '').toString() || '';
 
                             // 2) оновлюємо таб і заголовок короткою назвою до коми
                             const shortName = match.split(',')[0].trim();
@@ -469,10 +524,13 @@ function renderFilterControls() {
                 if (!li || li.classList.contains('no-results')) return;
 
                 const value = li.textContent.trim();
+                const rawAreaId = li.dataset.areaId || '';
+                const areaId = rawAreaId && rawAreaId !== 'undefined' ? rawAreaId : '';
 
                 // 1) фіксуємо поле та state
                 areaInput.value = value;
                 filterState.area = value;
+                filterState.areaId = areaId;
 
                 // 2) коротка назва в таб і заголовок
                 const shortName = value.split(',')[0].trim();
@@ -492,6 +550,7 @@ function renderFilterControls() {
             clearBtn.addEventListener('click', () => {
                 // 1) reset both filters in state
                 filterState.area = '';
+                filterState.areaId = '';
                 filterState.cemetery = '';
 
                 // 2) clear the Area field & dropdown
@@ -557,10 +616,15 @@ function renderFilterControls() {
             const areaTab = document.querySelector('.filter[data-filter="area"]');
 
             // Fetch all cemeteries for a given area (uses existing CEM_API)
-            async function fetchCemeteriesForArea(area) {
-                if (!area) return [];
+            async function fetchCemeteriesForArea(area, areaId) {
+                if (!area && !areaId) return [];
                 try {
-                    const params = new URLSearchParams({ area });
+                    const params = new URLSearchParams();
+                    if (areaId) {
+                        params.set('areaId', areaId);
+                    } else if (area) {
+                        params.set('area', area);
+                    }
                     const res = await fetch(`${CEM_API}?${params.toString()}`);
                     if (!res.ok) return [];
                     const arr = await res.json();
@@ -573,10 +637,11 @@ function renderFilterControls() {
             // If Area is selected and Cemetery input is empty → show full list for that Area
             async function showCemeteriesForSelectedAreaIfEmpty() {
                 const area = (filterState.area || '').trim();
+                const areaId = (filterState.areaId || '').trim();
                 const val = cemInput.value.trim();
 
-                // If no area or user already typed something, just show the existing list (if any)
-                if (!area || val) {
+                // If no area/areaId or user already typed something, just show the existing list (if any)
+                if ((!area && !areaId) || val) {
                     if (suggestions.children.length) suggestions.style.display = 'block';
                     return;
                 }
@@ -584,7 +649,7 @@ function renderFilterControls() {
                 suggestions.innerHTML = '<li class="loading">Завантаження…</li>';
                 suggestions.style.display = 'block';
 
-                const items = await fetchCemeteriesForArea(area);
+                const items = await fetchCemeteriesForArea(area, areaId);
                 suggestions.innerHTML = items.length
                     ? items.map(c =>
                         `<li class="sugg-item" data-name="${(c.name || '').replace(/"/g, '&quot;')}" data-area="${(c.area || '').replace(/"/g, '&quot;')}"><span class="cem-name">${c.name}</span></li>`
@@ -618,11 +683,14 @@ function renderFilterControls() {
 
                     // b) Fetch cemetery suggestions
                     try {
-                        const params = new URLSearchParams({
-                            search: cemInput.value,
-                            area: filterState.area || ''
-                        });
-                        const res = await fetch(`${CEM_API}?${params}`);
+                        const params = new URLSearchParams();
+                        params.set('search', cemInput.value);
+                        if (filterState.areaId) {
+                            params.set('areaId', filterState.areaId);
+                        } else if (filterState.area) {
+                            params.set('area', filterState.area);
+                        }
+                        const res = await fetch(`${CEM_API}?${params.toString()}`);
                         const items = await res.json();
 
                         // c) Populate the <ul>
@@ -638,20 +706,23 @@ function renderFilterControls() {
 
                         // d) If exact match, lock it in
                         if (isExact) {
-                            filterState.cemetery = match.name;
+                            const matchName = match.name;
+                            const matchArea = match.area;
+
+                            filterState.cemetery = matchName;
                             if (!filterState.area) {
-                                filterState.area = match.area;
+                                filterState.area = matchArea;
                                 // ще й оновити input area, якщо він є
                                 const areaInputEl = document.getElementById('area');
                                 const clearAreaBtn = document.getElementById('clear-area');
-                                if (areaInputEl) areaInputEl.value = match.area;
+                                if (areaInputEl) areaInputEl.value = matchArea;
                                 if (clearAreaBtn) clearAreaBtn.style.display = 'flex';
                             }
 
                             // update tabs & header
-                            cemTab.textContent = cemeteryName;
-                            areaTab.textContent = parts[0] || areaTab.textContent;
-                            headerEl.textContent = cemeteryName;
+                            cemTab.textContent = matchName;
+                            areaTab.textContent = (filterState.area ? filterState.area.split(',')[0].trim() : areaTab.textContent);
+                            headerEl.textContent = matchName;
                             clearCem.style.display = 'flex';
 
                             // re-render people list with new area filter
@@ -672,21 +743,23 @@ function renderFilterControls() {
                 if (!li || li.classList.contains('no-results')) return;
 
                 // 1) оновити інпут і стани
-                cemInput.value = li.textContent;
-                filterState.cemetery = li.textContent;
+                const cemeteryName = li.dataset.name || li.textContent;
+                const areaLabel = li.dataset.area || '';
+                cemInput.value = cemeteryName;
+                filterState.cemetery = cemeteryName;
 
-                if (!filterState.area) {
-                    filterState.area = li.dataset.area;
+                if (!filterState.area && areaLabel) {
+                    filterState.area = areaLabel;
                     const areaInputEl = document.getElementById('area');
                     const clearAreaBtn = document.getElementById('clear-area');
-                    if (areaInputEl) areaInputEl.value = li.dataset.area;
+                    if (areaInputEl) areaInputEl.value = areaLabel;
                     if (clearAreaBtn) clearAreaBtn.style.display = 'flex';
                 }
 
                 // 2) ОНОВИТИ ТАБИ та clear-кнопку негайно
-                cemTab.textContent = li.textContent;
+                cemTab.textContent = cemeteryName;
                 areaTab.textContent = (filterState.area ? filterState.area.split(',')[0].trim() : 'Населений пункт');
-                headerEl.textContent = li.textContent;
+                headerEl.textContent = cemeteryName;
                 clearCem.style.display = 'flex';
 
                 // 3) закрити дропдаун, зняти фокус, перерендерити список
@@ -724,6 +797,7 @@ async function fetchAndRender() {
     if (filterState.search) params.set('search', filterState.search);
     if (filterState.birthYear) params.set('birthYear', filterState.birthYear);
     if (filterState.deathYear) params.set('deathYear', filterState.deathYear);
+    if (filterState.areaId) params.set('areaId', filterState.areaId);
     if (filterState.area) params.set('area', filterState.area);
     if (filterState.cemetery) params.set('cemetery', filterState.cemetery);
 
@@ -736,6 +810,11 @@ async function fetchAndRender() {
         let listToShow = people;
         if (filterState.notableOnly) {
             listToShow = listToShow.filter(p => p.notable);
+        }
+
+        const nameQuery = (filterState.search || '').trim();
+        if (nameQuery) {
+            listToShow = listToShow.filter(p => matchesNamePrefix(p.name, nameQuery));
         }
 
         // update the counter

@@ -59,35 +59,55 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ---- Scroll lock helpers ----
+    const __isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     let __scrollLockCount = 0;
 
     function lockScroll() {
         if (__scrollLockCount++ > 0) return; // вже залочено (підтримка вкладених модалок)
         const y = window.scrollY || document.documentElement.scrollTop || 0;
         document.body.dataset.lockScrollY = String(y);
-        Object.assign(document.body.style, {
-            position: 'fixed',
-            top: `-${y}px`,
-            left: '0',
-            right: '0',
-            width: '100%',
-            overscrollBehavior: 'contain', // iOS/Android: не віддавати скрол вище
-        });
+
+        if (__isIOS) {
+            // iOS Safari: avoid body position:fixed to prevent font/zoom glitches on rotation
+            Object.assign(document.body.style, {
+                overflow: 'hidden',
+                overscrollBehavior: 'contain',
+            });
+        } else {
+            Object.assign(document.body.style, {
+                position: 'fixed',
+                top: `-${y}px`,
+                left: '0',
+                right: '0',
+                width: '100%',
+                overscrollBehavior: 'contain', // iOS/Android: не віддавати скрол вище
+            });
+        }
     }
 
     function unlockScroll() {
         if (--__scrollLockCount > 0) return; // ще є активні модалки
         const y = parseInt(document.body.dataset.lockScrollY || '0', 10);
-        Object.assign(document.body.style, {
-            position: '',
-            top: '',
-            left: '',
-            right: '',
-            width: '',
-            overscrollBehavior: '',
-        });
+
+        if (__isIOS) {
+            Object.assign(document.body.style, {
+                overflow: '',
+                overscrollBehavior: '',
+            });
+        } else {
+            Object.assign(document.body.style, {
+                position: '',
+                top: '',
+                left: '',
+                right: '',
+                width: '',
+                overscrollBehavior: '',
+            });
+            window.scrollTo(0, y);
+        }
+
         delete document.body.dataset.lockScrollY;
-        window.scrollTo(0, y);
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -1715,8 +1735,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function openMediaSlideshow(startIndex = 0) {
         if (!Array.isArray(photos) || !photos.length) return;
 
-        const mediaEntries = (photos || [])
-            .map((item, idx) => ({ idx, media: normalizeMediaItem(item) }))
+        // Build slideshow entries in the same visual order
+        // as the profile-photos grid (which renders in reverse).
+        const order = (photos || []).map((_, i) => i).slice().reverse();
+        const mediaEntries = order
+            .map((idx) => ({ idx, media: normalizeMediaItem(photos[idx]) }))
             .filter(entry => entry.media);
         if (!mediaEntries.length) return;
 
@@ -3402,6 +3425,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Liturgy Section (unchanged visual behavior, minor robustness)
     // ─────────────────────────────────────────────────────────────────────────────
+    const churchActiveDaysCache = {};
+    let currentActiveWeekdays = null; // null/empty → no restriction (all days active)
+
     function generateDates() {
         const dateCalendar = document.querySelector('.date-calendar');
         const selectedDateEl = document.querySelector('.selected-date');
@@ -3470,6 +3496,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update details immediately
         updateLiturgyDetails();
         setTimeout(updateLiturgyDetails, 100);
+
+        // Apply active-days logic for currently selected church (if any)
+        applyChurchActiveDaysToCalendar();
     }
 
     generateDates();
@@ -3487,25 +3516,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Extend existing date-item click handler:
     document.addEventListener('click', (e) => {
-        if (e.target.closest('.date-item')) {
-            const clickedItem = e.target.closest('.date-item');
-            const selectedDateEl = document.querySelector('.selected-date');
-            document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
-            clickedItem.classList.add('selected');
+        const clickedItem = e.target.closest('.date-item');
+        if (!clickedItem || clickedItem.classList.contains('date-item--inactive')) return;
 
-            const day = parseInt(clickedItem.dataset.day, 10);
-            const month = parseInt(clickedItem.dataset.month, 10);
-            const year = parseInt(clickedItem.dataset.year, 10);
+        const selectedDateEl = document.querySelector('.selected-date');
+        document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
+        clickedItem.classList.add('selected');
 
-            const formattedDate = `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
-            if (selectedDateEl) selectedDateEl.textContent = formattedDate;
-            updateLiturgyDetails();
+        const day = parseInt(clickedItem.dataset.day, 10);
+        const month = parseInt(clickedItem.dataset.month, 10);
+        const year = parseInt(clickedItem.dataset.year, 10);
 
-            // NEW: effects & history
-            const iso = toISOFromParts(year, month, day);
-            applyDateSelectionEffects(iso);
-            renderLiturgyDetailsStrip(iso);
-        }
+        const formattedDate = `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
+        if (selectedDateEl) selectedDateEl.textContent = formattedDate;
+        updateLiturgyDetails();
+
+        // NEW: effects & history
+        const iso = toISOFromParts(year, month, day);
+        applyDateSelectionEffects(iso);
+        renderLiturgyDetailsStrip(iso);
     });
 
     async function loadLiturgies() {
@@ -3648,21 +3677,100 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.addEventListener('click', (e) => {
-        if (e.target.closest('.date-item')) {
-            const clickedItem = e.target.closest('.date-item');
+        const clickedItem = e.target.closest('.date-item');
+        if (!clickedItem || clickedItem.classList.contains('date-item--inactive')) return;
+
+        const selectedDateEl = document.querySelector('.selected-date');
+        document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
+        clickedItem.classList.add('selected');
+
+        const day = parseInt(clickedItem.dataset.day);
+        const month = parseInt(clickedItem.dataset.month);
+        const year = parseInt(clickedItem.dataset.year);
+
+        const formattedDate = `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
+        if (selectedDateEl) selectedDateEl.textContent = formattedDate;
+        updateLiturgyDetails();
+    });
+
+    async function loadChurchActiveDays(churchName) {
+        if (!churchName) {
+            currentActiveWeekdays = null;
+            applyChurchActiveDaysToCalendar();
+            return;
+        }
+
+        if (churchActiveDaysCache[churchName]) {
+            currentActiveWeekdays = churchActiveDaysCache[churchName];
+            applyChurchActiveDaysToCalendar();
+            return;
+        }
+
+        try {
+            const res = await fetch(
+                `${API_URL}/api/liturgy/church-active-days?churchName=${encodeURIComponent(churchName)}`
+            );
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            let days = Array.isArray(data.activeWeekdays) ? data.activeWeekdays : [];
+            days = days
+                .map((v) => (typeof v === 'number' ? v : parseInt(v, 10)))
+                .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
+            churchActiveDaysCache[churchName] = days;
+            currentActiveWeekdays = days.length ? days : null;
+        } catch (e) {
+            console.error('Failed to load church active weekdays:', e);
+            currentActiveWeekdays = null;
+        }
+
+        applyChurchActiveDaysToCalendar();
+    }
+
+    function applyChurchActiveDaysToCalendar() {
+        const dateCalendar = document.querySelector('.date-calendar');
+        if (!dateCalendar) return;
+
+        const items = Array.from(dateCalendar.querySelectorAll('.date-item'));
+        if (!items.length) return;
+
+        const days = currentActiveWeekdays;
+        if (!days || !days.length) {
+            items.forEach((item) => {
+                item.classList.remove('date-item--inactive');
+                item.removeAttribute('aria-disabled');
+            });
+            return;
+        }
+
+        const allowed = new Set(days);
+
+        items.forEach((item) => {
+            const year = Number(item.dataset.year);
+            const month = Number(item.dataset.month);
+            const day = Number(item.dataset.day);
+            if (!year || !month || !day) return;
+
+            const jsDate = new Date(year, month - 1, day);
+            const weekday = jsDate.getDay();
+            const isActive = allowed.has(weekday);
+
+            if (!isActive) {
+                item.classList.add('date-item--inactive');
+                item.setAttribute('aria-disabled', 'true');
+                item.classList.remove('selected');
+            } else {
+                item.classList.remove('date-item--inactive');
+                item.removeAttribute('aria-disabled');
+            }
+        });
+
+        const stillSelected = dateCalendar.querySelector('.date-item.selected');
+        if (!stillSelected) {
             const selectedDateEl = document.querySelector('.selected-date');
-            document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
-            clickedItem.classList.add('selected');
-
-            const day = parseInt(clickedItem.dataset.day);
-            const month = parseInt(clickedItem.dataset.month);
-            const year = parseInt(clickedItem.dataset.year);
-
-            const formattedDate = `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
-            if (selectedDateEl) selectedDateEl.textContent = formattedDate;
+            if (selectedDateEl) selectedDateEl.textContent = '';
             updateLiturgyDetails();
         }
-    });
+    }
 
     function updateLiturgyDetails() {
         const detailsBox = document.querySelector('.profile-liturgy .liturgy-details');
@@ -3699,8 +3807,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const churchBtns = document.querySelectorAll('.church-btn');
     churchBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            const wasSelected = btn.classList.contains('selected');
             churchBtns.forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
+            if (!wasSelected) {
+                btn.classList.add('selected');
+                const name = btn.textContent.trim();
+                loadChurchActiveDays(name);
+            }
             updateLiturgyDetails();
         });
     });
@@ -3734,6 +3847,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const dateISO = toISOFromUA(selectedDateText);
                 if (!dateISO) return alert('Невірний формат дати');
+
+                // Validate weekday against active schedule (if configured)
+                if (currentActiveWeekdays && currentActiveWeekdays.length) {
+                    const dt = new Date(`${dateISO}T00:00:00`);
+                    const weekday = dt.getDay(); // 0..6
+                    if (!currentActiveWeekdays.includes(weekday)) {
+                        alert('На цю дату в обраній церкві немає богослужінь. Оберіть інший день.');
+                        return;
+                    }
+                }
 
                 const churchName = selectedChurchEl.textContent.trim();
 
@@ -3922,6 +4045,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const birthInput = document.getElementById('relBirthYear');
         const deathInput = document.getElementById('relDeathYear');
         const areaInput = document.getElementById('relArea');
+        const nameClear = document.getElementById('relNameClear');
 
         // Area clear button (support either id)
         const areaClear = document.getElementById('clear-relArea') || document.getElementById('relAreaClear');
@@ -3951,6 +4075,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedCountRow =
             (selCountEl && selCountEl.closest('.modal-subtitle')) || (selCountEl && selCountEl.parentElement);
 
+        function matchesNamePrefix(name, query) {
+            if (!query) return true;
+            if (!name) return false;
+            const q = query.trim().toLowerCase();
+            if (!q) return true;
+            const parts = name.toLowerCase().trim().split(/\s+/).filter(Boolean);
+            return parts.some(part => part.startsWith(q));
+        }
+
         const debounce = (fn, ms = 300) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
         const relReturnKey = (id) => `relModalReturn:${id}`;
@@ -3958,6 +4091,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let selected = [];         // [{id, name, birthYear, deathYear, avatarUrl}]
         let selectedBirth = birthInput.value ? Number(birthInput.value) : undefined;
         let selectedDeath = deathInput.value ? Number(deathInput.value) : undefined;
+        let yearsPanelBackup = null;
+        let relAreaId = '';
 
         // ───────────────── Years picker (drum)
         const YEAR_START = 1850;
@@ -3982,17 +4117,51 @@ document.addEventListener('DOMContentLoaded', () => {
         populateYearList(birthList, 'Від');
         populateYearList(deathList, 'До');
 
+        const formatYearsDisplayText = () => {
+            if (selectedBirth && selectedDeath) {
+                return `${selectedBirth} – ${selectedDeath}`;
+            }
+            if (selectedBirth) {
+                return `${selectedBirth} –`;
+            }
+            if (selectedDeath) {
+                return `– ${selectedDeath}`;
+            }
+            return 'Роки життя';
+        };
+
         const updateYearsDisplay = () => {
-            const hasAny = !!(selectedBirth || selectedDeath);
-            const text = hasAny
-                ? `${selectedBirth ?? ''}${(selectedBirth && selectedDeath) ? ' – ' : ''}${selectedDeath ?? ''}`
-                : 'Роки життя';
+            const hasAny = Boolean(selectedBirth || selectedDeath);
+            const text = formatYearsDisplayText();
             display.textContent = text;
             display.classList.toggle('has-value', hasAny);
             clearYears.hidden = !hasAny;
             birthInput.value = selectedBirth ?? '';
             deathInput.value = selectedDeath ?? '';
         };
+
+        function storeYearsPanelState() {
+            yearsPanelBackup = {
+                birthValue: birthWheel?.getValue() || birthInput.value || '',
+                deathValue: deathWheel?.getValue() || deathInput.value || '',
+                selectedBirth,
+                selectedDeath
+            };
+        }
+
+        function restoreYearsPanelState() {
+            if (!yearsPanelBackup) return;
+            selectedBirth = yearsPanelBackup.selectedBirth;
+            selectedDeath = yearsPanelBackup.selectedDeath;
+            if (birthWheel) {
+                birthWheel.setValue(yearsPanelBackup.birthValue || '', { silent: true, behavior: 'auto' });
+            }
+            if (deathWheel) {
+                deathWheel.setValue(yearsPanelBackup.deathValue || '', { silent: true, behavior: 'auto' });
+            }
+            updateYearsDisplay();
+            yearsPanelBackup = null;
+        }
 
         const enforceRelChronology = (source = 'birth', behavior = 'smooth') => {
             const birthYear = selectedBirth ? Number(selectedBirth) : undefined;
@@ -4066,12 +4235,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Toggle panel on pill click
         pill.addEventListener('click', (e) => {
             e.stopPropagation();
+            const willOpen = panel.hidden;
             panel.hidden = !panel.hidden;
-            if (!panel.hidden) {
+            if (willOpen) {
+                storeYearsPanelState();
                 const hasBirth = !!birthWheel.getValue();
                 const hasDeath = !!deathWheel.getValue();
                 if (!hasBirth) birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
                 if (!hasDeath) deathWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
+            } else {
+                restoreYearsPanelState();
             }
         });
 
@@ -4088,6 +4261,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // CLOSE ONLY on Done button click
             panel.hidden = true;
+            yearsPanelBackup = null;
             triggerFetch();
         });
 
@@ -4117,6 +4291,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 5) re-fetch results
             triggerFetch();
+            yearsPanelBackup = null;
         });
 
         // Prevent closing panel when clicking inside it
@@ -4126,19 +4301,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Close panel if clicking outside of it
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('#relYearsPill')) {
+            if (!panel.hidden && !e.target.closest('#relYearsPill') && !e.target.closest('#relYearsPanel')) {
+                restoreYearsPanelState();
                 panel.hidden = true;
             }
         });
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                panel.hidden = true;
+                if (!panel.hidden) {
+                    restoreYearsPanelState();
+                    panel.hidden = true;
+                }
             }
         });
 
         // ───────────────── Area suggestions (keep as before) + clear button visibility
         const areaSug = document.getElementById('relAreaSuggestions');
+        const relCemSug = document.getElementById('relCemeterySuggestions');
+
+        (function autoHideRelSuggestions() {
+            const handler = (e) => {
+                const target = e.target;
+                if (!target) return;
+                if (areaInput && (target === areaInput || areaSug?.contains(target))) return;
+                if (cemInput && (target === cemInput || relCemSug?.contains(target))) return;
+                if (areaSug) areaSug.style.display = 'none';
+                if (relCemSug) relCemSug.classList.remove('show');
+            };
+            document.addEventListener('focusin', handler);
+        })();
+        function updateRelNameClearBtn() {
+            if (!nameClear || !nameInput) return;
+            nameClear.style.display = nameInput.value.trim() ? 'inline-flex' : 'none';
+        }
+        nameInput?.addEventListener('input', () => updateRelNameClearBtn());
+        nameClear?.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!nameInput) return;
+            nameInput.value = '';
+            updateRelNameClearBtn();
+            nameInput.focus();
+        });
+        updateRelNameClearBtn();
 
         function updateAreaClearBtn() {
             if (!areaClear) return;
@@ -4151,9 +4356,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const q = areaInput.value.trim();
                 if (!q) { areaSug.innerHTML = ''; areaSug.style.display = 'none'; updateAreaClearBtn(); return; }
                 const res = await fetch(`${API_URL}/api/locations?search=${encodeURIComponent(q)}`);
-                const arr = await res.json();
-                areaSug.innerHTML = arr.length ? arr.map(x => `<li style="text-align: left">${x}</li>`).join('') :
-                    '<li class="no-results">Збігів не знайдено</li>';
+                const items = await res.json();
+                const list = Array.isArray(items) ? items : [];
+                areaSug.innerHTML = list.length
+                    ? list.map(item => {
+                        const display = (item.display ?? '').toString();
+                        const safe = display.replace(/"/g, '&quot;');
+                        return `<li style="text-align: left" data-area-id="${(item.id ?? '').toString()}">${safe}</li>`;
+                    }).join('')
+                    : '<li class="no-results">Збігів не знайдено</li>';
                 areaSug.style.display = 'block';
                 updateAreaClearBtn();
             }, 300);
@@ -4161,8 +4372,15 @@ document.addEventListener('DOMContentLoaded', () => {
             areaInput.addEventListener('input', () => { run(); /* do not fetch people yet */ updateAreaClearBtn(); });
 
             areaSug.addEventListener('click', (e) => {
-                if (e.target.tagName !== 'LI') return;
-                areaInput.value = e.target.textContent;
+                const li = e.target.closest('li');
+                if (!li || li.classList.contains('no-results')) return;
+
+                const areaNameFull = li.textContent.trim();
+                const rawAreaId = li.dataset.areaId || '';
+                const areaId = rawAreaId && rawAreaId !== 'undefined' ? rawAreaId : '';
+
+                areaInput.value = areaNameFull;
+                relAreaId = areaId;
                 areaSug.style.display = 'none';
                 updateAreaClearBtn();
 
@@ -4182,6 +4400,7 @@ document.addEventListener('DOMContentLoaded', () => {
         areaClear?.addEventListener('click', (e) => {
             e.preventDefault();
             areaInput.value = '';
+            relAreaId = '';
             areaSug.style.display = 'none';
             updateAreaClearBtn();
 
@@ -4199,7 +4418,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const fetchRelCemeteries = async () => {
             const q = cemInput.value.trim();
             const area = areaInput.value.trim();
-            const allowEmptyQuery = Boolean(area);
+            const allowEmptyQuery = Boolean(relAreaId || area);
 
             if (!allowEmptyQuery && q.length === 0) {
                 cemSugList.classList.remove('show');
@@ -4208,7 +4427,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const params = new URLSearchParams();
             if (q) params.set('search', q);
-            if (area) params.set('area', area);
+            if (relAreaId) {
+                params.set('areaId', relAreaId);
+            } else if (area) {
+                params.set('area', area);
+            }
 
             try {
                 const res = await fetch(`${API_URL}/api/cemeteries?${params.toString()}`);
@@ -4263,6 +4486,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 filters: {
                     search: nameInput?.value?.trim() || '',
                     area: areaInput?.value?.trim() || '',
+                    areaId: relAreaId || '',
                     cemetery: cemInput?.value?.trim() || '',
                     birthYear: birthInput?.value?.trim() || '',
                     deathYear: deathInput?.value?.trim() || ''
@@ -4324,6 +4548,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const dy = (deathInput.value || '').trim();
 
             if (nm) p.set('search', nm);
+            if (relAreaId) p.set('areaId', relAreaId);
             if (ar) p.set('area', ar);
             if (cm) p.set('cemetery', cm);
             if (by) p.set('birthYear', by);
@@ -4336,8 +4561,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Exclude already selected and (optionally) the current person
             const selectedIdSet = new Set(selected.map(s => String(s.id)));
-            const list = raw
+            let list = raw
                 .filter(x => String(x.id) !== String(personId));
+
+            if (nm) {
+                list = list.filter(p => matchesNamePrefix(p.name, nm));
+            }
 
             // Render
             foundList.innerHTML = list.map(p => {
@@ -4458,8 +4687,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    const currentlyOpen = ul.classList.contains('show');
                     closeAllRelRoleLists();
-                    ul.classList.toggle('show');
+                    if (!currentlyOpen) {
+                        ul.classList.add('show');
+                    }
                 });
 
                 // Pick
@@ -4531,6 +4763,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 2) Restore filters
                 if (nameInput && saved.filters?.search) nameInput.value = saved.filters.search;
                 if (areaInput && saved.filters?.area) areaInput.value = saved.filters.area;
+                relAreaId = saved.filters?.areaId || '';
                 if (cemInput && saved.filters?.cemetery) cemInput.value = saved.filters.cemetery;
                 if (birthInput && saved.filters?.birthYear) birthInput.value = saved.filters.birthYear;
                 if (deathInput && saved.filters?.deathYear) deathInput.value = saved.filters.deathYear;
@@ -4572,6 +4805,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // reset fields
                 nameInput.value = '';
                 areaInput.value = '';
+                relAreaId = '';
                 cemInput.value = '';
                 cemSugList.classList.remove('show');
 

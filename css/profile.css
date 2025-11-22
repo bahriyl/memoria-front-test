@@ -9,6 +9,7 @@ body {
     margin: 0;
     padding: 0;
     background-color: #F7F7F7;
+    -webkit-text-size-adjust: 100%;
 }
 
 /* Hide page scrollbar but keep scrolling */
@@ -87,6 +88,11 @@ body::-webkit-scrollbar {
     font-size: 15px;
     color: #1C170D;
     font-weight: 480;
+}
+
+.profile-cemetery {
+    color: #156E46;
+    text-decoration: underline;
 }
 
 /* ─── Location CTA ─── */
@@ -688,6 +694,16 @@ body::-webkit-scrollbar {
     cursor: pointer;
     transition: all .2s;
     scroll-snap-align: start;
+}
+
+.date-item.date-item--inactive {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.date-item.date-item--inactive .date-number,
+.date-item.date-item--inactive .date-day {
+    color: #9CA3AF;
 }
 
 .date-item.selected {
@@ -1580,7 +1596,6 @@ body::-webkit-scrollbar {
     font-size: 14px;
     font-weight: 420;
     line-height: 1.4;
-    margin-bottom: 30px;
 }
 
 .slideshow-caption .caption-text {
@@ -1835,7 +1850,7 @@ body::-webkit-scrollbar {
     font-weight: 460;
     font-family: 'Montserrat', sans-serif;
     color: #222222;
-    background: #EFF2F5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 16px center;
+    /* background: #EFF2F5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 16px center; */
     background-size: 20px 20px;
 }
 
@@ -1904,6 +1919,7 @@ body::-webkit-scrollbar {
 .suggestions-list .no-results {
     color: #72767D;
     cursor: default;
+    margin-top: 16px;
 }
 
 #relCemClear {
@@ -1952,7 +1968,7 @@ body::-webkit-scrollbar {
     height: 21px !important;
     width: auto !important;
     /* smaller */
-    padding: 0 6px;
+    padding: 0 10px;
     /* tighter */
     font-family: 'Montserrat', sans-serif;
     font-size: 10px;

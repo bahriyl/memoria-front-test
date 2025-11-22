@@ -57,6 +57,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const birthSelect = document.getElementById('birthYearFilter');
     const deathSelect = document.getElementById('deathYearFilter');
 
+    function matchesNamePrefix(name, query) {
+        if (!query) return true;
+        if (!name) return false;
+        const q = query.trim().toLowerCase();
+        if (!q) return true;
+        const parts = name.toLowerCase().trim().split(/\s+/).filter(Boolean);
+        return parts.some(part => part.startsWith(q));
+    }
+
     // 0) Hide the two select pills (we'll keep their values in sync for fetchPeople)
     if (birthSelect) birthSelect.closest('.year-pill').style.display = 'none';
     if (deathSelect) deathSelect.closest('.year-pill').style.display = 'none';
@@ -107,28 +116,50 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3) Selections (initialize from selects if they already have values)
     let selectedBirth = birthSelect && birthSelect.value ? Number(birthSelect.value) : undefined;
     let selectedDeath = deathSelect && deathSelect.value ? Number(deathSelect.value) : undefined;
+    let yearsPanelBackup = null;
+
+    const formatYearsText = () => {
+        if (selectedBirth && selectedDeath) {
+            return `${selectedBirth} – ${selectedDeath}`;
+        }
+        if (selectedBirth) {
+            return `${selectedBirth} –`;
+        }
+        if (selectedDeath) {
+            return `– ${selectedDeath}`;
+        }
+        return 'Роки життя';
+    };
 
     const updateDisplay = () => {
-        let text = 'Роки життя';
-
-        if (selectedBirth && !selectedDeath) {
-            text = `${selectedBirth} – `;
-        } else if (!selectedBirth && selectedDeath) {
-            text = ` – ${selectedDeath}`;
-        } else if (selectedBirth && selectedDeath) {
-            text = `${selectedBirth} – ${selectedDeath}`;
-        }
-
-        const hasAny = !!(selectedBirth || selectedDeath);
-
+        const text = formatYearsText();
+        const hasAny = Boolean(selectedBirth || selectedDeath);
         display.textContent = text;
         display.classList.toggle('has-value', hasAny);
         picker.classList.toggle('has-value', hasAny);
         clearBtn.hidden = !hasAny;
-
         if (birthSelect) birthSelect.value = selectedBirth ?? '';
         if (deathSelect) deathSelect.value = selectedDeath ?? '';
     };
+
+    function storeYearsState() {
+        yearsPanelBackup = {
+            birthValue: birthWheel.getValue(),
+            deathValue: deathWheel.getValue(),
+            selectedBirth,
+            selectedDeath
+        };
+    }
+
+    function restoreYearsState() {
+        if (!yearsPanelBackup) return;
+        selectedBirth = yearsPanelBackup.selectedBirth;
+        selectedDeath = yearsPanelBackup.selectedDeath;
+        birthWheel.setValue(yearsPanelBackup.birthValue || '', { silent: true, behavior: 'auto' });
+        deathWheel.setValue(yearsPanelBackup.deathValue || '', { silent: true, behavior: 'auto' });
+        updateDisplay();
+        yearsPanelBackup = null;
+    }
 
     const enforceChronology = (source = 'birth', behavior = 'smooth') => {
         if (!selectedBirth || !selectedDeath) return false;
@@ -225,14 +256,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 6) Interactions
     display.addEventListener('click', () => {
+        const willOpen = panel.hidden;
         panel.hidden = !panel.hidden;
-
         const submitBtn = document.querySelector('.submit-btn');
         if (submitBtn) {
             submitBtn.style.display = panel.hidden ? 'block' : 'none';
         }
-
-        if (!panel.hidden) {
+        if (willOpen) {
+            storeYearsState();
             const hasBirth = !!birthWheel.getValue();
             const hasDeath = !!deathWheel.getValue();
             if (!hasBirth) birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
@@ -240,26 +271,28 @@ document.addEventListener('DOMContentLoaded', () => {
             applyDeathConstraints();
             birthWheel.snap({ behavior: 'auto', silent: true });
             deathWheel.snap({ behavior: 'auto', silent: true });
+        } else {
+            restoreYearsState();
         }
     });
 
     panel.addEventListener('click', e => e.stopPropagation());
-    document.addEventListener('click', e => {
-        if (!picker.contains(e.target)) {
-            panel.hidden = true;
-
-            const submitBtn = document.querySelector('.submit-btn');
-            if (submitBtn) submitBtn.style.display = 'block';
-        }
-    });
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') {
-            panel.hidden = true;
-
-            const submitBtn = document.querySelector('.submit-btn');
-            if (submitBtn) submitBtn.style.display = 'block';
-        }
-    });
+    const closePanel = (e) => {
+        if (panel.hidden || picker.contains(e.target)) return;
+        panel.hidden = true;
+        restoreYearsState();
+        const submitBtn = document.querySelector('.submit-btn');
+        if (submitBtn) submitBtn.style.display = 'block';
+    };
+    document.addEventListener('click', closePanel);
+    const closePanelEsc = (e) => {
+        if (panel.hidden || e.key !== 'Escape') return;
+        panel.hidden = true;
+        restoreYearsState();
+        const submitBtn = document.querySelector('.submit-btn');
+        if (submitBtn) submitBtn.style.display = 'block';
+    };
+    document.addEventListener('keydown', closePanelEsc);
 
     doneBtn.addEventListener('click', () => {
         const birthValue = birthWheel.getValue();
@@ -273,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateDisplay();
         panel.hidden = true;
+        yearsPanelBackup = null;
 
         const submitBtn = document.querySelector('.submit-btn');
         if (submitBtn) submitBtn.style.display = 'block';
@@ -290,6 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
         deathWheel.snap({ behavior: 'auto', silent: true });
         applyDeathConstraints();
         updateDisplay();
+        yearsPanelBackup = null;
         triggerFetch();
     });
 
@@ -305,9 +340,28 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const res = await fetch(`${API_URL}/api/${endpoint}?search=${encodeURIComponent(q)}`);
                 const arr = await res.json();
-                listEl.innerHTML = arr.length
-                    ? arr.map(x => `<li>${x}</li>`).join('')
-                    : `<li class="no-results">Збігів не знайдено</li>`;
+                const items = Array.isArray(arr) ? arr : [];
+
+                if (!items.length) {
+                    listEl.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
+                } else if (endpoint === 'locations') {
+                    listEl.innerHTML = items
+                        .map(item => {
+                            const display = (item.display ?? '').toString();
+                            const safe = display.replace(/"/g, '&quot;');
+                            return `<li data-area-id="${(item.id ?? '').toString()}">${safe}</li>`;
+                        })
+                        .join('');
+                } else {
+                    listEl.innerHTML = items
+                        .map(item => {
+                            if (typeof item === 'string') return `<li>${item}</li>`;
+                            const name = (item.name ?? item.display ?? '').toString();
+                            return name ? `<li>${name}</li>` : '';
+                        })
+                        .filter(Boolean)
+                        .join('') || `<li class="no-results">Збігів не знайдено</li>`;
+                }
                 listEl.style.display = 'block';
             } catch (e) {
                 console.error(e);
@@ -414,12 +468,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const res = await fetch(`${API_URL}/api/people?${params}`);
         const data = await res.json();
-        foundLabel.textContent = `Знайдено (${data.total}):`;
+        const nameFilter = nameInput.value.trim();
+        const peopleList = nameFilter
+            ? (data.people || []).filter(p => matchesNamePrefix(p.name, nameFilter))
+            : (data.people || []);
+        foundLabel.textContent = `Знайдено (${peopleList.length}):`;
 
-        if (data.people.length) {
+        if (peopleList.length) {
             noResults.hidden = true;
             foundLabel.hidden = false;
-            foundList.innerHTML = data.people.map(p => `
+            foundList.innerHTML = peopleList.map(p => `
         <li data-id="${p.id}">
           <img src="${p.avatarUrl || 'https://i.ibb.co/ycrfZ29f/Frame-542.png'}" alt="">
           <div class="info">
@@ -433,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.addEventListener('click', () => {
                     const li = btn.closest('li');
                     const id = li.dataset.id;
-                    const person = data.people.find(x => x.id === id);
+                    const person = peopleList.find(x => x.id === id);
                     selectPerson(person);
                 });
             });

@@ -51,28 +51,59 @@ document.addEventListener('DOMContentLoaded', () => {
     const deathInput = document.getElementById('deathYear');
     const clearYearsBtn = document.getElementById('clearYears');
     let selectedBirth, selectedDeath;
+    function matchesNamePrefix(name, query) {
+        if (!query) return true;
+        if (!name) return false;
+        const q = query.trim().toLowerCase();
+        if (!q) return true;
+        const parts = name.toLowerCase().trim().split(/\s+/).filter(Boolean);
+        return parts.some(part => part.startsWith(q));
+    }
+    let yearsPanelBackup = null;
+
+    const formatYearsText = () => {
+        if (selectedBirth && selectedDeath) {
+            return `${selectedBirth} – ${selectedDeath}`;
+        }
+        if (selectedBirth) {
+            return `${selectedBirth} –`;
+        }
+        if (selectedDeath) {
+            return `– ${selectedDeath}`;
+        }
+        return 'Роки життя';
+    };
 
     const updateDisplay = () => {
-        let text = 'Роки життя';
-
-        if (selectedBirth && !selectedDeath) {
-            text = `${selectedBirth} – `;
-        } else if (!selectedBirth && selectedDeath) {
-            text = ` – ${selectedDeath}`;
-        } else if (selectedBirth && selectedDeath) {
-            text = `${selectedBirth} – ${selectedDeath}`;
-        }
-
-        const hasAny = !!(selectedBirth || selectedDeath);
-
+        const text = formatYearsText();
+        const hasAny = Boolean(selectedBirth || selectedDeath);
         display.textContent = text;
         display.classList.toggle('has-value', hasAny);
         picker.classList.toggle('has-value', hasAny);
         clearYearsBtn.hidden = !hasAny;
-
         if (birthInput) birthInput.value = selectedBirth ?? '';
         if (deathInput) deathInput.value = selectedDeath ?? '';
     };
+
+    function storeYearsState() {
+        if (!birthWheel || !deathWheel) return;
+        yearsPanelBackup = {
+            birthValue: birthWheel.getValue(),
+            deathValue: deathWheel.getValue(),
+            selectedBirth,
+            selectedDeath
+        };
+    }
+
+    function restoreYearsState() {
+        if (!yearsPanelBackup || !birthWheel || !deathWheel) return;
+        selectedBirth = yearsPanelBackup.selectedBirth;
+        selectedDeath = yearsPanelBackup.selectedDeath;
+        birthWheel.setValue(yearsPanelBackup.birthValue || '', { silent: true, behavior: 'auto' });
+        deathWheel.setValue(yearsPanelBackup.deathValue || '', { silent: true, behavior: 'auto' });
+        updateDisplay();
+        yearsPanelBackup = null;
+    }
 
     const enforceChronology = (source = 'birth', behavior = 'smooth') => {
         const birthYear = selectedBirth;
@@ -99,8 +130,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (display) {
         display.addEventListener('click', () => {
             if (!panel) return;
+            const willOpen = panel.hidden;
             panel.hidden = !panel.hidden;
-            if (!panel.hidden) {
+            if (willOpen) {
+                storeYearsState();
                 const hasBirth = !!birthWheel.getValue();
                 const hasDeath = !!deathWheel.getValue();
                 if (!hasBirth) birthWheel.clear({ silent: true, keepActive: true, behavior: 'auto' });
@@ -108,6 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 applyDeathConstraints();
                 birthWheel.snap({ behavior: 'auto', silent: true });
                 deathWheel.snap({ behavior: 'auto', silent: true });
+            } else {
+                restoreYearsState();
             }
         });
     }
@@ -118,17 +153,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    document.addEventListener('click', (e) => {
-        if (panel && !picker.contains(e.target)) {
-            panel.hidden = true;
-        }
-    });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && panel && !panel.hidden) {
-            panel.hidden = true;
-        }
-    });
+    const closePanelFromDoc = (e) => {
+        if (!panel || panel.hidden) return;
+        if (picker.contains(e.target)) return;
+        panel.hidden = true;
+        restoreYearsState();
+    };
+    document.addEventListener('click', closePanelFromDoc);
+    const closePanelFromEsc = (e) => {
+        if (!panel || panel.hidden || e.key !== 'Escape') return;
+        panel.hidden = true;
+        restoreYearsState();
+    };
+    document.addEventListener('keydown', closePanelFromEsc);
 
     //
     // 1) DELIVERY DETAILS MODAL SETUP
@@ -407,11 +444,29 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const res = await fetch(`${API_URL}/api/${endpoint}?search=${encodeURIComponent(q)}`);
                 const arr = await res.json();
+                const items = Array.isArray(arr) ? arr : [];
 
-                if (!arr.length) {
+                if (!items.length) {
                     listEl.innerHTML = `<li class="no-results">Збігів не знайдено</li>`;
                 } else {
-                    listEl.innerHTML = arr.map(item => `<li>${item}</li>`).join('');
+                    if (endpoint === 'locations') {
+                        listEl.innerHTML = items
+                            .map(item => {
+                                const display = (item.display ?? '').toString();
+                                const safe = display.replace(/"/g, '&quot;');
+                                return `<li data-area-id="${(item.id ?? '').toString()}">${safe}</li>`;
+                            })
+                            .join('');
+                    } else {
+                        listEl.innerHTML = items
+                            .map(item => {
+                                if (typeof item === 'string') return `<li>${item}</li>`;
+                                const name = (item.name ?? item.display ?? '').toString();
+                                return name ? `<li>${name}</li>` : '';
+                            })
+                            .filter(Boolean)
+                            .join('') || `<li class="no-results">Збігів не знайдено</li>`;
+                    }
                 }
 
                 listEl.style.display = 'block';
@@ -563,13 +618,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const selectedIdSet = new Set(selectedPersons.map(sel => String(sel.id)));
         const toShow = data.people || [];
+        const nameFilter = nameInput.value.trim();
+        const filteredPeople = nameFilter
+            ? toShow.filter(p => matchesNamePrefix(p.name, nameFilter))
+            : toShow;
 
-        foundLabel.textContent = `Знайдено (${toShow.length}):`;
+        foundLabel.textContent = `Знайдено (${filteredPeople.length}):`;
 
-        if (toShow.length) {
+        if (filteredPeople.length) {
             noResults.hidden = true;
             foundLabel.hidden = false;
-            foundList.innerHTML = toShow.map(p => {
+            foundList.innerHTML = filteredPeople.map(p => {
                 const idStr = String(p.id);
                 const isSelected = selectedIdSet.has(idStr);
                 const liClassAttr = isSelected ? ' class="is-selected"' : '';
@@ -603,7 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', () => {
                 const li = btn.closest('li');
                 const id = li.dataset.id;
-                const person = data.people.find(x => String(x.id) === id);
+                const person = filteredPeople.find(x => String(x.id) === id);
                 selectPerson(person);
             });
         });
@@ -694,6 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (panel) panel.hidden = true;
 
         triggerFetch();
+        yearsPanelBackup = null;
     });
 
     clearYearsBtn.addEventListener('click', e => {
@@ -712,6 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveFilters();
 
         triggerFetch();
+        yearsPanelBackup = null;
     });
 
     /*[nameInput, birthInput, deathInput]

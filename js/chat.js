@@ -84,6 +84,7 @@
       const img = document.createElement("img");
       img.src = msg.imageData;
       bubble.append(img);
+      attachChatImagePreview(img, msg.imageData);
     }
 
     // час створення
@@ -121,6 +122,7 @@
       const img = document.createElement("img");
       img.src = imageData;
       bubble.append(img);
+      attachChatImagePreview(img, imageData);
     }
 
     const status = document.createElement("div");
@@ -141,6 +143,56 @@
   // remove all pending bubbles (on server confirm or reload)
   function clearPending() {
     document.querySelectorAll('.bubble.pending').forEach(el => el.remove());
+  }
+
+  function attachChatImagePreview(img, src) {
+    img.classList.add('chat-image-preview');
+    img.addEventListener('click', () => {
+      openChatImageFullscreen(src);
+    });
+  }
+
+  function openChatImageFullscreen(src) {
+    const modal = document.createElement('div');
+    modal.className = 'slideshow-modal chat-slideshow';
+
+    const track = document.createElement('div');
+    track.className = 'slideshow-track';
+
+    const slide = document.createElement('div');
+    slide.className = 'slideshow-slide';
+
+    const img = document.createElement('img');
+    img.className = 'slideshow-img';
+    img.src = src;
+
+    slide.appendChild(img);
+    track.appendChild(slide);
+
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'close-slideshow';
+    closeBtn.textContent = '✕';
+
+    modal.appendChild(track);
+    modal.appendChild(closeBtn);
+    document.body.appendChild(modal);
+
+    const cleanup = () => {
+      document.removeEventListener('keydown', handleEsc);
+      modal.remove();
+    };
+
+    closeBtn.addEventListener('click', cleanup);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        cleanup();
+      }
+    });
+
+    const handleEsc = (ev) => {
+      if (ev.key === 'Escape') cleanup();
+    };
+    document.addEventListener('keydown', handleEsc);
   }
 
   // 4) Load full history

@@ -807,6 +807,7 @@ h2 {
 .suggestions-list .no-results {
     color: var(--color-muted);
     cursor: default;
+    pointer-events: none;
 }
 
 /* 2) Make the topbar stick and push the content down */
