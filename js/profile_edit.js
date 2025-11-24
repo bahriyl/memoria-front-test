@@ -31,6 +31,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function resetLiturgyStripPosition() {
+        const box = document.querySelector('.liturgy-details.is-strip');
+        if (!box) return;
+        box.scrollTo({ left: 0, behavior: 'smooth' });
+        const pager = box.parentElement?.querySelector('.liturgy-pager');
+        if (pager) {
+            const dots = pager.querySelectorAll('.pip');
+            dots.forEach((dot, idx) => dot.classList.toggle('is-active', idx === 0));
+        }
+    }
+
     const personId = params.get('personId');
     if (!personId) return;
 
@@ -108,6 +119,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         delete document.body.dataset.lockScrollY;
+    }
+
+    const lockOverlay = document.getElementById('modal-overlay');
+    if (lockOverlay) {
+        const overlayObserver = new MutationObserver(() => {
+            if (lockOverlay.hidden) {
+                unlockScroll();
+            } else {
+                lockScroll();
+            }
+        });
+        overlayObserver.observe(lockOverlay, { attributes: true, attributeFilter: ['hidden'] });
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -209,6 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const donationOk = document.getElementById('donation-ok');
     const donationCancel = document.getElementById('donation-cancel');
     const donationClose = document.getElementById('donation-close');
+    let overlayPrevHandler = null;
 
     let liturgiesIndex = {}; // { 'YYYY-MM-DD': [ { _id, churchName, price, createdAt, serviceDate } ] }
 
@@ -428,6 +452,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!donationModal || !overlayEl) return;
         donationInput.value = presetValue || '';
         overlayEl.hidden = false;
+        overlayPrevHandler = overlayEl.onclick;
+        overlayEl.onclick = () => closeDonationModal();
         donationModal.hidden = false;
         // focus after paint
         requestAnimationFrame(() => donationInput?.focus());
@@ -435,6 +461,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function closeDonationModal() {
         if (!donationModal || !overlayEl) return;
+        overlayEl.onclick = overlayPrevHandler;
+        overlayPrevHandler = null;
         donationModal.hidden = true;
         overlayEl.hidden = true;
     }
@@ -3254,14 +3282,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const maxH = Math.round(LINES * line);
 
                 // Quick path: fits within 4 lines → no toggle
-                textSpan.textContent = text;
+                function escapeHtml(str) {
+                    return (str || '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/\"/g, '&quot;')
+                        .replace(/'/g, '&#39;')
+                        .replace(/\n/g, '<br>');
+                }
+
+                textSpan.innerHTML = escapeHtml(text);
                 bioContentEl.appendChild(textSpan);
                 if (bioContentEl.clientHeight <= maxH + 1) return;
 
                 // Measure height for "prefix + … + <toggle>"
                 function heightForPrefix(prefixLen) {
                     bioContentEl.innerHTML = '';
-                    textSpan.textContent = text.slice(0, prefixLen).trimEnd() + ' …';
+                    textSpan.innerHTML = escapeHtml(text.slice(0, prefixLen).trimEnd()) + ' …';
                     toggle.textContent = moreLabel;
                     bioContentEl.append(textSpan, nbsp, toggle);
                     return bioContentEl.clientHeight;
@@ -3277,7 +3315,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Final layout: trimmed text + toggle
                 bioContentEl.innerHTML = '';
-                textSpan.textContent = text.slice(0, best).trimEnd() + ' …';
+                textSpan.innerHTML = escapeHtml(text.slice(0, best).trimEnd()) + ' …';
                 toggle.textContent = moreLabel;
                 bioContentEl.append(textSpan, document.createTextNode('\u00A0'), toggle);
 
@@ -3286,7 +3324,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const expand = () => {
                     expanded = true;
                     bioContentEl.innerHTML = '';
-                    textSpan.textContent = text + ' ';
+                    textSpan.innerHTML = escapeHtml(text) + ' ';
                     toggle.textContent = lessLabel;
                     bioContentEl.append(textSpan, toggle);
                 };
@@ -3365,7 +3403,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     cancel.addEventListener('click', () => window.location.reload());
                     done.addEventListener('click', async () => {
-                        const newBio = (document.getElementById('bio-editor')?.value || '').trim();
+                        const newBio = (document.getElementById('bio-editor')?.value || '');
                         try {
                             const up = await fetch(`${API_BASE}/${personId}`, {
                                 method: 'PUT',
@@ -3427,6 +3465,85 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     const churchActiveDaysCache = {};
     let currentActiveWeekdays = null; // null/empty → no restriction (all days active)
+    let unionActiveWeekdays = null;
+    let selectedChurchName = null;
+    let selectedDateWeekday = null;
+    let hasUserPickedDate = false;
+
+    async function ensureChurchDays(churchName) {
+        if (!churchName) return null;
+        if (churchActiveDaysCache[churchName]) return churchActiveDaysCache[churchName];
+
+        try {
+            const res = await fetch(
+                `${API_URL}/api/liturgy/church-active-days?churchName=${encodeURIComponent(churchName)}`
+            );
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            let days = Array.isArray(data.activeWeekdays) ? data.activeWeekdays : [];
+            days = days
+                .map((v) => (typeof v === 'number' ? v : parseInt(v, 10)))
+                .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
+            churchActiveDaysCache[churchName] = days;
+        } catch (e) {
+            console.error('Failed to load church active weekdays:', e);
+            churchActiveDaysCache[churchName] = [];
+        }
+        return churchActiveDaysCache[churchName];
+    }
+
+    function computeUnionActiveWeekdays() {
+        const set = new Set();
+        Object.values(churchActiveDaysCache).forEach((arr) => {
+            if (!Array.isArray(arr)) return;
+            arr.forEach((day) => set.add(day));
+        });
+        return set.size ? Array.from(set) : null;
+    }
+
+    function resetChurchButtonsState() {
+        const churchBtns = document.querySelectorAll('.church-btn');
+        churchBtns.forEach((btn) => {
+            btn.classList.remove('church-btn--inactive');
+            btn.disabled = false;
+        });
+    }
+
+    function updateChurchButtonsForWeekday(weekday) {
+        if (!unionActiveWeekdays || selectedChurchName || weekday === null) {
+            console.log('profile_edit skip update', { unionActiveWeekdays, selectedChurchName, weekday });
+            resetChurchButtonsState();
+            return;
+        }
+        const churchBtns = document.querySelectorAll('.church-btn');
+        churchBtns.forEach((btn) => {
+            const name = btn.textContent.trim();
+            const days = churchActiveDaysCache[name];
+            const allowed = !Array.isArray(days) || days.length === 0 || days.includes(weekday);
+            btn.classList.toggle('church-btn--inactive', !allowed);
+            btn.disabled = !allowed;
+            if (!allowed) {
+                btn.classList.remove('selected');
+            }
+        });
+        console.log('profile_edit update', { weekday, unionActiveWeekdays });
+    }
+
+    async function preloadAllChurchDays() {
+        const churchBtns = document.querySelectorAll('.church-btn');
+        const names = Array.from(churchBtns)
+            .map((btn) => btn.textContent.trim())
+            .filter(Boolean);
+        await Promise.all(names.map((name) => ensureChurchDays(name)));
+        unionActiveWeekdays = computeUnionActiveWeekdays();
+        if (!selectedChurchName) {
+            currentActiveWeekdays = unionActiveWeekdays;
+            applyChurchActiveDaysToCalendar();
+        }
+        if (selectedDateWeekday !== null && !selectedChurchName) {
+            updateChurchButtonsForWeekday(selectedDateWeekday);
+        }
+    }
 
     function generateDates() {
         const dateCalendar = document.querySelector('.date-calendar');
@@ -3518,6 +3635,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (e) => {
         const clickedItem = e.target.closest('.date-item');
         if (!clickedItem || clickedItem.classList.contains('date-item--inactive')) return;
+        hasUserPickedDate = true;
 
         const selectedDateEl = document.querySelector('.selected-date');
         document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
@@ -3661,6 +3779,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function getSelectedISO() {
+        const selectedDateText = document.querySelector('.selected-date')?.textContent?.trim();
+        return selectedDateText ? toISOFromUA(selectedDateText) : '';
+    }
+
     function applyDateSelectionEffects(iso) {
         const submitBtn = document.querySelector('.liturgy-submit');
         const detailsEl = document.querySelector('.liturgy-details, .service-info') || document.querySelector('.service-info');
@@ -3672,6 +3795,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (detailsEl) detailsEl.style.display = isPast ? 'none' : '';
         if (liturgyDonationEl) liturgyDonationEl.style.display = isPast ? 'none' : '';
         if (liturgyChurchEl) liturgyChurchEl.style.display = isPast ? 'none' : '';
+        const weekday = iso ? new Date(`${iso}T00:00:00`).getDay() : null;
+        selectedDateWeekday = hasUserPickedDate ? weekday : null;
+        if (!selectedChurchName && hasUserPickedDate) {
+            updateChurchButtonsForWeekday(weekday);
+        }
 
         renderLiturgyHistoryForISO(iso);
     }
@@ -3695,34 +3823,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadChurchActiveDays(churchName) {
         if (!churchName) {
-            currentActiveWeekdays = null;
+            currentActiveWeekdays = unionActiveWeekdays;
             applyChurchActiveDaysToCalendar();
             return;
         }
 
-        if (churchActiveDaysCache[churchName]) {
-            currentActiveWeekdays = churchActiveDaysCache[churchName];
-            applyChurchActiveDaysToCalendar();
-            return;
-        }
-
-        try {
-            const res = await fetch(
-                `${API_URL}/api/liturgy/church-active-days?churchName=${encodeURIComponent(churchName)}`
-            );
-            if (!res.ok) throw new Error(await res.text());
-            const data = await res.json();
-            let days = Array.isArray(data.activeWeekdays) ? data.activeWeekdays : [];
-            days = days
-                .map((v) => (typeof v === 'number' ? v : parseInt(v, 10)))
-                .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
-            churchActiveDaysCache[churchName] = days;
-            currentActiveWeekdays = days.length ? days : null;
-        } catch (e) {
-            console.error('Failed to load church active weekdays:', e);
-            currentActiveWeekdays = null;
-        }
-
+        await ensureChurchDays(churchName);
+        const days = churchActiveDaysCache[churchName] || [];
+        currentActiveWeekdays = days.length ? days : null;
         applyChurchActiveDaysToCalendar();
     }
 
@@ -3811,12 +3919,21 @@ document.addEventListener('DOMContentLoaded', () => {
             churchBtns.forEach(b => b.classList.remove('selected'));
             if (!wasSelected) {
                 btn.classList.add('selected');
-                const name = btn.textContent.trim();
-                loadChurchActiveDays(name);
+                selectedChurchName = btn.textContent.trim();
+                loadChurchActiveDays(selectedChurchName);
+            } else {
+                selectedChurchName = '';
+                loadChurchActiveDays('');
+                if (selectedDateWeekday !== null) {
+                    updateChurchButtonsForWeekday(selectedDateWeekday);
+                }
             }
             updateLiturgyDetails();
+            const iso = getSelectedISO();
+            if (iso) applyDateSelectionEffects(iso);
         });
     });
+    preloadAllChurchDays();
 
     const donationBtns = document.querySelectorAll('.donation-btn');
     donationBtns.forEach(btn => {
@@ -3943,9 +4060,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const cancelBtn = document.getElementById('comment-template-cancel');
         const okBtn = document.getElementById('comment-template-ok');
         const nameInput = document.getElementById('comment-user-input');
+        const nameError = document.getElementById('comment-user-error');
+        const showNameError = (msg = '') => {
+            if (!nameError) return;
+            if (msg) {
+                nameError.textContent = msg;
+                nameError.hidden = false;
+            } else {
+                nameError.textContent = '';
+                nameError.hidden = true;
+            }
+        };
+        const sanitizeName = (value) => value.replace(/[^A-Za-zА-Яа-яІіЇїЄєҐґʼ'\s-]/g, '');
+        nameInput?.addEventListener('input', () => {
+            const clean = sanitizeName(nameInput.value);
+            if (clean !== nameInput.value) {
+                nameInput.value = clean;
+            }
+            showNameError('');
+        });
 
-        const open = () => { overlay.hidden = false; dlg.hidden = false; nameInput.value = ''; nameInput.focus(); };
-        const close = () => { overlay.hidden = true; dlg.hidden = true; };
+        const open = () => {
+            overlay.hidden = false;
+            dlg.hidden = false;
+            nameInput.value = '';
+            showNameError('');
+            nameInput.focus();
+        };
+        const close = () => {
+            overlay.hidden = true;
+            dlg.hidden = true;
+            showNameError('');
+        };
 
         [closeX, cancelBtn, overlay].forEach(el => el && el.addEventListener('click', close));
 
@@ -3969,21 +4115,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // optimistic update
             comments = Array.isArray(comments) ? comments : [];
-            comments.push({ author, date, text });
+            const newComment = { author, date, text };
+            comments.push(newComment);
             renderComments();
+            const revertComment = () => {
+                const idx = comments.indexOf(newComment);
+                if (idx !== -1) {
+                    comments.splice(idx, 1);
+                    renderComments();
+                }
+            };
+            const getErrorDescription = async (res) => {
+                if (!res) return '';
+                const contentType = res.headers?.get('content-type') || '';
+                try {
+                    if (contentType.includes('application/json')) {
+                        const data = await res.json();
+                        if (typeof data === 'string') return data;
+                        return data?.description || data?.error || data?.message || '';
+                    }
+                    return await res.text();
+                } catch {
+                    return '';
+                }
+            };
+            const isForbiddenAuthorError = (msg) => /author contains forbidden words/i.test(msg || '');
 
+            let shouldCloseModal = true;
             try {
                 const res = await fetch(`${API_BASE}/${personId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ comments })
                 });
-                if (!res.ok) throw new Error(res.statusText);
+                if (!res.ok) {
+                    const errMsg = await getErrorDescription(res);
+                    if (isForbiddenAuthorError(errMsg)) {
+                        revertComment();
+                        showNameError('Введіть коректне ім\'я');
+                        nameInput.focus();
+                        shouldCloseModal = false;
+                        return;
+                    }
+                    throw new Error(errMsg || res.statusText);
+                }
             } catch (e) {
+                revertComment();
                 alert('Не вдалося оновити коментарі.');
                 console.error(e);
             } finally {
-                close();
+                if (shouldCloseModal) close();
             }
         });
     })();
@@ -4039,6 +4220,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const closeBtn = document.getElementById('relModalClose');
         const submitBtn = document.getElementById('relSubmit');
+        const submitBar = submitBtn?.closest('.rel-submit-bar');
+
+        const syncSubmitBarVisibility = () => {
+            if (!submitBar) return;
+            const isHidden = !submitBtn || submitBtn.hidden || window.getComputedStyle(submitBtn).display === 'none';
+            submitBar.style.display = isHidden ? 'none' : '';
+        };
+        syncSubmitBarVisibility();
+        if (submitBtn && typeof MutationObserver !== 'undefined') {
+            const observer = new MutationObserver(() => syncSubmitBarVisibility());
+            observer.observe(submitBtn, { attributes: true, attributeFilter: ['hidden', 'style', 'class'] });
+        }
 
         // Inputs
         const nameInput = document.getElementById('relName');

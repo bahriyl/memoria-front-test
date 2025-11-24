@@ -696,9 +696,13 @@ body::-webkit-scrollbar {
     scroll-snap-align: start;
 }
 
-.date-item.date-item--inactive {
-    opacity: 0.4;
+.date-item.date-item--inactive.date-number {
+    opacity: 0.55;
     cursor: default;
+}
+
+.date-item.date-item--inactive.today.date-number {
+    opacity: 0.7;
 }
 
 .date-item.date-item--inactive .date-number,
@@ -763,6 +767,12 @@ body::-webkit-scrollbar {
 .church-btn.selected {
     background-color: #1B8B59;
     color: #fff;
+}
+
+.church-btn--inactive {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* ——— Liturgy card (matches mock) ——— */
@@ -1185,6 +1195,17 @@ body::-webkit-scrollbar {
     border: 0;
     color: #90959C;
     cursor: pointer;
+    width: 15px;
+    height: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.modal-close svg {
+    width: 15px;
+    height: 15px;
 }
 
 .modal-text {
@@ -1199,6 +1220,7 @@ body::-webkit-scrollbar {
     font-size: 15px;
     font-weight: 480;
     font-family: 'Montserrat', sans-serif;
+    margin-bottom: 25px;
 }
 
 .modal-actions {
@@ -1423,6 +1445,10 @@ body::-webkit-scrollbar {
     font-family: 'Montserrat', sans-serif;
     margin: 0;
     margin-left: 4px;
+}
+
+.comment-template-modal.error-message {
+    text-align: left;
 }
 
 /* === Slideshow === */
@@ -2150,27 +2176,33 @@ body::-webkit-scrollbar {
     display: none !important;
 }
 
-/* Make modal-submit-btn float over content */
+/* Submit bar pinned to bottom inside relatives modal */
 #relativesModal .modal-content {
     position: relative;
-    /* anchor for absolute child */
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0;
+}
+
+#relativesModal .rel-submit-bar {
+    position: sticky;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    background: #fff;
+    display: flex;
+    justify-content: center;
+    z-index: 2;
+    margin-top: auto;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
 }
 
 #relativesModal .modal-submit-btn {
-    position: fixed;
-    /* always fixed to viewport */
-    bottom: 48px;
-    /* завжди однаковий відступ */
-    left: 50%;
-    transform: translateX(-50%);
-    /* центр по горизонталі */
-    z-index: 1000;
-    /* вище за списки та інше */
-    width: 80%;
-    /* відступи зліва/справа */
-    max-width: 480px;
-    /* щоб не була надто широкою */
-    margin: 0 !important;
+    position: static;
+    width: 100%;
+    margin: 0;
 }
 
 /* Optional: avoid clipping if any parent had overflow hidden */
@@ -2179,10 +2211,9 @@ body::-webkit-scrollbar {
     position: fixed;
 }
 
-/* (Опційно для iOS) трішки підняти над safe-area, якщо потрібно */
 @supports (padding: max(0px)) {
-    #relativesModal .modal-submit-btn {
-        bottom: max(60px, env(safe-area-inset-bottom));
+    #relativesModal .rel-submit-bar {
+        padding-bottom: max(18px, env(safe-area-inset-bottom));
     }
 }
 
@@ -2707,7 +2738,7 @@ input[type="number"] {
 }
 
 .modal-close {
-    right: 0;
+    right: -5px;
 }
 
 /* Overlay */

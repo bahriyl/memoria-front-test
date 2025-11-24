@@ -501,6 +501,17 @@ input[type="text"]::placeholder {
     background: none;
     border: none;
     cursor: pointer;
+    width: 15px;
+    height: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.modal-close svg {
+    width: 15px;
+    height: 15px;
 }
 
 /* heading */

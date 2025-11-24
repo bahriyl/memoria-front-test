@@ -19,6 +19,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ——— YearsPanel ———
+    const nameInput = document.getElementById('fullName');
+    const nameClearBtn = document.getElementById('fullNameClear');
+    const updateNameClear = () => {
+        if (!nameClearBtn || !nameInput) return;
+        nameClearBtn.style.display = nameInput.value.trim() ? 'inline-flex' : 'none';
+    };
+    nameInput?.addEventListener('input', updateNameClear);
+    nameClearBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!nameInput) return;
+        nameInput.value = '';
+        updateNameClear();
+        nameInput.focus();
+    });
+    updateNameClear();
     const picker = document.getElementById('lifeYearsPicker');
     const display = document.getElementById('years-display');
     const clearBtn = document.getElementById('clearYears');

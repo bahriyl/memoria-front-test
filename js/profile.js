@@ -2,8 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Config
     // ─────────────────────────────────────────────────────────────────────────────
-    // const API_URL = 'http://0.0.0.0:5000'
-    const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
+    const API_URL = 'http://0.0.0.0:5000'
+    // const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
     const API_BASE = `${API_URL}/api/people`;
     const PREMIUM_AUTH = `${API_URL}/api/premium`;
 
@@ -114,6 +114,18 @@ document.addEventListener('DOMContentLoaded', () => {
         delete document.body.dataset.lockScrollY;
     }
 
+    const lockOverlay = document.getElementById('modal-overlay');
+    if (lockOverlay) {
+        const overlayObserver = new MutationObserver(() => {
+            if (lockOverlay.hidden) {
+                unlockScroll();
+            } else {
+                lockScroll();
+            }
+        });
+        overlayObserver.observe(lockOverlay, { attributes: true, attributeFilter: ['hidden'] });
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────
     // Grab key elements
     // ─────────────────────────────────────────────────────────────────────────────
@@ -188,6 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const donationOk = document.getElementById('donation-ok');
     const donationCancel = document.getElementById('donation-cancel');
     const donationClose = document.getElementById('donation-close');
+    let overlayPrevHandler = null;
 
     let liturgiesIndex = {}; // { 'YYYY-MM-DD': [ { _id, churchName, price, createdAt, serviceDate } ] }
 
@@ -427,6 +440,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function resetLiturgyStripPosition() {
+        const box = document.querySelector('.liturgy-details.is-strip');
+        if (!box) return;
+        box.scrollTo({ left: 0, behavior: 'smooth' });
+        const pager = box.parentElement?.querySelector('.liturgy-pager');
+        if (pager) {
+            const dots = pager.querySelectorAll('.pip');
+            dots.forEach((dot, idx) => dot.classList.toggle('is-active', idx === 0));
+        }
+    }
+
     // Mark the original "Інше" button as custom so we can always detect it
     const customDonationBtn = Array.from(donationOptions?.querySelectorAll('.donation-btn') || [])
         .find(btn => btn.textContent.trim() === 'Інше');
@@ -438,6 +462,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!donationModal || !overlayEl) return;
         donationInput.value = presetValue || '';
         overlayEl.hidden = false;
+        overlayPrevHandler = overlayEl.onclick;
+        overlayEl.onclick = () => closeDonationModal();
         donationModal.hidden = false;
         // focus after paint
         requestAnimationFrame(() => donationInput?.focus());
@@ -445,6 +471,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function closeDonationModal() {
         if (!donationModal || !overlayEl) return;
+        overlayEl.onclick = overlayPrevHandler;
+        overlayPrevHandler = null;
         donationModal.hidden = true;
         overlayEl.hidden = true;
     }
@@ -527,6 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Otherwise: normal predefined amount → just select it
         selectDonationButton(btn);
+        resetLiturgyStripPosition();
         updateDonationButtonsLayout();
     });
 
@@ -569,6 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         closeDonationModal();
+        resetLiturgyStripPosition();
         updateDonationButtonsLayout();
     });
 
@@ -2668,19 +2698,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedChurchName = null;
     const churchActiveDaysCache = {};
     let currentActiveWeekdays = null; // null/empty → no restriction (all days active)
+    let unionActiveWeekdays = null;
+    let selectedDateWeekday = null;
+    let hasUserPickedDate = false;
 
-    async function loadChurchActiveDays(churchName) {
-        if (!churchName) {
-            currentActiveWeekdays = null;
-            applyChurchActiveDaysToCalendar();
-            return;
-        }
-
-        if (churchActiveDaysCache[churchName]) {
-            currentActiveWeekdays = churchActiveDaysCache[churchName];
-            applyChurchActiveDaysToCalendar();
-            return;
-        }
+    async function ensureChurchDays(churchName) {
+        if (!churchName) return null;
+        if (churchActiveDaysCache[churchName]) return churchActiveDaysCache[churchName];
 
         try {
             const res = await fetch(
@@ -2693,12 +2717,76 @@ document.addEventListener('DOMContentLoaded', () => {
                 .map((v) => (typeof v === 'number' ? v : parseInt(v, 10)))
                 .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
             churchActiveDaysCache[churchName] = days;
-            currentActiveWeekdays = days.length ? days : null;
         } catch (e) {
             console.error('Failed to load church active weekdays:', e);
-            currentActiveWeekdays = null;
+            churchActiveDaysCache[churchName] = [];
+        }
+        return churchActiveDaysCache[churchName];
+    }
+
+    function computeUnionActiveWeekdays() {
+        const set = new Set();
+        Object.values(churchActiveDaysCache).forEach((arr) => {
+            if (!Array.isArray(arr)) return;
+            arr.forEach((day) => set.add(day));
+        });
+        return set.size ? Array.from(set) : null;
+    }
+
+    function resetChurchButtonsState() {
+        const churchBtns = document.querySelectorAll('.church-btn');
+        churchBtns.forEach((btn) => {
+            btn.classList.remove('church-btn--inactive');
+            btn.disabled = false;
+        });
+    }
+
+    function updateChurchButtonsForWeekday(weekday) {
+        if (!unionActiveWeekdays || selectedChurchName || weekday === null) {
+            console.log('church buttons skip update', { unionActiveWeekdays, selectedChurchName, weekday });
+            resetChurchButtonsState();
+            return;
+        }
+        const churchBtns = document.querySelectorAll('.church-btn');
+        churchBtns.forEach((btn) => {
+            const name = btn.textContent.trim();
+            const days = churchActiveDaysCache[name];
+            const allowed = !Array.isArray(days) || days.length === 0 || days.includes(weekday);
+            btn.classList.toggle('church-btn--inactive', !allowed);
+            btn.disabled = !allowed;
+            if (!allowed) {
+                btn.classList.remove('selected');
+            }
+        });
+        console.log('church buttons updated', { weekday, unionActiveWeekdays });
+    }
+
+    async function preloadAllChurchDays() {
+        const churchBtns = document.querySelectorAll('.church-btn');
+        const names = Array.from(churchBtns)
+            .map((btn) => btn.textContent.trim())
+            .filter(Boolean);
+        await Promise.all(names.map((name) => ensureChurchDays(name)));
+        unionActiveWeekdays = computeUnionActiveWeekdays();
+        if (!selectedChurchName) {
+            currentActiveWeekdays = unionActiveWeekdays;
+            applyChurchActiveDaysToCalendar();
+        }
+        if (selectedDateWeekday !== null && !selectedChurchName) {
+            updateChurchButtonsForWeekday(selectedDateWeekday);
+        }
+    }
+
+    async function loadChurchActiveDays(churchName) {
+        if (!churchName) {
+            currentActiveWeekdays = unionActiveWeekdays;
+            applyChurchActiveDaysToCalendar();
+            return;
         }
 
+        await ensureChurchDays(churchName);
+        const days = churchActiveDaysCache[churchName] || [];
+        currentActiveWeekdays = days.length ? days : null;
         applyChurchActiveDaysToCalendar();
     }
 
@@ -2888,7 +2976,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Функція вимірювання: кладемо "префікс + ' …' + NBSP + <span class= bio-toggle>більше</span>"
                 function heightForPrefix(prefixLen) {
                     bioContentEl.innerHTML = '';
-                    textSpan.textContent = text.slice(0, prefixLen).trimEnd() + ' …';
+                textSpan.innerHTML = escapeHtml(text.slice(0, prefixLen).trimEnd()) + ' …';
                     toggle.textContent = moreLabel; // саме та ж стилістика, що буде у фіналі
                     bioContentEl.append(textSpan, nbsp, toggle);
                     return bioContentEl.clientHeight;
@@ -2907,7 +2995,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Фіксуємо фінальну розмітку (у тому ж складі, що й під час вимірювання)
                 bioContentEl.innerHTML = '';
-                textSpan.textContent = text.slice(0, best).trimEnd() + ' …';
+                textSpan.innerHTML = escapeHtml(text.slice(0, best).trimEnd()) + ' …';
                 toggle.textContent = moreLabel;
                 bioContentEl.append(textSpan, document.createTextNode('\u00A0'), toggle);
 
@@ -2916,7 +3004,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const expand = () => {
                     expanded = true;
                     bioContentEl.innerHTML = '';
-                    textSpan.textContent = text + ' ';
+                    textSpan.innerHTML = escapeHtml(text) + ' ';
                     toggle.textContent = lessLabel;
                     bioContentEl.append(textSpan, toggle);
                 };
@@ -2983,7 +3071,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     cancel.addEventListener('click', () => window.location.reload());
 
                     done.addEventListener('click', async () => {
-                        const newBio = (document.getElementById('bio-editor')?.value || '').trim();
+                        const newBio = (document.getElementById('bio-editor')?.value || '');
                         try {
                             const up = await fetch(`${API_BASE}/${personId}`, {
                                 method: 'PUT',
@@ -3184,12 +3272,22 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLiturgyDetailsStrip(iso);
     })();
 
+    function getSelectedISO() {
+        const selectedDateText = document.querySelector('.selected-date')?.textContent?.trim();
+        return selectedDateText ? toISOFromUA(selectedDateText) : '';
+    }
+
     function applyDateSelectionEffects(iso) {
         // If past → hide submit & details, show only history
         const submitBtn = document.querySelector('.liturgy-submit');
         const detailsEl = document.querySelector('.liturgy-details, .service-info') || document.querySelector('.service-info');
         const liturgyChurchEl = document.querySelector('.liturgy-church');
         const liturgyDonationEl = document.querySelector('.liturgy-donation');
+        const weekday = iso ? new Date(`${iso}T00:00:00`).getDay() : null;
+        selectedDateWeekday = hasUserPickedDate ? weekday : null;
+        if (!selectedChurchName && hasUserPickedDate) {
+            updateChurchButtonsForWeekday(weekday);
+        }
 
         const isPast = isPastISO(iso);
         if (submitBtn) submitBtn.style.display = isPast ? 'none' : '';
@@ -3207,6 +3305,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (clickedItem.classList.contains('date-item--inactive')) {
                 return; // ignore clicks on inactive dates
             }
+            hasUserPickedDate = true;
             const selectedDateEl = document.querySelector('.selected-date');
             document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
             clickedItem.classList.add('selected');
@@ -3388,18 +3487,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const churchBtns = document.querySelectorAll('.church-btn');
     churchBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            const alreadyActive = btn.classList.contains('selected');
+            const wasSelected = btn.classList.contains('selected');
             churchBtns.forEach(b => b.classList.remove('selected'));
-            if (!alreadyActive) {
+            if (!wasSelected) {
                 btn.classList.add('selected');
                 selectedChurchName = btn.textContent.trim();
                 loadChurchActiveDays(selectedChurchName);
             } else {
                 selectedChurchName = '';
+                loadChurchActiveDays('');
+                if (selectedDateWeekday !== null) {
+                    updateChurchButtonsForWeekday(selectedDateWeekday);
+                }
             }
             updateLiturgyDetails();
+            const iso = getSelectedISO();
+            if (iso) applyDateSelectionEffects(iso);
+            resetLiturgyStripPosition();
         });
     });
+    preloadAllChurchDays();
 
     const donationBtns = document.querySelectorAll('.donation-btn');
     donationBtns.forEach(btn => {
@@ -3544,9 +3651,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const cancelBtn = document.getElementById('comment-template-cancel');
         const okBtn = document.getElementById('comment-template-ok');
         const nameInput = document.getElementById('comment-user-input');
+        const nameError = document.getElementById('comment-user-error');
+        const showNameError = (msg = '') => {
+            if (!nameError) return;
+            if (msg) {
+                nameError.textContent = msg;
+                nameError.hidden = false;
+            } else {
+                nameError.textContent = '';
+                nameError.hidden = true;
+            }
+        };
+        const sanitizeName = (value) => value.replace(/[^A-Za-zА-Яа-яІіЇїЄєҐґʼ'\s-]/g, '');
+        nameInput?.addEventListener('input', () => {
+            const clean = sanitizeName(nameInput.value);
+            if (clean !== nameInput.value) {
+                nameInput.value = clean;
+            }
+            showNameError('');
+        });
 
-        const open = () => { overlay.hidden = false; dlg.hidden = false; nameInput.value = ''; nameInput.focus(); };
-        const close = () => { overlay.hidden = true; dlg.hidden = true; };
+        const open = () => {
+            overlay.hidden = false;
+            dlg.hidden = false;
+            nameInput.value = '';
+            showNameError('');
+            nameInput.focus();
+        };
+        const close = () => {
+            overlay.hidden = true;
+            dlg.hidden = true;
+            showNameError('');
+        };
 
         [closeX, cancelBtn, overlay].forEach(el => el && el.addEventListener('click', close));
 
@@ -3570,21 +3706,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // optimistic update
             comments = Array.isArray(comments) ? comments : [];
-            comments.push({ author, date, text });
+            const newComment = { author, date, text };
+            comments.push(newComment);
             renderComments();
+            const revertComment = () => {
+                const idx = comments.indexOf(newComment);
+                if (idx !== -1) {
+                    comments.splice(idx, 1);
+                    renderComments();
+                }
+            };
+            const getErrorDescription = async (res) => {
+                if (!res) return '';
+                const contentType = res.headers?.get('content-type') || '';
+                try {
+                    if (contentType.includes('application/json')) {
+                        const data = await res.json();
+                        if (typeof data === 'string') return data;
+                        return data?.description || data?.error || data?.message || '';
+                    }
+                    return await res.text();
+                } catch {
+                    return '';
+                }
+            };
+            const isForbiddenAuthorError = (msg) => /author contains forbidden words/i.test(msg || '');
 
+            let shouldCloseModal = true;
             try {
                 const res = await fetch(`${API_BASE}/${personId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ comments })
                 });
-                if (!res.ok) throw new Error(res.statusText);
+                if (!res.ok) {
+                    const errMsg = await getErrorDescription(res);
+                    if (isForbiddenAuthorError(errMsg)) {
+                        revertComment();
+                        showNameError('Введіть коректне ім\'я');
+                        nameInput.focus();
+                        shouldCloseModal = false;
+                        return;
+                    }
+                    throw new Error(errMsg || res.statusText);
+                }
             } catch (e) {
+                revertComment();
                 alert('Не вдалося оновити коментарі.');
                 console.error(e);
             } finally {
-                close();
+                if (shouldCloseModal) close();
             }
         });
     })();
@@ -4076,6 +4247,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const closeBtn = document.getElementById('relModalClose');
         const submitBtn = document.getElementById('relSubmit');
+        const submitBar = submitBtn?.closest('.rel-submit-bar');
+
+        const syncSubmitBarVisibility = () => {
+            if (!submitBar) return;
+            const isHidden = !submitBtn || submitBtn.hidden || window.getComputedStyle(submitBtn).display === 'none';
+            submitBar.style.display = isHidden ? 'none' : '';
+        };
+        syncSubmitBarVisibility();
+        if (submitBtn && typeof MutationObserver !== 'undefined') {
+            const observer = new MutationObserver(() => syncSubmitBarVisibility());
+            observer.observe(submitBtn, { attributes: true, attributeFilter: ['hidden', 'style', 'class'] });
+        }
 
         // Inputs
         const nameInput = document.getElementById('relName');
@@ -4966,3 +5149,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     })();
 });
+        function escapeHtml(str) {
+            return (str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/\n/g, '<br>');
+        }

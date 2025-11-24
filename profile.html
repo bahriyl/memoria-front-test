@@ -198,7 +198,9 @@
                     <button class="template-btn">Щирі співчуття</button>
                     <button class="template-btn">Вічна пам'ять та слава герою</button>
                     <button class="template-btn">Співчуття рідним та близьким</button>
-                    <button class="template-btn">Добавте локацію</button>
+                    <button class="template-btn">Добавте локація</button>
+                    <button class="template-btn">Памʼятаємо</button>
+                    <button class="template-btn">Світла памʼять</button>
                 </div>
             </div>
         </section>
@@ -296,12 +298,13 @@
 
     <!-- Comment Template → Ask for User Name -->
     <div id="comment-template-modal" class="modal" hidden>
-        <button id="comment-template-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
-                height="28" aria-hidden="true">
+        <button id="comment-template-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 36 36" width="34"
+                height="34" aria-hidden="true">
                 <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
             </svg></button>
         <p class="modal-text">Вкажіть ваше ім’я</p>
         <input id="comment-user-input" type="text" placeholder="Введіть Імʼя...">
+        <div id="comment-user-error" class="error-message" hidden></div>
         <div class="modal-actions">
             <button id="comment-template-ok" class="modal-ok">Підтвердити</button>
         </div>
@@ -403,8 +406,8 @@
     <!-- Add Relative (modal) -->
     <div id="relativesModal" class="modal-overlay" hidden>
         <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relModalTitle">
-            <button class="modal-close" id="relModalClose" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
-                    height="28" aria-hidden="true">
+            <button class="modal-close" id="relModalClose" aria-label="Закрити"><svg viewBox="0 0 36 36" width="34"
+                    height="34" aria-hidden="true">
                     <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
                 </svg></button>
             <h2 class="modal-title" id="relModalTitle" style="text-align:center;margin:6px 0 30px">Додати родича</h2>
@@ -497,7 +500,9 @@
             <ul id="relFoundList" class="people-list" tabindex="0"></ul>
 
             <!-- Submit -->
-            <button id="relSubmit" class="modal-submit-btn" style="margin-top:14px">Додати родича</button>
+            <div class="rel-submit-bar">
+                <button id="relSubmit" class="modal-submit-btn">Додати родича</button>
+            </div>
         </div>
     </div>
 

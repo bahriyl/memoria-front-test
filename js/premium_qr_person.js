@@ -23,7 +23,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const searchNameInput = document.getElementById('searchName');
+    const searchNameClear = document.getElementById('searchNameClear');
     const searchNameError = document.getElementById('searchNameError');
+    const updateSearchNameClear = () => {
+        if (!searchNameClear || !searchNameInput) return;
+        searchNameClear.style.display = searchNameInput.value.trim() ? 'inline-flex' : 'none';
+    };
+    searchNameInput?.addEventListener('input', updateSearchNameClear);
+    searchNameClear?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!searchNameInput) return;
+        searchNameInput.value = '';
+        updateSearchNameClear();
+        searchNameInput.focus();
+        triggerFetch();
+    });
+    updateSearchNameClear();
 
     /*searchNameInput.addEventListener('blur', () => {
         const name = searchNameInput.value.trim();

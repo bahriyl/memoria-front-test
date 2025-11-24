@@ -30,6 +30,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Filters & results
     const nameInput = document.getElementById('searchName');
+    const nameClearBtn = document.getElementById('searchNameClear');
+    const updateSearchNameClear = () => {
+        if (!nameClearBtn || !nameInput) return;
+        nameClearBtn.style.display = nameInput.value.trim() ? 'inline-flex' : 'none';
+    };
+    nameInput?.addEventListener('input', () => {
+        updateSearchNameClear();
+        triggerFetch();
+    });
+    nameClearBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!nameInput) return;
+        nameInput.value = '';
+        updateSearchNameClear();
+        nameInput.focus();
+        triggerFetch();
+    });
+    updateSearchNameClear();
     const clearBirthBtn = document.getElementById('clearBirth');
     const clearDeathBtn = document.getElementById('clearDeath');
     const areaInput = document.getElementById('areaFilter');
