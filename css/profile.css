@@ -2171,6 +2171,7 @@ body::-webkit-scrollbar {
     display: flex;
     flex-direction: column;
     padding-bottom: 0;
+    overflow-x: hidden;
 }
 
 #relativesModal .rel-submit-bar {
@@ -2198,6 +2199,12 @@ body::-webkit-scrollbar {
 #relativesModal {
     overflow: visible;
     position: fixed;
+    overscroll-behavior-x: contain;
+}
+
+#relativesModal,
+#relativesModal * {
+    touch-action: pan-y;
 }
 
 @supports (padding: max(0px)) {

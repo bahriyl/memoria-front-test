@@ -226,6 +226,7 @@
   min-height: 65vh;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -247,6 +248,13 @@
 #relativesModal {
   overflow: visible;
   position: fixed;
+  overscroll-behavior-x: contain;
+}
+
+/* Disable horizontal swipe inside relatives modal (keep vertical scroll) */
+#relativesModal,
+#relativesModal * {
+  touch-action: pan-y;
 }
 
 /* iOS safe-area support (same as profile) */
