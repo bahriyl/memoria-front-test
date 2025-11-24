@@ -2,8 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────────
     // Config
     // ─────────────────────────────────────────────────────────────────────────────
-    const API_URL = 'http://0.0.0.0:5000'
-    // const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
+    // const API_URL = 'http://0.0.0.0:5000'
+    const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
     const API_BASE = `${API_URL}/api/people`;
     const PREMIUM_AUTH = `${API_URL}/api/premium`;
 
