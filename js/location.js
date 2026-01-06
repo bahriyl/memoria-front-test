@@ -21,6 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalEl = document.getElementById('success-modal');
     const closeBtn = document.getElementById('modal-close');
     const okBtn = document.getElementById('modal-ok');
+    const updateModal = document.getElementById('update-modal');
+    const updateOk = document.getElementById('update-modal-ok');
+    const photoLimitModal = document.getElementById('photo-limit-modal');
+    const photoLimitTitle = document.getElementById('photo-limit-title');
+    const photoLimitText = document.getElementById('photo-limit-text');
+    const photoLimitOk = document.getElementById('photo-limit-ok');
 
     // Confirm modal (change location)
     const confirmModal = document.getElementById('confirm-modal');
@@ -67,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isEditingLandmarks = false;
     let prevLandmarksText = '';
     let initialLocationSnapshot = { coords: '', landmarks: '', photos: [] };
+    const MAX_PHOTOS = 10;
 
     // ===== UTIL =====
     function closeAllMenus() {
@@ -218,6 +225,35 @@ document.addEventListener('DOMContentLoaded', () => {
         overlayEl.hidden = true;
         modalEl.hidden = true;
     }
+    function showUpdateModal() {
+        if (!overlayEl || !updateModal) return;
+        overlayEl.hidden = false;
+        updateModal.hidden = false;
+    }
+    function hideUpdateModal() {
+        if (!overlayEl || !updateModal) return;
+        updateModal.hidden = true;
+        overlayEl.hidden = true;
+    }
+    function showPhotoLimitModal(available) {
+        if (!overlayEl || !photoLimitModal || !photoLimitText) return;
+        overlayEl.hidden = false;
+        photoLimitModal.hidden = false;
+        if (photoLimitTitle) {
+            photoLimitTitle.hidden = available <= 0;
+            if (available > 0) photoLimitTitle.textContent = 'Фото не додано';
+        }
+        if (available > 0) {
+            photoLimitText.innerHTML = `Досягнуто ліміт у ${MAX_PHOTOS} фото.<br>Доступно для публікації: ${available} шт.`;
+        } else {
+            photoLimitText.textContent = `Досягнуто ліміт у ${MAX_PHOTOS} фото.`;
+        }
+    }
+    function hidePhotoLimitModal() {
+        if (!overlayEl || !photoLimitModal) return;
+        photoLimitModal.hidden = true;
+        overlayEl.hidden = true;
+    }
 
     if (closeBtn) closeBtn.addEventListener('click', hideModal);
     if (okBtn)
@@ -225,6 +261,8 @@ document.addEventListener('DOMContentLoaded', () => {
             hideModal();
             window.location.href = `/profile.html?personId=${personId}`;
         });
+    updateOk?.addEventListener('click', hideUpdateModal);
+    photoLimitOk?.addEventListener('click', hidePhotoLimitModal);
 
     function showConfirm() {
         if (!overlayEl || !confirmModal) return;
@@ -292,7 +330,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Send current state to API (used in "existing location" mode)
-    async function pushUpdate() {
+    async function pushUpdate(opts = {}) {
+        const { showSuccess = false } = opts;
         const payload = {
             location: [
                 currentLocation.coords || '',
@@ -311,6 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
             captureInitialSnapshot();
             computeChangesMade();
             maybeUpdateSubmit();
+            if (showSuccess) showUpdateModal();
         } catch (e) {
             console.error('Update failed', e);
             showErrors?.('Не вдалося оновити локацію. Спробуйте ще раз.');
@@ -518,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // NEW: завжди пушимо оновлення на бек, навіть у creation flow
         try {
-            await pushUpdate();
+            await pushUpdate({ showSuccess: initialHasData });
             hideErrors?.();
         } catch {
             // pushUpdate() вже показує помилку через showErrors(), тож можна нічого не робити
@@ -934,7 +974,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderMap(pos.coords.latitude, pos.coords.longitude);
                 updatePhotosHeaderSpacing();
 
-                if (initialHasData) pushUpdate();
+                if (initialHasData) pushUpdate({ showSuccess: true });
                 else maybeUpdateSubmit();
 
                 if (btnGeo) btnGeo.disabled = false;
@@ -949,16 +989,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===== PHOTOS =====
+    function tryOpenPhotoPicker() {
+        const available = MAX_PHOTOS - currentLocation.photos.length;
+        if (available <= 0) {
+            showPhotoLimitModal(0);
+            return false;
+        }
+        if (photoMenu) photoMenu.classList.add('hidden');
+        if (fileInput) fileInput.click();
+        return true;
+    }
+
     if (btnAdd)
         btnAdd.addEventListener('click', () => {
             if (premiumLocked) return;
-            if (photoMenu) photoMenu.classList.add('hidden'); // like other options
-            if (fileInput) fileInput.click();
+            tryOpenPhotoPicker();
         });
 
     if (fileInput)
         fileInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files || []);
+            const available = MAX_PHOTOS - currentLocation.photos.length;
+            if (available <= 0) {
+                showPhotoLimitModal(0);
+                fileInput.value = '';
+                return;
+            }
+            if (files.length > available) {
+                showPhotoLimitModal(available);
+                fileInput.value = '';
+                return;
+            }
             const previewUrls = files.map((f) => URL.createObjectURL(f));
 
             // show previews immediately
@@ -1070,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addBtn.type = 'button';
             addBtn.className = 'ritual-btn';
             addBtn.textContent = 'Добавити';
-            addBtn.addEventListener('click', () => fileInput && fileInput.click());
+            addBtn.addEventListener('click', tryOpenPhotoPicker);
             btnRow.appendChild(addBtn);
             btnRow.style.display = 'flex';
         } else if (!isSelecting) {
@@ -1095,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const ph = document.createElement('div');
                 ph.classList.add('image-placeholder');
                 ph.style.cursor = 'pointer';
-                ph.addEventListener('click', () => fileInput && fileInput.click());
+                ph.addEventListener('click', tryOpenPhotoPicker);
                 imageGrid.appendChild(ph);
             }
             return;
@@ -1223,7 +1284,7 @@ document.addEventListener('DOMContentLoaded', () => {
             markChanged();
             maybeUpdateSubmit();
 
-            if (initialHasData) pushUpdate();
+            if (initialHasData) pushUpdate({ showSuccess: true });
         });
     }
 });

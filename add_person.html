@@ -176,8 +176,11 @@
         <!-- Success Modal -->
         <div id="modal-overlay" class="modal-overlay" hidden></div>
         <div id="success-modal" class="modal" hidden>
-            <button id="modal-close" class="modal-close">&times;</button>
-            <p class="modal-text">Успішно відправлено на модерацію, ми сповістимо вас коли буде готово!</p>
+            <h3 class="success-modal-title">Надіслано</h3>
+            <p class="success-modal-text">
+                Після успішної модерації протягом<br>
+                7 днів особу буде додано
+            </p>
             <button id="modal-ok" class="modal-ok">Готово</button>
         </div>
 
@@ -195,15 +198,11 @@
             </div>
         </div>
 
-        <!-- Success toast -->
-        <div id="toast" class="toast toast--success" hidden>
-            <span id="toast-text">Успішно відправлено на модерацію! Ми сповістимо вас коли буде готово</span>
-            <button id="toast-close" class="toast-close" type="button" aria-label="Закрити">&times;</button>
-        </div>
     </main>
 
     <script src="js/year_wheel.js"></script>
     <script src="js/add_person.js"></script>
+  <script src="js/modal_scroll_lock.js"></script>
 </body>
 
 </html>

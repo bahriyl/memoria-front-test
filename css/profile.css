@@ -140,7 +140,7 @@ body::-webkit-scrollbar {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 10px;
+    margin-bottom: 17px;
     flex-direction: column;
     gap: 0;
 }
@@ -660,6 +660,7 @@ body::-webkit-scrollbar {
     color: #000000;
     font-size: 15px;
     font-weight: 460;
+    text-transform: capitalize;
 }
 
 .date-calendar {
@@ -721,6 +722,12 @@ body::-webkit-scrollbar {
     color: #1B8B59 !important;
 }
 
+/* Inactive today's date uses a muted green */
+.date-item.date-item--inactive.today:not(.selected) .date-number,
+.date-item.date-item--inactive.today:not(.selected) .date-day {
+    color: #5bab88 !important;
+}
+
 .date-number {
     font-size: 1.25rem;
     font-weight: 600;
@@ -770,7 +777,7 @@ body::-webkit-scrollbar {
 }
 
 .church-btn--inactive {
-    opacity: 0.55;
+    color: #9CA3AF;
     cursor: not-allowed;
     pointer-events: none;
 }
@@ -1189,12 +1196,32 @@ body::-webkit-scrollbar {
 
 .modal-close {
     position: absolute;
-    top: 10px;
-    right: 3px;
+    top: 12px;
+    right: 12px;
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: 0;
     color: #90959C;
     cursor: pointer;
+}
+
+.modal-close svg {
+    width: 15px;
+    height: 15px;
+    display: none;
+}
+
+.modal-close::before {
+    content: "";
+    width: 15px;
+    height: 15px;
+    background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' stroke='%2390959C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cline x1='5' y1='5' x2='19' y2='19'/%3E%3Cline x1='19' y1='5' x2='5' y2='19'/%3E%3C/svg%3E");
+    pointer-events: none;
 }
 
 .modal-text {
@@ -1202,7 +1229,7 @@ body::-webkit-scrollbar {
     font-weight: 600;
     font-family: 'Montserrat', sans-serif;
     color: #222;
-    line-height: 1.4;
+    line-height: 23px;
 }
 
 #confirm-delete-modal-text {
@@ -1436,6 +1463,20 @@ body::-webkit-scrollbar {
     margin-left: 4px;
 }
 
+.donation-error {
+    margin-left: 0;
+    margin-top: 6px;
+    margin-bottom: 24px;
+}
+
+.modal #donation-error+.modal-actions {
+    margin-top: 24px;
+}
+
+.modal #donation-error:not([hidden])+.modal-actions {
+    margin-top: 0;
+}
+
 .comment-template-modal.error-message {
     text-align: left;
 }
@@ -1453,9 +1494,24 @@ body::-webkit-scrollbar {
 .slideshow-track {
     display: flex;
     flex: 1;
-    overflow-x: auto;
+    overflow-x: scroll;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #fff rgba(255, 255, 255, 0.35);
+}
+
+.slideshow-track::-webkit-scrollbar {
+    height: 6px;
+}
+
+.slideshow-track::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.slideshow-track::-webkit-scrollbar-thumb {
+    background: #fff;
+    border-radius: 999px;
 }
 
 .slideshow-slide {
@@ -1614,13 +1670,15 @@ body::-webkit-scrollbar {
 }
 
 .slideshow-caption .caption-text {
-    display: inline;
     max-height: calc(1.4em * 2);
     overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     /* clamp to 2 lines */
     -webkit-box-orient: vertical;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .slideshow-caption.expanded .caption-text {
@@ -1869,6 +1927,10 @@ body::-webkit-scrollbar {
     background-size: 20px 20px;
 }
 
+#relArea {
+    padding-right: 44px;
+}
+
 #relCemetery:not(:placeholder-shown) {
     background-image: none;
     color: #222;
@@ -1952,6 +2014,13 @@ body::-webkit-scrollbar {
 
 #relCemetery:not(:placeholder-shown)~#relCemClear {
     display: inline-flex;
+}
+
+/* Align relatives modal clear buttons with the years display arrow */
+#relativesModal .suggestions-container .clear-btn,
+#relativesModal #clear-relCemetery,
+#relativesModal #relCemClear {
+    right: 16px;
 }
 
 /* Селектор «Хто це» біля років у модальному списку */
@@ -2052,7 +2121,7 @@ body::-webkit-scrollbar {
 .relatives-controls {
     display: flex;
     gap: .75rem;
-    margin-bottom: .75rem;
+    margin-bottom: 17px;
     align-items: center;
 }
 
@@ -2170,8 +2239,18 @@ body::-webkit-scrollbar {
     position: relative;
     display: flex;
     flex-direction: column;
+    width: 90vw;
+    max-width: 90vw;
     padding-bottom: 0;
     overflow-x: hidden;
+}
+
+#relativesModal .form-group.suggestions-container {
+    margin-bottom: 24px;
+}
+
+#relativesModal.relatives-no-selected .modal-subtitle {
+    margin-top: 0;
 }
 
 #relativesModal .rel-submit-bar {
@@ -2209,7 +2288,7 @@ body::-webkit-scrollbar {
 
 @supports (padding: max(0px)) {
     #relativesModal .rel-submit-bar {
-        padding-bottom: max(18px, env(safe-area-inset-bottom));
+        padding-bottom: max(26px, env(safe-area-inset-bottom));
     }
 }
 
@@ -2222,7 +2301,8 @@ body::-webkit-scrollbar {
     transform: translate(-50%, -50%);
     z-index: 1100 !important;
     /* higher than modal-submit-btn (1000) */
-    width: min(90vw, 460px);
+    width: 90vw;
+    max-width: 90vw;
     max-height: 80vh;
     overflow: hidden;
 }
@@ -2721,6 +2801,9 @@ input[type="number"] {
     font-family: 'Montserrat', sans-serif;
     line-height: 22px;
     min-height: 120px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
     outline: none;
 }
 
@@ -2733,9 +2816,7 @@ input[type="number"] {
     width: 60%;
 }
 
-.modal-close {
-    right: -5px;
-}
+/* unified modal close positioning */
 
 /* Overlay */
 .hero-change-overlay {
@@ -2885,7 +2966,7 @@ input[type="number"] {
     font-size: 16px;
     font-weight: 460;
     font-family: 'Montserrat', sans-serif;
-    margin: 8px 0 24px 0;
+    margin: 8px 0 0 0;
     outline: none;
 }
 
@@ -3380,4 +3461,16 @@ body::-webkit-scrollbar {
     font-weight: 460;
     font-family: 'Montserrat';
     margin: 0;
+}
+
+.suggestions-container .clear-btn {
+    right: 16px;
+}
+
+.people-list button {
+    margin-right: 2px;
+}
+
+.suggestions-container .clear-btn svg {
+    stroke: #999 !important;
 }

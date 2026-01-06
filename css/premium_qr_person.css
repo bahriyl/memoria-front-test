@@ -496,11 +496,31 @@ input[type="text"]::placeholder {
 /* close “×” */
 .modal-close {
     position: absolute;
-    top: 10px;
-    right: 3px;
+    top: 12px;
+    right: 12px;
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     cursor: pointer;
+}
+
+.modal-close svg {
+    width: 15px;
+    height: 15px;
+    display: none;
+}
+
+.modal-close::before {
+    content: "";
+    width: 15px;
+    height: 15px;
+    background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' stroke='%2390959C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cline x1='5' y1='5' x2='19' y2='19'/%3E%3Cline x1='19' y1='5' x2='5' y2='19'/%3E%3C/svg%3E");
+    pointer-events: none;
 }
 
 /* heading */

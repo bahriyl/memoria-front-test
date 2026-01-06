@@ -229,7 +229,7 @@ h2 {
     font-weight: 500;
     color: var(--color-text);
     margin-bottom: 8px;
-    margin-left: 2px;
+    margin-left: 5px;
 }
 
 /* People List */
@@ -774,7 +774,7 @@ main.container {
     --year-item-height: 44px;
     --year-visible-count: 4;
     position: absolute;
-    top: calc(100% + 12px);
+    top: calc(100% + 2px);
     left: 0;
     right: 0;
     background: #ffffff;

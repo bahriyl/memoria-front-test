@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cemInput = document.getElementById('cemeteryFilter');
     const clearCemBtn = document.getElementById('clearCemetery');
     const cemSuggest = document.getElementById('cemSuggestions');
+    let areaId = '';
 
     const foundLabel = document.getElementById('foundLabel');
     const foundList = document.getElementById('foundList');
@@ -375,7 +376,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         .map(item => {
                             if (typeof item === 'string') return `<li>${item}</li>`;
                             const name = (item.name ?? item.display ?? '').toString();
-                            return name ? `<li>${name}</li>` : '';
+                            if (!name) return '';
+                            const area = (item.area ?? '').toString();
+                            const areaAttr = area ? ` data-area="${area.replace(/"/g, '&quot;')}"` : '';
+                            const areaIdAttr = (item.areaId ?? '') ? ` data-area-id="${String(item.areaId)}"` : '';
+                            return `<li${areaAttr}${areaIdAttr}>${name}</li>`;
                         })
                         .filter(Boolean)
                         .join('') || `<li class="no-results">Збігів не знайдено</li>`;
@@ -387,6 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
 
         input.addEventListener('input', () => {
+            if (endpoint === 'locations') areaId = '';
             clearBtn.style.display = input.value ? 'flex' : 'none';
             doFetch();
             triggerFetch();
@@ -395,13 +401,27 @@ document.addEventListener('DOMContentLoaded', () => {
             input.value = '';
             clearBtn.style.display = 'none';
             listEl.style.display = 'none';
+            if (endpoint === 'locations') areaId = '';
             triggerFetch();
         });
         listEl.addEventListener('click', e => {
             if (e.target.tagName === 'LI') {
-                input.value = e.target.textContent;
+                const li = e.target;
+                input.value = li.textContent;
                 clearBtn.style.display = 'flex';
                 listEl.style.display = 'none';
+                if (endpoint === 'locations') {
+                    areaId = li.dataset.areaId || '';
+                }
+                if (endpoint === 'cemeteries') {
+                    const area = li.dataset.area || '';
+                    const areaIdValue = li.dataset.areaId || '';
+                    if (area && !areaInput.value.trim()) {
+                        areaInput.value = area;
+                        areaId = areaIdValue || '';
+                        clearAreaBtn.style.display = 'flex';
+                    }
+                }
                 triggerFetch();
             }
         });
@@ -412,11 +432,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // === Show all cemeteries for selected Area when cemetery input is empty ===
 
     // Try direct cemeteries endpoint with ?area=; if unavailable, fall back via /api/people
-    async function fetchCemeteriesForArea(area) {
-        if (!area) return [];
+    async function fetchCemeteriesForArea(area, id) {
+        if (!area && !id) return [];
         // Attempt A: /api/cemeteries?area=
         try {
-            const res = await fetch(`${API_URL}/api/cemeteries?area=${encodeURIComponent(area)}`);
+            const params = new URLSearchParams();
+            if (id) params.set('areaId', id);
+            else if (area) params.set('area', area);
+            const res = await fetch(`${API_URL}/api/cemeteries?${params.toString()}`);
             if (res.ok) {
                 const arr = await res.json();
                 if (Array.isArray(arr) && arr.length) return arr;
@@ -425,6 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Attempt B (fallback): /api/people?area= → unique cemeteries
         try {
+            if (!area) return [];
             const res2 = await fetch(`${API_URL}/api/people?area=${encodeURIComponent(area)}`);
             if (!res2.ok) return [];
             const data = await res2.json();
@@ -433,7 +457,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     .map(p => p.cemetery)
                     .filter(Boolean)
             );
-            return Array.from(set).sort((a, b) => a.localeCompare(b, 'uk', { sensitivity: 'base' }));
+            return Array.from(set)
+                .sort((a, b) => a.localeCompare(b, 'uk', { sensitivity: 'base' }))
+                .map(name => ({ name, area }));
         } catch {
             return [];
         }
@@ -441,6 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function showCemeteriesForSelectedAreaIfEmpty() {
         const area = areaInput.value.trim();
+        const id = areaId.trim();
         const val = cemInput.value.trim();
 
         // If no area or user already typed something — just show current list (if any)
@@ -452,9 +479,15 @@ document.addEventListener('DOMContentLoaded', () => {
         cemSuggest.innerHTML = '<li class="loading">Завантаження…</li>';
         cemSuggest.style.display = 'block';
 
-        const items = await fetchCemeteriesForArea(area);
+        const items = await fetchCemeteriesForArea(area, id);
         cemSuggest.innerHTML = items.length
-            ? items.map(name => `<li>${name}</li>`).join('')
+            ? items.map(item => {
+                const name = typeof item === 'string' ? item : item.name;
+                const areaLabel = typeof item === 'string' ? area : (item.area || '');
+                const areaAttr = areaLabel ? ` data-area="${areaLabel.replace(/"/g, '&quot;')}"` : '';
+                const areaIdAttr = (item.areaId ?? '') ? ` data-area-id="${String(item.areaId)}"` : '';
+                return `<li${areaAttr}${areaIdAttr}>${name}</li>`;
+            }).join('')
             : '<li class="no-results">Нічого не знайдено</li>';
     }
 
@@ -481,7 +514,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (nameInput.value.trim()) params.set('search', nameInput.value.trim());
         if (birthSelect.value) params.set('birthYear', birthSelect.value);
         if (deathSelect.value) params.set('deathYear', deathSelect.value);
-        if (areaInput.value.trim()) params.set('area', areaInput.value.trim());
+        if (areaId) params.set('areaId', areaId);
+        else if (areaInput.value.trim()) params.set('area', areaInput.value.trim());
         if (cemInput.value.trim()) params.set('cemetery', cemInput.value.trim());
 
         const res = await fetch(`${API_URL}/api/people?${params}`);

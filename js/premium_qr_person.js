@@ -200,6 +200,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- delName validation (same as on add_person page) ---
     const delNameInput = document.getElementById('delName');
     const delNameError = document.getElementById('delNameError');
+    const delPhoneInput = document.getElementById('delPhone');
+
+    const formatUaPhone = (value) => {
+        let digits = String(value || '').replace(/\D/g, '');
+        if (digits.startsWith('380')) digits = digits.slice(3);
+        if (digits.startsWith('0')) digits = digits.slice(1);
+        digits = digits.slice(0, 9);
+
+        if (!digits.length) return '';
+
+        const part1 = digits.slice(0, 2);
+        const part2 = digits.slice(2, 5);
+        const part3 = digits.slice(5, 9);
+        let formatted = `+380(${part1}`;
+        if (part1.length === 2) formatted += ')';
+        if (part2.length) formatted += `-${part2}`;
+        if (part3.length) formatted += `-${part3}`;
+        return formatted;
+    };
+
+    if (delPhoneInput) {
+        const applyPhoneMask = () => {
+            delPhoneInput.value = formatUaPhone(delPhoneInput.value);
+        };
+        delPhoneInput.addEventListener('input', applyPhoneMask);
+        delPhoneInput.addEventListener('blur', applyPhoneMask);
+    }
 
     if (delNameInput && delNameError) {
         delNameInput.addEventListener('blur', () => {

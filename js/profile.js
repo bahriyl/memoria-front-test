@@ -37,6 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (backBtn) {
         if (backTo) {
             backBtn.setAttribute('href', `profile.html?personId=${encodeURIComponent(backTo)}`);
+        } else if (from === 'notable') {
+            backBtn.setAttribute('href', 'notable.html');
         } else if (from === 'add_notable_person') {
             backBtn.setAttribute('href', 'add_notable_person.html');
         } else if (from === 'premium') {
@@ -115,15 +117,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const lockOverlay = document.getElementById('modal-overlay');
+    const confirmDeleteModal = document.getElementById('confirm-delete-modal');
+    let overlayLocked = false;
+    let confirmLocked = false;
+
+    const syncOverlayLock = () => {
+        if (!lockOverlay) return;
+        if (confirmDeleteModal && !confirmDeleteModal.hidden) return;
+        const shouldLock = !lockOverlay.hidden;
+        if (shouldLock && !overlayLocked) {
+            lockScroll();
+            overlayLocked = true;
+        } else if (!shouldLock && overlayLocked) {
+            unlockScroll();
+            overlayLocked = false;
+        }
+    };
+
+    const syncConfirmLock = () => {
+        if (!confirmDeleteModal) return;
+        const shouldLock = !confirmDeleteModal.hidden;
+        if (shouldLock && !confirmLocked) {
+            lockScroll();
+            confirmLocked = true;
+        } else if (!shouldLock && confirmLocked) {
+            unlockScroll();
+            confirmLocked = false;
+        }
+        if (!shouldLock) syncOverlayLock();
+    };
+
     if (lockOverlay) {
-        const overlayObserver = new MutationObserver(() => {
-            if (lockOverlay.hidden) {
-                unlockScroll();
-            } else {
-                lockScroll();
-            }
-        });
+        const overlayObserver = new MutationObserver(syncOverlayLock);
         overlayObserver.observe(lockOverlay, { attributes: true, attributeFilter: ['hidden'] });
+    }
+    if (confirmDeleteModal) {
+        const confirmObserver = new MutationObserver(syncConfirmLock);
+        confirmObserver.observe(confirmDeleteModal, { attributes: true, attributeFilter: ['hidden'] });
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -197,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const overlayEl = document.getElementById('modal-overlay');         // already exists in your HTML
     const donationModal = document.getElementById('donation-modal');
     const donationInput = document.getElementById('donation-input');
+    const donationError = document.getElementById('donation-error');
     const donationOk = document.getElementById('donation-ok');
     const donationCancel = document.getElementById('donation-cancel');
     const donationClose = document.getElementById('donation-close');
@@ -258,6 +289,75 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!m) return '';
         const [, dd, mm, yyyy] = m;
         return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function formatUaMonthName(date) {
+        return date.toLocaleDateString('uk-UA', { month: 'long' });
+    }
+
+    function formatFullDate(y, m, d) {
+        return `${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')}.${y}`;
+    }
+
+    function setSelectedDateDisplay(selectedDateEl, y, m, d) {
+        if (!selectedDateEl) return '';
+        const iso = toISOFromParts(y, m, d);
+        selectedDateEl.dataset.iso = iso;
+        selectedDateEl.dataset.day = String(d);
+        selectedDateEl.dataset.month = String(m);
+        selectedDateEl.dataset.year = String(y);
+        selectedDateEl.textContent = formatUaMonthName(new Date(y, m - 1, d));
+        return iso;
+    }
+
+    function clearSelectedDateDisplay(selectedDateEl) {
+        if (!selectedDateEl) return;
+        selectedDateEl.textContent = '';
+        delete selectedDateEl.dataset.iso;
+        delete selectedDateEl.dataset.day;
+        delete selectedDateEl.dataset.month;
+        delete selectedDateEl.dataset.year;
+    }
+
+    function updateVisibleMonthLabel() {
+        const dateCalendar = document.querySelector('.date-calendar');
+        const selectedDateEl = document.querySelector('.selected-date');
+        if (!dateCalendar || !selectedDateEl) return;
+
+        const items = Array.from(dateCalendar.querySelectorAll('.date-item'));
+        if (!items.length) return;
+
+        const rect = dateCalendar.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        let bestItem = null;
+        let bestDist = Infinity;
+
+        items.forEach((item) => {
+            const itemRect = item.getBoundingClientRect();
+            const itemCenter = itemRect.left + itemRect.width / 2;
+            const dist = Math.abs(itemCenter - centerX);
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestItem = item;
+            }
+        });
+
+        const month = parseInt(bestItem?.dataset?.month, 10);
+        const year = parseInt(bestItem?.dataset?.year, 10);
+        if (!month || !year) return;
+
+        const label = formatUaMonthName(new Date(year, month - 1, 1));
+        if (label && selectedDateEl.textContent !== label) {
+            selectedDateEl.textContent = label;
+        }
+    }
+
+    function getSelectedFullDate(selectedDateEl) {
+        const day = Number(selectedDateEl?.dataset?.day);
+        const month = Number(selectedDateEl?.dataset?.month);
+        const year = Number(selectedDateEl?.dataset?.year);
+        if (!day || !month || !year) return '';
+        return formatFullDate(year, month, day);
     }
 
     function isPastISO(iso) {
@@ -458,9 +558,22 @@ document.addEventListener('DOMContentLoaded', () => {
         customDonationBtn.dataset.custom = '1';
     }
 
+    function showDonationError(message) {
+        if (!donationError) return;
+        donationError.textContent = message;
+        donationError.hidden = false;
+    }
+
+    function clearDonationError() {
+        if (!donationError) return;
+        donationError.textContent = '';
+        donationError.hidden = true;
+    }
+
     function openDonationModal(presetValue = '') {
         if (!donationModal || !overlayEl) return;
         donationInput.value = presetValue || '';
+        clearDonationError();
         overlayEl.hidden = false;
         overlayPrevHandler = overlayEl.onclick;
         overlayEl.onclick = () => closeDonationModal();
@@ -475,7 +588,14 @@ document.addEventListener('DOMContentLoaded', () => {
         overlayPrevHandler = null;
         donationModal.hidden = true;
         overlayEl.hidden = true;
+        clearDonationError();
     }
+
+    donationInput?.addEventListener('input', () => {
+        if (donationError && !donationError.hidden) {
+            clearDonationError();
+        }
+    });
 
     function selectDonationButton(btn) {
         // clear previous selection
@@ -542,6 +662,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = e.target.closest('.donation-btn');
         if (!btn) return;
 
+        const isSelected = btn.classList.contains('selected');
+        if (isSelected) {
+            btn.classList.remove('selected');
+            resetLiturgyStripPosition();
+            updateDonationButtonsLayout();
+            return;
+        }
+
         // If it's our custom (“Інше”) button → open modal
         if (btn.dataset.custom === '1') {
             // If user previously entered a custom amount, show it again
@@ -583,7 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (amount <= 49) {
-            alert('Введіть коректну суму (мінімум 50 грн).');
+            showDonationError('Введіть коректну суму (мінімум 50 грн).');
             donationInput?.focus();
             return;
         }
@@ -608,7 +736,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Dots popup options (if present)
     document.getElementById('bio-edit-option')?.addEventListener('click', () => bioEditBtn?.click());
-    document.getElementById('photos-add-option')?.addEventListener('click', () => addPhotoBtn?.click());
+    document.getElementById('photos-add-option')?.addEventListener('click', () => {
+        const limit = typeof MAX_PHOTOS !== 'undefined' ? MAX_PHOTOS : (window.MAX_PHOTOS || 20);
+        const currentCount = persistedMedia().length;
+        if (currentCount >= limit) {
+            openInfoModal(premiumLimitMessage());
+            return;
+        }
+        addPhotoBtn?.click();
+    });
     document.getElementById('photos-choose-option')?.addEventListener('click', () => choosePhotoBtn?.click());
     document.getElementById('photos-delete-option')?.addEventListener('click', () => deletePhotoBtn?.click());
 
@@ -2169,7 +2305,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (photosListEl.style) photosListEl.style.display = 'none';
             const empty = document.createElement('div');
             empty.className = 'photos-empty';
-            empty.innerHTML = 'Немає фотографій<br>Будь ласка, поділіться спогадами';
+            empty.innerHTML = 'Немає фотографій.<br>Будь ласка, поділіться спогадами';
             photosScrollEl?.appendChild(empty);
             return;
         }
@@ -2270,7 +2406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const limit = typeof MAX_PHOTOS !== 'undefined'
             ? MAX_PHOTOS
             : (window.MAX_PHOTOS || 20);
-        return `Досягнуто ліміту ${limit} фото. Для збільшення обсягу, придбайте <br><a href style="color:black; font-size: 550;"="premium_qr.html"><u>Преміум QR</u></a>.`;
+        return `Досягнуто ліміту ${limit} фото. <br>Для збільшення обсягу, придбайте <br><a href="premium_qr.html" style="color:black; font-size: 550;"><u>Преміум QR</u></a>.`;
     }
 
     function openInfoModal(message) {
@@ -2742,7 +2878,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateChurchButtonsForWeekday(weekday) {
-        if (!unionActiveWeekdays || selectedChurchName || weekday === null) {
+        if (!unionActiveWeekdays || weekday === null) {
             console.log('church buttons skip update', { unionActiveWeekdays, selectedChurchName, weekday });
             resetChurchButtonsState();
             return;
@@ -2832,7 +2968,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const stillSelected = dateCalendar.querySelector('.date-item.selected');
         if (!stillSelected) {
             const selectedDateEl = document.querySelector('.selected-date');
-            if (selectedDateEl) selectedDateEl.textContent = '';
+            clearSelectedDateDisplay(selectedDateEl);
+            updateVisibleMonthLabel();
             updateLiturgyDetails();
         }
     }
@@ -2914,7 +3051,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 liturgyPersonNameEl.textContent = nameEl.textContent;
             }
 
-            const selectedIso = toISOFromUA(document.querySelector('.selected-date')?.textContent || '');
+            const selectedIso = getSelectedISO();
             if (selectedIso) {
                 renderLiturgyDetailsStrip(selectedIso);
             }
@@ -3029,7 +3166,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (bioBodyWrap) {
                     const empty = document.createElement('div');
                     empty.className = 'bio-empty';
-                    empty.innerHTML = 'Життєпис ще не заповнено<br>Будь ласка, додайте інформацію';
+                    empty.innerHTML = 'Життєпис ще не заповнено.<br>Будь ласка, додайте інформацію';
                     bioBodyWrap.prepend(empty);
                 }
             }
@@ -3191,10 +3328,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const todayFormatted = `${String(today.getDate()).padStart(2, '0')}.${String(
-            today.getMonth() + 1
-        ).padStart(2, '0')}.${today.getFullYear()}`;
-        selectedDateEl.textContent = todayFormatted;
+        setSelectedDateDisplay(selectedDateEl, today.getFullYear(), today.getMonth() + 1, today.getDate());
 
         // Ensure "today" is selected and shown
         const todayItem = Array.from(dateCalendar.querySelectorAll('.date-item')).find(
@@ -3209,7 +3343,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (todayItem && scroller) {
             requestAnimationFrame(() => {
                 scroller.scrollTo({ left: todayItem.offsetLeft, behavior: 'auto' });
+                updateVisibleMonthLabel();
             });
+        } else {
+            updateVisibleMonthLabel();
         }
 
         // Update details immediately
@@ -3218,6 +3355,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Apply active-days logic for currently selected church (if any)
         applyChurchActiveDaysToCalendar();
+
+        if (!dateCalendar.dataset.monthLabelBound) {
+            let raf = 0;
+            dateCalendar.addEventListener('scroll', () => {
+                if (raf) return;
+                raf = requestAnimationFrame(() => {
+                    raf = 0;
+                    updateVisibleMonthLabel();
+                });
+            }, { passive: true });
+            dateCalendar.dataset.monthLabelBound = '1';
+        }
     }
 
     async function loadLiturgies() {
@@ -3266,15 +3415,14 @@ document.addEventListener('DOMContentLoaded', () => {
         markDatesWithLiturgies();
 
         // ensure initial selected (today) effects
-        const selectedDateText = document.querySelector('.selected-date')?.textContent || '';
-        const iso = toISOFromUA(selectedDateText);
+        const iso = getSelectedISO();
         if (iso) applyDateSelectionEffects(iso);
         renderLiturgyDetailsStrip(iso);
     })();
 
     function getSelectedISO() {
-        const selectedDateText = document.querySelector('.selected-date')?.textContent?.trim();
-        return selectedDateText ? toISOFromUA(selectedDateText) : '';
+        const selectedDateEl = document.querySelector('.selected-date');
+        return selectedDateEl?.dataset?.iso || toISOFromUA(selectedDateEl?.textContent || '');
     }
 
     function applyDateSelectionEffects(iso) {
@@ -3285,7 +3433,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const liturgyDonationEl = document.querySelector('.liturgy-donation');
         const weekday = iso ? new Date(`${iso}T00:00:00`).getDay() : null;
         selectedDateWeekday = hasUserPickedDate ? weekday : null;
-        if (!selectedChurchName && hasUserPickedDate) {
+        if (hasUserPickedDate) {
             updateChurchButtonsForWeekday(weekday);
         }
 
@@ -3301,37 +3449,61 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('click', (e) => {
         const clickedItem = e.target.closest('.date-item');
-        if (clickedItem) {
-            if (clickedItem.classList.contains('date-item--inactive')) {
-                return; // ignore clicks on inactive dates
-            }
-            hasUserPickedDate = true;
-            const selectedDateEl = document.querySelector('.selected-date');
+        if (!clickedItem) return;
+
+        const isSelected = clickedItem.classList.contains('selected');
+        if (clickedItem.classList.contains('date-item--inactive') && !isSelected) {
+            return; // ignore clicks on inactive dates
+        }
+
+        const selectedDateEl = document.querySelector('.selected-date');
+        if (isSelected) {
             document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
-            clickedItem.classList.add('selected');
+            clearSelectedDateDisplay(selectedDateEl);
+            updateVisibleMonthLabel();
+            hasUserPickedDate = false;
+            selectedDateWeekday = null;
+            updateChurchButtonsForWeekday(null);
 
-            const day = parseInt(clickedItem.dataset.day, 10);
-            const month = parseInt(clickedItem.dataset.month, 10);
-            const year = parseInt(clickedItem.dataset.year, 10);
+            const submitBtn = document.querySelector('.liturgy-submit');
+            const detailsEl = document.querySelector('.liturgy-details, .service-info') || document.querySelector('.service-info');
+            const liturgyChurchEl = document.querySelector('.liturgy-church');
+            const liturgyDonationEl = document.querySelector('.liturgy-donation');
+            if (submitBtn) submitBtn.style.display = '';
+            if (detailsEl) detailsEl.style.display = '';
+            if (liturgyDonationEl) liturgyDonationEl.style.display = '';
+            if (liturgyChurchEl) liturgyChurchEl.style.display = '';
 
-            const formattedDate = `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
-            if (selectedDateEl) selectedDateEl.textContent = formattedDate;
-
-            if (selectedChurchName) {
-                const churchBtns = document.querySelectorAll('.church-btn');
-                churchBtns.forEach(b => {
-                    const isMatch = b.textContent.trim() === selectedChurchName;
-                    b.classList.toggle('selected', isMatch);
-                });
-            }
-
+            document.querySelector('.liturgy-history')?.remove();
             updateLiturgyDetails();
+            return;
+        }
 
-            const iso = toISOFromParts(year, month, day);
+        hasUserPickedDate = true;
+        document.querySelectorAll('.date-item').forEach(d => d.classList.remove('selected'));
+        clickedItem.classList.add('selected');
+
+        const day = parseInt(clickedItem.dataset.day, 10);
+        const month = parseInt(clickedItem.dataset.month, 10);
+        const year = parseInt(clickedItem.dataset.year, 10);
+
+        const iso = setSelectedDateDisplay(selectedDateEl, year, month, day);
+
+        if (selectedChurchName) {
+            const churchBtns = document.querySelectorAll('.church-btn');
+            churchBtns.forEach(b => {
+                const isMatch = b.textContent.trim() === selectedChurchName;
+                b.classList.toggle('selected', isMatch);
+            });
+        }
+
+        updateLiturgyDetails();
+
+        if (iso) {
             applyDateSelectionEffects(iso);
             renderLiturgyDetailsStrip(iso);
-            updateLiturgyDetails();
         }
+        updateLiturgyDetails();
     });
 
     function updateLiturgyDetails() {
@@ -3351,7 +3523,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const serviceInfoEl = detailsBox.querySelector('.service-info');
 
         if (serviceInfoEl && selectedDateEl) {
-            const selectedDate = selectedDateEl.textContent;
+            const selectedDate = getSelectedFullDate(selectedDateEl);
+            const dateText = selectedDate ? `${selectedDate} р.` : 'оберіть дату';
 
             // 🔸 fallback: немає підсвіченого елемента, але назва збережена
             if (!selectedChurchEl && selectedChurchName) {
@@ -3364,18 +3537,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            if (selectedChurchEl) {
-                const churchName = selectedChurchEl.textContent.trim();
-                serviceInfoEl.innerHTML =
-                    `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${churchName}</span>, <span style="font-weight:550;">${selectedDate} р.</span>`;
-            } else if (selectedChurchName) {
-                // якщо кнопки не знайшли, але маємо назву — теж підставимо її
-                serviceInfoEl.innerHTML =
-                    `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${selectedChurchName}</span>, <span style="font-weight:550;">${selectedDate} р.</span>`;
-            } else {
-                serviceInfoEl.innerHTML =
-                    `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">Оберіть церкву</span>, <span style="font-weight:550;">${selectedDate} р.</span>`;
-            }
+            const churchText = selectedChurchEl?.textContent?.trim()
+                || selectedChurchName
+                || 'оберіть церкву';
+            serviceInfoEl.innerHTML =
+                `Божественна Літургія за упокій відбудеться у <span style="font-weight:550;">${churchText}</span>, <span style="font-weight:550;">${dateText}</span>`;
 
             detailsBox.dataset.serviceInfo = serviceInfoEl.textContent?.trim() || '';
         }
@@ -3508,14 +3674,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     preloadAllChurchDays();
 
-    const donationBtns = document.querySelectorAll('.donation-btn');
-    donationBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            donationBtns.forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-        });
-    });
-
     function onLiturgySubmit(e) {
         e.preventDefault(); // in case the button is inside a <form>
         const btn = e.currentTarget;
@@ -3528,7 +3686,8 @@ document.addEventListener('DOMContentLoaded', () => {
         (async () => {
             try {
                 // UI selections
-                const selectedDateText = document.querySelector('.selected-date')?.textContent?.trim() || '';
+                const selectedDateEl = document.querySelector('.selected-date');
+                const selectedDateText = getSelectedFullDate(selectedDateEl);
                 const selectedChurchEl = document.querySelector('.church-btn.selected');
                 const selectedDonationBtn = document.querySelector('.donation-btn.selected');
 
@@ -3539,14 +3698,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!personId) return alert('Не знайдено профіль (personId)');
 
                 // Parse date "DD.MM.YYYY" -> "YYYY-MM-DD"
-                let dateISO = '';
-                const m = selectedDateText.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-                if (m) {
-                    const [, dd, mm, yyyy] = m;
-                    dateISO = `${yyyy}-${mm}-${dd}`;
-                } else {
-                    const d = new Date(selectedDateText);
-                    if (!isNaN(d)) dateISO = d.toISOString().slice(0, 10);
+                let dateISO = selectedDateEl?.dataset?.iso || '';
+                if (!dateISO) {
+                    const m = selectedDateText.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+                    if (m) {
+                        const [, dd, mm, yyyy] = m;
+                        dateISO = `${yyyy}-${mm}-${dd}`;
+                    } else {
+                        const d = new Date(selectedDateText);
+                        if (!isNaN(d)) dateISO = d.toISOString().slice(0, 10);
+                    }
                 }
                 if (!dateISO) return alert('Невірний формат дати');
 
@@ -3595,8 +3756,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try { showToast?.('Записку надіслано. Дякуємо за пожертву!'); } catch { }
                 await loadLiturgies();
                 markDatesWithLiturgies();
-                const currentSelectedText = document.querySelector('.selected-date')?.textContent || '';
-                const iso = toISOFromUA(currentSelectedText);
+                const iso = getSelectedISO();
                 if (iso) applyDateSelectionEffects(iso);
                 renderLiturgyDetailsStrip(iso);
             } catch (err) {
@@ -4563,6 +4723,7 @@ document.addEventListener('DOMContentLoaded', () => {
             nameInput.value = '';
             updateRelNameClearBtn();
             nameInput.focus();
+            triggerFetch();
         });
         updateRelNameClearBtn();
 
@@ -4887,6 +5048,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             selCountEl.textContent = selected.length;
             if (selectedCountRow) selectedCountRow.style.display = selected.length ? '' : 'none';
+            overlay.classList.toggle('relatives-no-selected', selected.length === 0);
 
             // Remove item
             selectedList.querySelectorAll('li button.select-btn').forEach(btn => {
@@ -5026,6 +5188,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderSelected();
 
                 // 5) Update UI elements
+                updateRelNameClearBtn();
                 updateAreaClearBtn?.();
 
                 // 6) Trigger search with restored filters
@@ -5065,6 +5228,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 foundList.innerHTML = '';
                 foundCountEl.textContent = '0';
             }
+
+            updateRelNameClearBtn();
 
             // Make sure years panel is closed when opening modal
             panel.hidden = true;

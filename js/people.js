@@ -65,6 +65,13 @@ try {
     headerEl.onclick = () => {
       window.location.href = `cemetery.html?name=${encodeURIComponent(savedCemetery)}`;
     };
+  } else if (savedArea) {
+    const areaTab = document.querySelector('.filter[data-filter="area"]');
+    const shortArea = savedArea.split(',')[0].trim() || 'Населений пункт';
+    if (areaTab) areaTab.textContent = shortArea;
+    headerEl.textContent = shortArea;
+    headerEl.classList.remove('clickable');
+    headerEl.onclick = null;
   }
 } catch (e) {
   console.warn('Cannot access sessionStorage for cemetery filter', e);
@@ -534,6 +541,16 @@ function renderFilterControls() {
         // оновлюємо state — тільки тут (лише вибрана підказка фільтрує людей)
         filterState.area = areaNameFull;
         filterState.areaId = areaId;
+        try {
+          sessionStorage.setItem('memoria_cemetery_area', areaNameFull);
+          if (areaId) {
+            sessionStorage.setItem('memoria_cemetery_area_id', areaId);
+          } else {
+            sessionStorage.removeItem('memoria_cemetery_area_id');
+          }
+        } catch (e) {
+          console.warn('Cannot persist area filter to sessionStorage', e);
+        }
 
         // оновлюємо таб і хедер
         const shortName = areaNameFull.split(',')[0].trim();

@@ -108,6 +108,19 @@
         <button id="modal-ok" class="modal-ok">Готово</button>
     </div>
 
+    <!-- Update Success Modal -->
+    <div id="update-modal" class="modal" hidden>
+        <p class="modal-text">Локацію успішно змінено</p>
+        <button id="update-modal-ok" class="modal-ok">Готово</button>
+    </div>
+
+    <!-- Photo Limit Modal -->
+    <div id="photo-limit-modal" class="modal" hidden>
+        <p id="photo-limit-title" class="modal-title">Фото не додано</p>
+        <p id="photo-limit-text" class="modal-text"></p>
+        <button id="photo-limit-ok" class="modal-ok">Готово</button>
+    </div>
+
     <!-- Confirm Change Location Modal -->
     <div id="confirm-modal" class="modal" hidden>
         <button id="confirm-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
@@ -136,6 +149,7 @@
     </div>
 
     <script src="js/location.js"></script>
+  <script src="js/modal_scroll_lock.js"></script>
 </body>
 
 </html>

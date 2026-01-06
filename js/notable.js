@@ -77,7 +77,7 @@ function initPhotoSlider() {
 
                 // 4) На клік — редірект
                 slide.addEventListener('click', () => {
-                    window.location.href = `profile.html?personId=${person.id}`;
+                    window.location.href = `profile.html?personId=${person.id}&from=notable`;
                 });
 
                 sliderEl.append(slide);
@@ -496,7 +496,7 @@ function renderFilterControls() {
                             // 2) оновлюємо таб і заголовок короткою назвою до коми
                             const shortName = match.split(',')[0].trim();
                             areaTab.textContent = shortName;
-                            headerEl.textContent = shortName;
+                            headerEl.textContent = defaultHeader;
 
                             // 3) вмикаємо clear для area
                             clearBtn.style.display = 'flex';
@@ -535,7 +535,7 @@ function renderFilterControls() {
                 // 2) коротка назва в таб і заголовок
                 const shortName = value.split(',')[0].trim();
                 areaTab.textContent = shortName;
-                headerEl.textContent = shortName;
+                headerEl.textContent = defaultHeader;
 
                 // 3) показуємо clear для area
                 clearBtn.style.display = 'flex';
@@ -722,7 +722,7 @@ function renderFilterControls() {
                             // update tabs & header
                             cemTab.textContent = matchName;
                             areaTab.textContent = (filterState.area ? filterState.area.split(',')[0].trim() : areaTab.textContent);
-                            headerEl.textContent = matchName;
+                            headerEl.textContent = defaultHeader;
                             clearCem.style.display = 'flex';
 
                             // re-render people list with new area filter
@@ -759,7 +759,7 @@ function renderFilterControls() {
                 // 2) ОНОВИТИ ТАБИ та clear-кнопку негайно
                 cemTab.textContent = cemeteryName;
                 areaTab.textContent = (filterState.area ? filterState.area.split(',')[0].trim() : 'Населений пункт');
-                headerEl.textContent = cemeteryName;
+                headerEl.textContent = defaultHeader;
                 clearCem.style.display = 'flex';
 
                 // 3) закрити дропдаун, зняти фокус, перерендерити список
@@ -775,9 +775,7 @@ function renderFilterControls() {
                 suggestions.innerHTML = '';
                 suggestions.style.display = 'none';
                 cemTab.textContent = 'Кладовище';
-                headerEl.textContent = (filterState.area
-                    ? areaTab.textContent
-                    : defaultHeader);
+                headerEl.textContent = defaultHeader;
                 clearCem.style.display = 'none';
                 fetchAndRender();
             });
@@ -834,7 +832,7 @@ async function fetchAndRender() {
       </div>
     `;
             li.addEventListener('click', () => {
-                window.location.href = `profile.html?personId=${p.id}`;
+                window.location.href = `profile.html?personId=${p.id}&from=notable`;
             });
             listEl.appendChild(li);
         });

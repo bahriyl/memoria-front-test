@@ -3,6 +3,7 @@ const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app/';
 document.addEventListener('DOMContentLoaded', () => {
     // ------- DEBUG helper -------
     const D = (...args) => console.log('[YEARS]', ...args);
+    let submitAttempted = false;
 
     // ——— Drawer menu ———
     const menuBtn = document.getElementById('menu-btn');
@@ -349,6 +350,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const cemSuggest = document.getElementById('cemetery-suggestions');
 
     let cityTimer, cemTimer;
+    let selectedCity = '';
+    let selectedCemetery = '';
+
+    const normalizeValue = (value) => (value || '').trim();
+    const isSameValue = (a, b) =>
+        normalizeValue(a).toLowerCase() === normalizeValue(b).toLowerCase();
+
+    function clearFieldError(inputElement) {
+        const group = inputElement?.closest?.('.form-group') || inputElement?.parentElement;
+        const errorDiv = group?.querySelector('.error-message');
+        if (!errorDiv) return;
+        errorDiv.textContent = '';
+        errorDiv.style.display = 'none';
+    }
 
     // додамо невеличкий escape, щоб уникнути XSS у розмітці
     function esc(s) {
@@ -358,7 +373,8 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/>/g, '&gt;');
     }
 
-    async function fetchCemeteries(search = '') {
+    async function fetchCemeteries(search = '', opts = {}) {
+        const includeName = (opts.includeName || '').trim();
         const params = new URLSearchParams({
             search,
             // якщо бек досі підтримує фільтр area — залишаємо; інакше бек проігнорує
@@ -368,8 +384,17 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(`${API_URL}/api/cemeteries?${params}`);
             const list = await res.json(); // тепер це [{ area, name }, ...]
-            cemSuggest.innerHTML = (Array.isArray(list) && list.length)
-                ? list.map(c => {
+            const items = Array.isArray(list) ? list.slice() : [];
+
+            if (includeName) {
+                const hasSelected = items.some((c) => (c?.name || '').trim().toLowerCase() === includeName.toLowerCase());
+                if (!hasSelected) {
+                    items.unshift({ name: includeName, area: cityInput.value || '' });
+                }
+            }
+
+            cemSuggest.innerHTML = (items.length)
+                ? items.map(c => {
                     const name = esc(c.name);
                     const area = esc(c.area);
                     return `<li data-name="${name}" data-area="${area}">${name}</li>`;
@@ -384,6 +409,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // CITY
     clearCityBtn.style.display = 'none';
     cityInput.addEventListener('input', () => {
+        selectedCity = '';
+        selectedCemetery = '';
+        if (cemInput) {
+            cemInput.value = '';
+            clearCemBtn.style.display = 'none';
+            cemSuggest.innerHTML = '';
+            cemSuggest.style.display = 'none';
+        }
         clearCityBtn.style.display = cityInput.value ? 'flex' : 'none';
         clearTimeout(cityTimer);
         cityTimer = setTimeout(async () => {
@@ -417,20 +450,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const li = e.target.closest('li');
         if (li && !li.classList.contains('no-results')) {
             cityInput.value = li.textContent.trim();
+            selectedCity = cityInput.value.trim();
             citySuggest.style.display = 'none';
             clearCityBtn.style.display = 'flex';
+            if (cemInput) {
+                cemInput.value = '';
+                selectedCemetery = '';
+                clearCemBtn.style.display = 'none';
+                cemSuggest.innerHTML = '';
+                cemSuggest.style.display = 'none';
+            }
         }
     });
     cityInput.addEventListener('blur', () => { setTimeout(() => citySuggest.style.display = 'none', 200); });
     clearCityBtn.addEventListener('click', () => {
         // очистити місто
         cityInput.value = '';
+        selectedCity = '';
         clearCityBtn.style.display = 'none';
         citySuggest.innerHTML = '';
         citySuggest.style.display = 'none';
 
         // одночасно очистити кладовище
         cemInput.value = '';
+        selectedCemetery = '';
         clearCemBtn.style.display = 'none';
         cemSuggest.innerHTML = '';
         cemSuggest.style.display = 'none';
@@ -439,6 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // CEMETERY
     clearCemBtn.style.display = 'none';
     cemInput.addEventListener('input', () => {
+        selectedCemetery = '';
         clearCemBtn.style.display = cemInput.value ? 'flex' : 'none';
         clearTimeout(cemTimer);
         cemTimer = setTimeout(() => {
@@ -451,8 +495,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     cemInput.addEventListener('focus', () => {
         if (!cityInput.value) return;
-        clearCemBtn.style.display = 'none';
-        fetchCemeteries('');
+        clearCemBtn.style.display = cemInput.value ? 'flex' : 'none';
+        fetchCemeteries('', { includeName: cemInput.value });
     });
     cemSuggest.addEventListener('click', e => {
         const li = e.target.closest('li');
@@ -463,18 +507,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Заповнюємо поле "Кладовище"
         cemInput.value = name;
+        selectedCemetery = name;
         cemSuggest.style.display = 'none';
         clearCemBtn.style.display = 'flex';
 
         // Якщо населений пункт ще порожній — підставляємо area з підказки
         if (!cityInput.value && area) {
             cityInput.value = area;
+            selectedCity = cityInput.value.trim();
             clearCityBtn.style.display = 'flex';
         }
     });
     cemInput.addEventListener('blur', () => { setTimeout(() => cemSuggest.style.display = 'none', 200); });
     clearCemBtn.addEventListener('click', () => {
         cemInput.value = ''; clearCemBtn.style.display = 'none';
+        selectedCemetery = '';
         cemSuggest.innerHTML = ''; cemSuggest.style.display = 'none';
     });
 
@@ -484,6 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (activitySelect && clearActivityBtn) {
         activitySelect.addEventListener('change', () => {
+            if (submitAttempted) clearFieldError(activitySelect);
             // CSS handles visibility via :required:valid; no JS needed here
         });
 
@@ -603,6 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearBtn.style.display = 'none';
                 display.classList.remove('has-value'); // <— remove when empty
             }
+            if (submitAttempted) clearFieldError(select);
         });
 
         // clear behavior
@@ -618,6 +667,14 @@ document.addEventListener('DOMContentLoaded', () => {
     notableCheckbox.addEventListener('change', () => {
         notableFields.style.display = notableCheckbox.checked ? 'block' : 'none';
     });
+    const linkInput = document.getElementById('internetLinks');
+    const bioInput = document.getElementById('achievements');
+    linkInput?.addEventListener('input', () => {
+        if (submitAttempted) clearFieldError(linkInput);
+    });
+    bioInput?.addEventListener('input', () => {
+        if (submitAttempted) clearFieldError(bioInput);
+    });
 
     // ——— Confirm modal + toast ———
     const confirmModal = document.getElementById('confirm-modal');
@@ -625,18 +682,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmEdit = document.getElementById('confirm-edit');
     const confirmSend = document.getElementById('confirm-send');
     const confirmSummary = document.getElementById('confirm-summary');
-    const toast = document.getElementById('toast');
-    const toastText = document.getElementById('toast-text');
-    const toastClose = document.getElementById('toast-close');
-
     let pendingPayload = null;
 
     function openConfirm(payload) {
         pendingPayload = payload;
         const rows = [
             ['ПІБ', payload.name],
-            ['Рік народження', payload.birthYear],
-            ['Рік смерті', payload.deathYear],
+            ['Роки життя', `${payload.birthYear} - ${payload.deathYear}`],
             ['Населений пункт', payload.area],
             ['Кладовище', payload.cemetery]
         ];
@@ -654,13 +706,6 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmModal.hidden = true;
         document.getElementById('modal-overlay').hidden = true;
     }
-    function showToast(msg) {
-        toastText.textContent = msg;
-        toast.hidden = false;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-    toastClose.addEventListener('click', (e) => { e.preventDefault(); toast.hidden = true; });
-
     async function sendModeration(payload) {
         try {
             const res = await fetch(`${API_URL}/api/people/add_moderation`, {
@@ -669,7 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const json = await res.json();
             closeConfirm();
             if (json.success) {
-                showToast("Успішно відправлено на модерацію! Ми сповістимо вас коли буде готово");
+                showModal();
                 clearForm();
             } else {
                 alert('Щось пішло не так. Спробуйте ще раз.');
@@ -689,16 +734,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // ——— Submission ———
     const overlayEl = document.getElementById('modal-overlay');
     const modalEl = document.getElementById('success-modal');
-    const closeBtn = document.getElementById('modal-close');
     const okBtn = document.getElementById('modal-ok');
 
-    function showModal() { overlayEl.hidden = false; modalEl.style.display = 'block'; }
-    function hideModal() { overlayEl.hidden = true; modalEl.style.display = 'none'; }
-    closeBtn.addEventListener('click', hideModal);
+    function showModal() { overlayEl.hidden = false; modalEl.hidden = false; }
+    function hideModal() { overlayEl.hidden = true; modalEl.hidden = true; }
     okBtn.addEventListener('click', hideModal);
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
+        submitAttempted = true;
 
         // clear previous errors
         document.querySelectorAll('.error-message').forEach(el => { el.textContent = ''; el.style.display = 'none'; });
@@ -713,13 +757,6 @@ document.addEventListener('DOMContentLoaded', () => {
             fullNameError.textContent = "Введіть ПІБ";
             fullNameError.style.display = 'block';
             hasError = true;
-        } else {
-            const parts = name.split(/\s+/).filter(Boolean);
-            if (name.includes('.') || parts.length < 3 || parts.some(p => p.length <= 1)) {
-                fullNameError.textContent = "Введіть повне ім'я та по-батькові";
-                fullNameError.style.display = 'block';
-                hasError = true;
-            }
         }
 
         // Years validation (require both for submission)
@@ -729,10 +766,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const city = document.getElementById('city');
-        if (!city.value.trim()) { showError(city, "Введіть населений пункт"); hasError = true; }
+        const cityValue = city.value.trim();
+        if (!cityValue || !selectedCity || !isSameValue(cityValue, selectedCity)) {
+            showError(city, "Введіть населений пункт");
+            hasError = true;
+        }
 
         const cemetery = document.getElementById('cemetery');
-        if (!cemetery.value.trim()) { showError(cemetery, "Введіть назву кладовища"); hasError = true; }
+        const cemeteryValue = cemetery.value.trim();
+        if (!cemeteryValue || !selectedCemetery || !isSameValue(cemeteryValue, selectedCemetery)) {
+            showError(cemetery, "Введіть назву кладовища");
+            hasError = true;
+        }
 
         let occupation = '', link = '', bio = '';
         if (document.getElementById('notablePerson').checked) {
@@ -745,10 +790,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!occupation) { showError(occupationSelect, "Оберіть сферу діяльності"); hasError = true; }
             if (!link) { showError(linkInput, "Введіть посилання на інтернет джерела"); hasError = true; }
-            if (!bio) { showError(bioInput, "Введіть опис"); hasError = true; }
         }
 
         if (hasError) return;
+
+        submitAttempted = false;
 
         // Open confirmation with the correct years
         openConfirm({
@@ -778,6 +824,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function clearForm() {
         form.reset();
         document.querySelectorAll('.error-message').forEach(el => { el.textContent = ''; el.style.display = 'none'; });
+        submitAttempted = false;
+        selectedCity = '';
+        selectedCemetery = '';
 
         // reset suggestions & clear buttons
         document.getElementById('clear-city').style.display = 'none';

@@ -457,22 +457,27 @@ input[type="checkbox"] {
 
 .clear-btn {
     position: absolute;
-    top: 50%;
-    right: 1rem;
+    top: 24.5px;
+    right: 16px;
     transform: translateY(-50%);
     display: none;
+    width: 20px;
+    height: 20px;
     background: none;
     border: none;
     padding: 0;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     z-index: 5;
     color: #90959C !important;
 }
 
 .clear-btn svg {
-    width: 1.9rem;
-    height: 1.9em;
-    stroke: #90959C !important;
+    width: 100%;
+    height: 100%;
+    display: block;
+    stroke: currentColor;
     stroke-width: 1.7px;
 }
 
@@ -510,12 +515,31 @@ input[type="checkbox"] {
 .modal-close {
     position: absolute;
     top: 12px;
-    right: 6px;
+    right: 12px;
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
-    font-size: 1.25rem;
     color: #90959C;
     cursor: pointer;
+}
+
+.modal-close svg {
+    width: 15px;
+    height: 15px;
+    display: none;
+}
+
+.modal-close::before {
+    content: "";
+    width: 15px;
+    height: 15px;
+    background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' stroke='%2390959C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cline x1='5' y1='5' x2='19' y2='19'/%3E%3Cline x1='19' y1='5' x2='5' y2='19'/%3E%3C/svg%3E");
+    pointer-events: none;
 }
 
 .modal-text {
@@ -525,13 +549,41 @@ input[type="checkbox"] {
     line-height: 1.4;
 }
 
+.success-modal-title {
+    margin: 8px 0 14px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #000000;
+    text-align: center;
+}
+
+.success-modal-text {
+    margin: 0 0 24px;
+    font-size: 15px;
+    font-weight: 480;
+    font-family: 'Montserrat', sans-serif;
+    color: #000000;
+    line-height: 23px;
+    text-align: center;
+}
+
 .modal-ok {
-    background: #397355;
-    color: #fff;
+    background: #1B8B59;
+    color: #FFFDF8;
     border: none;
-    border-radius: 8px;
-    font-size: 16px;
+    border-radius: 14px;
+    font-size: 17px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 550;
     cursor: pointer;
+}
+
+#success-modal .modal-ok {
+    display: block;
+    width: 50%;
+    height: 42px;
+    margin: 0 auto 4px;
 }
 
 .error-message {
@@ -605,8 +657,8 @@ input[type="checkbox"] {
     padding: 0 22px;
     padding-right: 44px;
     border-radius: var(--radius-md);
-    background: #EFF2F5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 16px center;
-    background-size: 20px 20px;
+    background: #EFF2F5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 14px center;
+    background-size: 18px 18px;
     font-size: 16px;
     font-weight: 460;
     color: #72767D;
@@ -631,7 +683,7 @@ input[type="checkbox"] {
 /* clear button in pill */
 .year-pill .clear-btn {
     position: absolute;
-    top: 50%;
+    top: 24.5px;
     right: 16px;
     transform: translateY(-50%);
     background: none;
@@ -644,8 +696,8 @@ input[type="checkbox"] {
 }
 
 .year-pill .clear-btn svg {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 100%;
+    height: 100%;
     stroke: currentColor;
     stroke-width: 2;
 }
@@ -952,9 +1004,14 @@ input[type="checkbox"] {
 }
 
 #confirm-modal .modal-close {
-    top: 10px;
-    right: 3px;
-    font-size: 22px;
+    top: 12px;
+    right: 12px;
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: #9AA0A6;
 }
 

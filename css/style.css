@@ -445,7 +445,7 @@ h2 {
     --year-item-height: 44px;
     --year-visible-count: 4;
     position: absolute;
-    top: calc(100% + 5px);
+    top: calc(100% + 2px);
     left: 0;
     right: 0;
     background: #ffffff;
