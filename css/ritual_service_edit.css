@@ -208,6 +208,7 @@ body {
   border-radius: 8px;
   box-sizing: border-box;
   line-height: 24px;
+  white-space: pre-wrap;
 }
 
 p.ritual-text {
@@ -224,12 +225,14 @@ p.ritual-text {
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 #ritual-text>span {
   display: inline;
   width: auto;
   max-width: 100%;
+  white-space: pre-wrap;
 }
 
 textarea {
@@ -372,8 +375,15 @@ textarea {
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   position: relative;
+}
+
+.item-title {
+  margin: 0;
+  padding-right: 8px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .dots-btn {

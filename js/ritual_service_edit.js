@@ -231,15 +231,27 @@ function applyAbout(text) {
   const lessLabel = "менше";
   const aboutEl = document.getElementById("ritual-text");
 
+  if (!aboutEl) return;
+
+  const section = aboutEl.closest(".ritual-description");
+  let empty = section ? section.querySelector(".description-empty") : null;
+
   aboutEl.innerHTML = "";
 
   if (!text) {
-    const empty = document.createElement("div");
-    empty.className = "description-empty";
-    empty.textContent = "Немає опису";
-    aboutEl.replaceWith(empty);
+    aboutEl.style.display = "none";
+    if (!empty) {
+      empty = document.createElement("div");
+      empty.className = "description-empty";
+      empty.textContent = "Немає опису";
+      aboutEl.insertAdjacentElement("afterend", empty);
+    }
+    empty.style.display = "flex";
     return;
   }
+
+  if (empty) empty.style.display = "none";
+  aboutEl.style.display = "block";
 
   // same pattern as profile bio
   aboutEl.classList.add("manual-clamp");
@@ -1045,7 +1057,6 @@ function renderData(data) {
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         `;
-          if (disabled) del.disabled = true;
 
           // drag’n’drop
           let draggedRecently = false;
@@ -1346,7 +1357,7 @@ function renderData(data) {
       thumbsEl.onclick = (ev) => {
         const btn = ev.target.closest('.thumb-x');
         if (!btn) return;
-        if (modeAlbum.checked) return;
+        if (btn.disabled) return;
 
         const i = Number(btn.dataset.i);
         commitCurrent();
@@ -1594,16 +1605,18 @@ async function updateItems(items, reload = true) {
   }
 }
 
-
 function openDescriptionEditor() {
   const section = document.querySelector(".ritual-description");
   const p = section.querySelector("p.ritual-text");
+  const empty = section.querySelector(".description-empty");
   const textarea = section.querySelector("textarea.ritual-text");
+  if (!textarea) return;
 
   // показуємо textarea
   textarea.value = (ritualData?.description || "").toString();
   textarea.style.display = "block";
-  p.style.display = "none";
+  if (p) p.style.display = "none";
+  if (empty) empty.style.display = "none";
 
   // ряд дій під описом
   let row = section.querySelector(".desc-actions");
@@ -1624,7 +1637,7 @@ function openDescriptionEditor() {
 
   cancelBtn.addEventListener("click", () => {
     textarea.style.display = "none";
-    p.style.display = "block";
+    applyAbout((ritualData?.description || "").trim());
     row.remove();
   });
 
@@ -1635,10 +1648,10 @@ function openDescriptionEditor() {
 }
 
 async function updateDescription(newDescription) {
-  const p = document.querySelector(".ritual-description p.ritual-text");
   const textarea = document.querySelector(
     ".ritual-description textarea.ritual-text"
   );
+  if (!textarea) return;
 
   try {
     const res = await fetchWithAuth(`${API}/ritual_services/${ritualId}`, {
@@ -1653,11 +1666,10 @@ async function updateDescription(newDescription) {
     // оновлюємо джерело правди в пам’яті
     ritualData.description = newDescription;
 
-    // 1) одразу показуємо <p>, ховаємо textarea
-    p.style.display = "block";
+    // ховаємо textarea та оновлюємо контент
     textarea.style.display = "none";
 
-    // 2) кламапимо на наступному кадрі, коли лейаут уже актуальний
+    // кламапимо на наступному кадрі, коли лейаут уже актуальний
     requestAnimationFrame(() => {
       applyAbout((newDescription || "").trim());
     });
@@ -1708,8 +1720,14 @@ document.addEventListener("click", (e) => {
     const allSections = [...document.querySelectorAll(".ritual-item-section")];
     const index = allSections.indexOf(section);
     if (index > -1) {
-      ritualData.items.splice(index, 1);
-      updateItems(ritualData.items);
+      openConfirmDeleteModal({
+        text: "Видалити категорію?",
+        okText: "Видалити"
+      }).then((confirmed) => {
+        if (!confirmed) return;
+        ritualData.items.splice(index, 1);
+        updateItems(ritualData.items);
+      });
     }
   }
 });
@@ -1729,7 +1747,7 @@ function ensureOverlay() {
   return overlay;
 }
 
-function openConfirmDeleteModal(count) {
+function openConfirmDeleteModal(config) {
   const overlay = ensureOverlay();
 
   const dlg = document.getElementById("confirm-delete-modal");
@@ -1743,11 +1761,21 @@ function openConfirmDeleteModal(count) {
     return Promise.resolve(false);
   }
 
-  // текст в модалці
-  textEl.textContent =
-    count > 1
-      ? `Видалити ${count} елемент${count > 1 ? "и" : ""}?`
-      : "Видалити вибрану фотографію?";
+  let text = "";
+  let okText = "Видалити";
+  if (typeof config === "number") {
+    const count = config;
+    text =
+      count > 1
+        ? `Видалити ${count} елемент${count > 1 ? "и" : ""}?`
+        : "Видалити вибрану фотографію?";
+  } else {
+    text = config?.text || "Видалити вибраний елемент?";
+    okText = config?.okText || okText;
+  }
+
+  textEl.textContent = text;
+  okBtn.textContent = okText;
 
   overlay.hidden = false;
   dlg.hidden = false;
@@ -1756,6 +1784,7 @@ function openConfirmDeleteModal(count) {
     function finish(result) {
       dlg.hidden = true;
       overlay.hidden = true;
+      okBtn.textContent = "Видалити";
       cleanup();
       resolve(result);
     }

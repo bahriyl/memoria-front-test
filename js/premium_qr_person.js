@@ -894,12 +894,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function restoreSelectedPersons() {
+        try {
+            const raw = sessionStorage.getItem('premiumQR.selected.v1');
+            if (!raw) return;
+            const stored = JSON.parse(raw);
+            if (!Array.isArray(stored)) return;
+            selectedPersons.splice(0, selectedPersons.length, ...stored);
+            renderSelected();
+            triggerFetch();
+        } catch (e) {
+            console.warn('Unable to restore selected persons:', e);
+        }
+    }
+
     //
     // 7) “Додати особу” & NAVIGATION
     //
     addPersonBtn.addEventListener('click', () => {
         window.location.href = '/add_person.html';
     });
+
+    restoreSelectedPersons();
 
     function resetCemetery() {
         if (cemInput) {
@@ -936,8 +952,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         selectError.hidden = true;
-        deliveryModal.hidden = false;
-        mainSubmitBtn.style.display = 'none';   // HIDE when modal opens
+        try {
+            sessionStorage.setItem('premiumQR.selected.v1', JSON.stringify(selectedPersons));
+        } catch (err) {
+            console.warn('Unable to store selected persons:', err);
+        }
+        window.location.href = 'premium_qr_order.html';
     });
 
     modalCloseBtn.addEventListener('click', () => {

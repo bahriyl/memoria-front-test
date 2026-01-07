@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Оформлення Преміум QR</title>
+    <link rel="stylesheet" href="css/premium_qr_order.css" />
+</head>
+
+<body>
+    <main class="container">
+        <button class="back-btn" type="button" aria-label="Назад" id="backBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </button>
+
+        <h1 class="page-title">Оформлення Преміум QR</h1>
+
+        <div id="personList" class="person-list"></div>
+
+        <div class="summary">
+            <div class="summary-row">
+                <span>Сума:</span>
+                <span id="summaryQty">1 x 700 грн</span>
+            </div>
+            <div class="summary-row">
+                <span>Доставка:</span>
+                <span>Безкоштовно</span>
+            </div>
+            <div class="summary-row total">
+                <span>Всього:</span>
+                <span id="summaryTotal">700 грн</span>
+            </div>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Особисті дані:</h2>
+            <div class="field">
+                <input type="text" id="fullName" placeholder="Введіть ваш ПІБ..." autocomplete="name" />
+            </div>
+            <div class="field">
+                <input type="tel" id="phone" placeholder="Введіть ваш номер телефону..." autocomplete="tel"
+                    inputmode="numeric" maxlength="17" />
+            </div>
+            <div class="field field-sms">
+                <input type="text" id="smsCode" placeholder="Введіть код з смс..." autocomplete="one-time-code" />
+                <button type="button" class="link-btn" id="sendCodeBtn">Надіслати код</button>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Свідоцтво про смерть:</h2>
+            <div id="certList" class="cert-list"></div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Доставка:</h2>
+            <div class="field suggestions-container">
+                <input type="text" id="delCity" placeholder="Введіть населений пункт..." autocomplete="off" />
+                <button class="icon-btn clear-btn" id="clearDelCity" aria-label="Очистити">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+                <ul class="suggestions-list" id="delCitySuggestions"></ul>
+            </div>
+            <div class="field suggestions-container">
+                <input type="text" id="delBranch" placeholder="Оберіть пункт видачі..." autocomplete="off" />
+                <button class="icon-btn clear-btn" id="clearDelBranch" aria-label="Очистити">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+                <ul class="suggestions-list" id="delBranchSuggestions"></ul>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Умови отримання Преміум QR:</h2>
+            <p class="section-note">
+                При отриманні Преміум QR при собі потрібно мати оригінал свідоцтва про смерть та паспорт
+            </p>
+            <label class="check-row">
+                <input type="checkbox" id="termsCheck" />
+                <span>Я ознайомився (-лась)</span>
+            </label>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Спосіб оплати:</h2>
+            <label class="radio-row">
+                <input type="radio" name="payment" value="online" checked />
+                <span>Оплата карткою</span>
+            </label>
+            <p class="legal-text">
+                Натискаючи на кнопку “Перейти до оплати”, Ви підтверджуєте, що перевірили внесені Вами дані
+                та ознайомились з <a href="terms">Правилами</a> і погодились з усіма умовами <a href="terms">Договору</a>
+            </p>
+        </section>
+
+        <div class="form-actions">
+            <div id="orderError" class="error-message" hidden></div>
+            <button type="button" class="submit-btn" id="payBtn">Перейти до оплати</button>
+        </div>
+    </main>
+
+    <script src="js/premium_qr_order.js"></script>
+</body>
+
+</html>

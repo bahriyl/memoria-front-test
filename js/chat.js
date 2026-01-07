@@ -7,7 +7,13 @@
   const fileInput = document.getElementById("fileInput");
   const previewContainer = document.getElementById("previewContainer");
   const attachBtn = document.querySelector(".attach-btn");
-  let selectedFile = null;
+  const limitOverlay = document.getElementById("limit-modal-overlay");
+  const limitModal = document.getElementById("limit-modal");
+  const limitModalText = document.getElementById("limit-modal-text");
+  const limitModalOk = document.getElementById("limit-modal-ok");
+  const limitModalClose = document.getElementById("limit-modal-close");
+  const maxPhotos = 5;
+  let selectedFiles = [];
 
   function updateSpacer() {
     const bar = document.querySelector(".input-bar");
@@ -22,6 +28,22 @@
     updateSpacer();
   }
 
+  function openLimitModal(message) {
+    if (!limitOverlay || !limitModal) {
+      window.alert(message);
+      return;
+    }
+    if (limitModalText) limitModalText.textContent = message;
+    limitOverlay.hidden = false;
+    limitModal.hidden = false;
+  }
+
+  function closeLimitModal() {
+    if (!limitOverlay || !limitModal) return;
+    limitOverlay.hidden = true;
+    limitModal.hidden = true;
+  }
+
   // init once
   autosize(input);
   updateSpacer();
@@ -31,6 +53,10 @@
 
   // keep spacer correct on viewport changes
   window.addEventListener("resize", updateSpacer);
+
+  if (limitOverlay) limitOverlay.addEventListener("click", closeLimitModal);
+  if (limitModalOk) limitModalOk.addEventListener("click", closeLimitModal);
+  if (limitModalClose) limitModalClose.addEventListener("click", closeLimitModal);
 
   // 1) Get or create chatId
   let chatId = sessionStorage.getItem("chatId");
@@ -59,6 +85,13 @@
     return 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   }
 
+  function normalizeImages(imageData) {
+    if (Array.isArray(imageData)) {
+      return imageData.filter(Boolean);
+    }
+    return imageData ? [imageData] : [];
+  }
+
   function render(msg) {
     // якщо це повідомлення від адміна — додаємо лейбл «Memoria»
     if (msg.sender === "admin") {
@@ -80,22 +113,26 @@
     }
 
     // фото
-    if (msg.imageData) {
+    const images = normalizeImages(msg.imageData);
+    images.forEach((src, index) => {
       const img = document.createElement("img");
-      img.src = msg.imageData;
+      img.src = src;
       bubble.append(img);
-      attachChatImagePreview(img, msg.imageData);
-    }
+      attachChatImagePreview(img, images, index);
+    });
 
     // час створення
     if (msg.createdAt) {
-      const time = new Date(msg.createdAt);
+      const raw = String(msg.createdAt);
+      const hasTz = /[zZ]|[+-]\d{2}:\d{2}$/.test(raw);
+      const time = new Date(hasTz ? raw : `${raw}Z`);
       const timeDiv = document.createElement("div");
       timeDiv.className = "msg-time";
       timeDiv.textContent = time.toLocaleTimeString("uk-UA", {
         hour: "2-digit",
         minute: "2-digit",
-        hour12: false
+        hour12: false,
+        timeZone: "Europe/Kyiv"
       });
       bubble.append(timeDiv);
     }
@@ -118,17 +155,17 @@
       bubble.append(p);
     }
 
-    if (imageData) {
+    const images = normalizeImages(imageData);
+    images.forEach((src, index) => {
       const img = document.createElement("img");
-      img.src = imageData;
+      img.src = src;
       bubble.append(img);
-      attachChatImagePreview(img, imageData);
-    }
+      attachChatImagePreview(img, images, index);
+    });
 
     const status = document.createElement("div");
     status.className = "sending-status";
     status.innerHTML = `
-      <span>Надсилається</span>
       <span class="typing">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
       </span>
@@ -145,54 +182,88 @@
     document.querySelectorAll('.bubble.pending').forEach(el => el.remove());
   }
 
-  function attachChatImagePreview(img, src) {
+  function attachChatImagePreview(img, images, startIndex) {
     img.classList.add('chat-image-preview');
     img.addEventListener('click', () => {
-      openChatImageFullscreen(src);
+      openChatSlideshow(images, startIndex);
     });
   }
 
-  function openChatImageFullscreen(src) {
+  function openChatSlideshow(images, startIndex = 0) {
+    if (!images || images.length === 0) return;
+
     const modal = document.createElement('div');
-    modal.className = 'slideshow-modal chat-slideshow';
+    modal.className = 'slideshow-modal';
+
+    const closeBtnX = document.createElement('span');
+    closeBtnX.textContent = '✕';
+    closeBtnX.className = 'close-slideshow';
 
     const track = document.createElement('div');
     track.className = 'slideshow-track';
 
-    const slide = document.createElement('div');
-    slide.className = 'slideshow-slide';
+    images.forEach((src) => {
+      const slide = document.createElement('div');
+      slide.className = 'slideshow-slide';
 
-    const img = document.createElement('img');
-    img.className = 'slideshow-img';
-    img.src = src;
+      const slideImg = document.createElement('img');
+      slideImg.src = src;
+      slideImg.className = 'slideshow-img';
+      slide.appendChild(slideImg);
 
-    slide.appendChild(img);
-    track.appendChild(slide);
+      track.appendChild(slide);
+    });
 
-    const closeBtn = document.createElement('span');
-    closeBtn.className = 'close-slideshow';
-    closeBtn.textContent = '✕';
+    const indicator = document.createElement('div');
+    indicator.className = 'slideshow-indicators';
+    images.forEach((_, idx) => {
+      const dot = document.createElement('span');
+      dot.className = 'slideshow-indicator';
+      dot.addEventListener('click', () => changeSlide(idx));
+      indicator.appendChild(dot);
+    });
 
-    modal.appendChild(track);
-    modal.appendChild(closeBtn);
-    document.body.appendChild(modal);
+    function updateIndicators(index) {
+      indicator.querySelectorAll('.slideshow-indicator').forEach((dot, i) =>
+        dot.classList.toggle('active', i === index)
+      );
+    }
+
+    function changeSlide(newIndex) {
+      const slides = track.querySelectorAll('.slideshow-slide');
+      if (slides[newIndex]) {
+        slides[newIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+      }
+    }
+
+    track.addEventListener('scroll', () => {
+      const slideWidth = track.clientWidth;
+      const index = Math.round(track.scrollLeft / slideWidth);
+      updateIndicators(index);
+    });
 
     const cleanup = () => {
       document.removeEventListener('keydown', handleEsc);
       modal.remove();
     };
 
-    closeBtn.addEventListener('click', cleanup);
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        cleanup();
-      }
-    });
-
     const handleEsc = (ev) => {
       if (ev.key === 'Escape') cleanup();
     };
     document.addEventListener('keydown', handleEsc);
+
+    closeBtnX.addEventListener('click', cleanup);
+
+    modal.append(closeBtnX, track, indicator);
+    document.body.appendChild(modal);
+
+    requestAnimationFrame(() => {
+      const prev = track.style.scrollBehavior;
+      track.style.scrollBehavior = 'auto';
+      track.scrollLeft = startIndex * track.clientWidth;
+      track.style.scrollBehavior = prev;
+      updateIndicators(startIndex);
+    });
   }
 
   // 4) Load full history
@@ -216,92 +287,123 @@
 
   // 6) Attach button → вибір файлу
   attachBtn.addEventListener("click", () => fileInput.click());
-  fileInput.addEventListener("change", (e) => {
-    previewContainer.innerHTML = ""; // очищаємо попереднє
-    selectedFile = e.target.files[0]; // зберігаємо в змінну
+  function renderPreview() {
+    previewContainer.innerHTML = "";
+    selectedFiles.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const thumb = document.createElement("div");
+        thumb.className = "thumb";
+        thumb.innerHTML = `
+          <img src="${reader.result}" />
+          <div class="remove">×</div>
+        `;
+        previewContainer.append(thumb);
 
-    if (!selectedFile) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      // Створюємо <div class="thumb"><img src="…"><button class="remove">×</button></div>
-      const thumb = document.createElement("div");
-      thumb.className = "thumb";
-      thumb.innerHTML = `
-            <img src="${reader.result}" />
-            <div class="remove">×</div>
-          `;
-      previewContainer.append(thumb);
-
-      // обробник для скасування
-      thumb.querySelector(".remove").onclick = () => {
-        selectedFile = null;
-        fileInput.value = "";
-        previewContainer.innerHTML = "";
+        thumb.querySelector(".remove").onclick = () => {
+          selectedFiles = selectedFiles.filter((_, i) => i !== index);
+          renderPreview();
+        };
       };
-    };
-    reader.readAsDataURL(selectedFile);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  fileInput.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > maxPhotos) {
+      openLimitModal("Максимум 5 фото за раз.");
+    }
+    selectedFiles = files.slice(0, maxPhotos);
+    renderPreview();
   });
 
   // 7) Send new message (FormData із файлом)
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const text = input.value.trim();
-    if (!text && !selectedFile) return;
+    const hasText = text.length > 0;
+    const filesToSend = selectedFiles.slice();
+    const hasImages = filesToSend.length > 0;
+    if (!hasText && !hasImages) return;
 
     // знімок попереднього перегляду (якщо є) для pending
     let previewData = null;
-    if (selectedFile) {
-      previewData = await new Promise((resolve) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result);
-        r.readAsDataURL(selectedFile);
+    if (hasImages) {
+      previewData = await Promise.all(
+        filesToSend.map(
+          (file) =>
+            new Promise((resolve) => {
+              const r = new FileReader();
+              r.onload = () => resolve(r.result);
+              r.readAsDataURL(file);
+            })
+        )
+      );
+    }
+
+    let imagesPendingBubble = null;
+    let textPendingBubble = null;
+    if (hasImages) {
+      imagesPendingBubble = renderPending({
+        text: "",
+        imageData: previewData,
+        pendingId: uid()
+      });
+    } else if (hasText) {
+      textPendingBubble = renderPending({
+        text,
+        imageData: null,
+        pendingId: uid()
       });
     }
-
-    // створюємо FormData
-    const formData = new FormData();
-    formData.append("sender", "user");
-    formData.append("text", text || "");
-    if (selectedFile) {
-      formData.append("image", selectedFile);
-    }
-
-    // рендеримо pending
-    const pendingId = uid();
-    const pendingBubble = renderPending({
-      text,
-      imageData: previewData,
-      pendingId
-    });
 
     // очистка полів вводу
     input.value = "";
     autosize(input);
-    selectedFile = null;
+    selectedFiles = [];
     fileInput.value = "";
     previewContainer.innerHTML = "";
 
-    try {
-      const resp = await fetch(`${API}/chats/${chatId}/messages`, {
-        method: "POST",
-        body: formData,
+    const sendFormData = async (formData, pendingBubble) => {
+      try {
+        const resp = await fetch(`${API}/chats/${chatId}/messages`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        return true;
+      } catch (err) {
+        if (pendingBubble) {
+          const status = pendingBubble.querySelector(".sending-status");
+          if (status) {
+            status.innerHTML = `<span style="color:#D80032">Помилка. Спробуйте ще раз</span>`;
+          }
+          pendingBubble.classList.remove("pending");
+        }
+        console.error("Send failed:", err);
+        return false;
+      }
+    };
+
+    if (hasImages) {
+      const imagesForm = new FormData();
+      imagesForm.append("sender", "user");
+      imagesForm.append("text", "");
+      filesToSend.forEach((file) => {
+        imagesForm.append("image", file);
       });
 
-      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const ok = await sendFormData(imagesForm, imagesPendingBubble);
+      if (!ok) return;
+    }
 
-      // Успіх: чекаємо socket->newMessage, який сам перезавантажить історію.
-      // Нічого не робимо тут — pending зникне у clearPending().
-    } catch (err) {
-      // Помилка відправки: показати статус «Помилка. Повторити»
-      if (pendingBubble) {
-        const status = pendingBubble.querySelector(".sending-status");
-        if (status) {
-          status.innerHTML = `<span style="color:#D80032">Помилка. Спробуйте ще раз</span>`;
-        }
-        pendingBubble.classList.remove("pending");
-      }
-      console.error("Send failed:", err);
+    if (hasText) {
+      const textForm = new FormData();
+      textForm.append("sender", "user");
+      textForm.append("text", text);
+      await sendFormData(textForm, hasImages ? null : textPendingBubble);
     }
   });
 
