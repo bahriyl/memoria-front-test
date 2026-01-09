@@ -346,6 +346,17 @@
         </div>
     </div>
 
+    <div id="liturgy-phone-modal" class="modal" hidden>
+        <button id="liturgy-phone-close" class="modal-close" aria-label="Закрити"></button>
+        <p class="modal-text">Введіть номер телефону</p>
+        <input id="liturgy-phone-input" class="liturgy-phone-input" type="tel" inputmode="numeric"
+            autocomplete="tel" maxlength="17" placeholder="+380(__)-___-____">
+        <p id="liturgy-phone-error" class="error-message donation-error" hidden></p>
+        <div class="modal-actions">
+            <button id="liturgy-phone-submit" class="modal-ok">Перейти до оплати</button>
+        </div>
+    </div>
+
     <!-- Add Relative (modal) -->
     <div id="relativesModal" class="modal-overlay" hidden>
         <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relModalTitle">

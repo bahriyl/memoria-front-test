@@ -15,12 +15,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const backBtn = document.querySelector('.back-button');
 
     const personId = params.get('personId');
+    const liturgyInvoiceId = params.get('liturgyInvoice');
+    const liturgyDateParam = params.get('liturgyDate');
     if (!personId) return;
+
+    let liturgyPaymentState = null;
+    try {
+        const raw = sessionStorage.getItem('liturgyPaymentState');
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.invoiceId) {
+                if (!parsed.personId || String(parsed.personId) === String(personId)) {
+                    liturgyPaymentState = parsed;
+                } else {
+                    sessionStorage.removeItem('liturgyPaymentState');
+                }
+            }
+        }
+    } catch { }
+
+    const pendingInvoiceId = liturgyInvoiceId || liturgyPaymentState?.invoiceId || null;
+    const pendingDateISO = liturgyDateParam || liturgyPaymentState?.dateISO || null;
 
     const tokenKey = `people_token_${personId}`;
     const token = localStorage.getItem(tokenKey);
 
-    if (token) {
+    if (token && !pendingInvoiceId) {
         const parts = [];
         if (from) parts.push(`from=${encodeURIComponent(from)}`);
         if (backTo) parts.push(`backTo=${encodeURIComponent(backTo)}`);
@@ -232,6 +252,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const donationCancel = document.getElementById('donation-cancel');
     const donationClose = document.getElementById('donation-close');
     let overlayPrevHandler = null;
+    const liturgyPhoneModal = document.getElementById('liturgy-phone-modal');
+    const liturgyPhoneInput = document.getElementById('liturgy-phone-input');
+    const liturgyPhoneError = document.getElementById('liturgy-phone-error');
+    const liturgyPhoneSubmit = document.getElementById('liturgy-phone-submit');
+    const liturgyPhoneClose = document.getElementById('liturgy-phone-close');
+    const liturgyResultModal = document.getElementById('liturgy-result-modal');
+    const liturgyResultText = document.getElementById('liturgy-result-text');
+    const liturgyResultOk = document.getElementById('liturgy-result-ok');
+    let donationLayoutKey = '';
 
     let liturgiesIndex = {}; // { 'YYYY-MM-DD': [ { _id, churchName, price, createdAt, serviceDate } ] }
 
@@ -591,9 +620,159 @@ document.addEventListener('DOMContentLoaded', () => {
         clearDonationError();
     }
 
+    function formatUaPhone(value) {
+        let digits = String(value || '').replace(/\D/g, '');
+        if (digits.startsWith('380')) digits = digits.slice(3);
+        if (digits.startsWith('0')) digits = digits.slice(1);
+        digits = digits.slice(0, 9);
+        if (!digits.length) return '';
+        const part1 = digits.slice(0, 2);
+        const part2 = digits.slice(2, 5);
+        const part3 = digits.slice(5, 9);
+        let formatted = `+380(${part1}`;
+        if (part1.length === 2) formatted += ')';
+        if (part2.length) formatted += `-${part2}`;
+        if (part3.length) formatted += `-${part3}`;
+        return formatted;
+    }
+
+    function openLiturgyPhoneModal() {
+        if (!liturgyPhoneModal || !overlayEl) return;
+        if (liturgyPhoneError) {
+            liturgyPhoneError.textContent = '';
+            liturgyPhoneError.hidden = true;
+        }
+        if (liturgyPhoneSubmit) liturgyPhoneSubmit.disabled = false;
+        if (liturgyPhoneInput) liturgyPhoneInput.value = '';
+        overlayEl.hidden = false;
+        overlayPrevHandler = overlayEl.onclick;
+        overlayEl.onclick = () => closeLiturgyPhoneModal();
+        liturgyPhoneModal.hidden = false;
+        requestAnimationFrame(() => liturgyPhoneInput?.focus());
+    }
+
+    function closeLiturgyPhoneModal() {
+        if (!liturgyPhoneModal || !overlayEl) return;
+        overlayEl.onclick = overlayPrevHandler;
+        overlayPrevHandler = null;
+        liturgyPhoneModal.hidden = true;
+        overlayEl.hidden = true;
+        if (liturgyPhoneError) {
+            liturgyPhoneError.textContent = '';
+            liturgyPhoneError.hidden = true;
+        }
+        releaseLiturgySubmitState();
+    }
+
     donationInput?.addEventListener('input', () => {
         if (donationError && !donationError.hidden) {
             clearDonationError();
+        }
+    });
+
+    let pendingLiturgyPayload = null;
+    let pendingLiturgyBtn = null;
+
+    function releaseLiturgySubmitState() {
+        if (pendingLiturgyBtn) {
+            pendingLiturgyBtn.disabled = false;
+            delete pendingLiturgyBtn.dataset.busy;
+            pendingLiturgyBtn = null;
+        }
+        pendingLiturgyPayload = null;
+    }
+
+    liturgyPhoneInput?.addEventListener('input', () => {
+        if (liturgyPhoneError && !liturgyPhoneError.hidden) {
+            liturgyPhoneError.textContent = '';
+            liturgyPhoneError.hidden = true;
+        }
+        liturgyPhoneInput.value = formatUaPhone(liturgyPhoneInput.value);
+    });
+
+    liturgyPhoneInput?.addEventListener('blur', () => {
+        liturgyPhoneInput.value = formatUaPhone(liturgyPhoneInput.value);
+    });
+
+    liturgyPhoneClose?.addEventListener('click', () => {
+        closeLiturgyPhoneModal();
+        releaseLiturgySubmitState();
+    });
+
+    liturgyPhoneSubmit?.addEventListener('click', async () => {
+        if (!pendingLiturgyPayload) return;
+        if (!liturgyPhoneInput) return;
+
+        const formatted = formatUaPhone(liturgyPhoneInput.value);
+        liturgyPhoneInput.value = formatted;
+        const digits = formatted.replace(/\D/g, '');
+        if (digits.length !== 12) {
+            if (liturgyPhoneError) {
+                liturgyPhoneError.textContent = 'Введіть коректний номер телефону';
+                liturgyPhoneError.hidden = false;
+            }
+            return;
+        }
+
+        liturgyPhoneSubmit.disabled = true;
+
+        try {
+            const amount = Math.round(pendingLiturgyPayload.price * 100);
+            const redirectUrl = `${window.location.origin}/profile.html?personId=${encodeURIComponent(personId)}&liturgyDate=${encodeURIComponent(pendingLiturgyPayload.dateISO)}`;
+            const invoiceRes = await fetch(`${API_URL}/api/merchant/invoice/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount,
+                    ccy: 980,
+                    redirectUrl,
+                    webHookUrl: `${API_URL}/api/monopay/webhook`,
+                    merchantPaymInfo: {
+                        destination: 'Оплата записки',
+                        comment: `Літургія ${pendingLiturgyPayload.churchName || ''}`.trim()
+                    }
+                })
+            });
+            if (!invoiceRes.ok) throw new Error('Не вдалось створити інвойс');
+            const { invoiceId, pageUrl } = await invoiceRes.json();
+
+            const personName = document.querySelector('.profile-name')?.textContent?.trim() || '';
+            const createRes = await fetch(`${API_URL}/api/liturgies`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    personId,
+                    personName,
+                    date: pendingLiturgyPayload.dateISO,
+                    churchName: pendingLiturgyPayload.churchName,
+                    price: pendingLiturgyPayload.price,
+                    phone: formatted,
+                    invoiceId,
+                    paymentMethod: 'online',
+                    paymentStatus: 'pending'
+                })
+            });
+            if (!createRes.ok) {
+                const text = await createRes.text().catch(() => '');
+                throw new Error(text || 'Не вдалося створити записку');
+            }
+
+            try {
+                sessionStorage.setItem('liturgyPaymentState', JSON.stringify({
+                    invoiceId,
+                    dateISO: pendingLiturgyPayload.dateISO,
+                    personId
+                }));
+            } catch { }
+
+            window.location.href = pageUrl;
+        } catch (err) {
+            console.error('Liturgy payment failed:', err);
+            if (liturgyPhoneError) {
+                liturgyPhoneError.textContent = err.message || 'Сталася помилка під час оплати';
+                liturgyPhoneError.hidden = false;
+            }
+            liturgyPhoneSubmit.disabled = false;
         }
     });
 
@@ -604,10 +783,14 @@ document.addEventListener('DOMContentLoaded', () => {
         btn?.classList.add('selected');
     }
 
-    function updateDonationButtonsLayout() {
+    function updateDonationButtonsLayout(force = false) {
         if (!donationOptions) return;
         const buttons = Array.from(donationOptions.querySelectorAll('.donation-btn'));
         if (!buttons.length) return;
+
+        const nextKey = `${donationOptions.clientWidth}|${buttons.map(b => b.textContent.trim()).join('|')}`;
+        if (!force && nextKey === donationLayoutKey) return;
+        donationLayoutKey = nextKey;
 
         // reset any previous wrapped state / overrides
         buttons.forEach(btn => {
@@ -3415,14 +3598,135 @@ document.addEventListener('DOMContentLoaded', () => {
         markDatesWithLiturgies();
 
         // ensure initial selected (today) effects
-        const iso = getSelectedISO();
+        let iso = getSelectedISO();
         if (iso) applyDateSelectionEffects(iso);
         renderLiturgyDetailsStrip(iso);
+
+        if (pendingDateISO) {
+            selectDateByISO(pendingDateISO);
+            iso = pendingDateISO;
+            const items = liturgiesIndex[iso] || [];
+            if (items.length) {
+                let targetIndex = 1;
+                if (pendingInvoiceId) {
+                    const found = items.findIndex((it) => it.invoiceId === pendingInvoiceId);
+                    if (found >= 0) targetIndex = found + 1;
+                }
+                requestAnimationFrame(() => scrollToLiturgyCard(targetIndex));
+            }
+        }
+
+        if (pendingInvoiceId) {
+            const status = await fetchLiturgyPaymentStatus(pendingInvoiceId);
+            const successStatuses = new Set(['success']);
+            const failureStatuses = new Set(['failure', 'expired', 'reversed', 'cancelled', 'canceled', 'declined']);
+            const normalized = String(status || '').toLowerCase();
+            const isSuccess = successStatuses.has(normalized);
+            const isFailure = failureStatuses.has(normalized);
+            openLiturgyResultModal(
+                isSuccess
+                    ? 'Оплата успішна. Записку прийнято.'
+                    : (isFailure ? 'Оплата не пройшла. Спробуйте ще раз.' : 'Оплата не підтверджена. Спробуйте ще раз.')
+            );
+
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('liturgyInvoice');
+            cleanUrl.searchParams.delete('liturgyDate');
+            history.replaceState(null, '', cleanUrl.toString());
+
+            if (liturgyPaymentState) {
+                try { sessionStorage.removeItem('liturgyPaymentState'); } catch { }
+                liturgyPaymentState = null;
+            }
+        }
     })();
 
     function getSelectedISO() {
         const selectedDateEl = document.querySelector('.selected-date');
         return selectedDateEl?.dataset?.iso || toISOFromUA(selectedDateEl?.textContent || '');
+    }
+
+    function selectDateByISO(iso) {
+        if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
+        const dateCalendar = document.querySelector('.date-calendar');
+        const selectedDateEl = document.querySelector('.selected-date');
+        if (!dateCalendar || !selectedDateEl) return;
+
+        const [y, m, d] = iso.split('-').map(Number);
+        setSelectedDateDisplay(selectedDateEl, y, m, d);
+        dateCalendar.querySelectorAll('.date-item').forEach(it => it.classList.remove('selected'));
+        const target = Array.from(dateCalendar.querySelectorAll('.date-item')).find(
+            (item) =>
+                parseInt(item.dataset.day) === d &&
+                parseInt(item.dataset.month) === m &&
+                parseInt(item.dataset.year) === y
+        );
+        if (target) {
+            target.classList.add('selected');
+            dateCalendar.scrollTo({ left: target.offsetLeft, behavior: 'auto' });
+        }
+        hasUserPickedDate = true;
+        applyDateSelectionEffects(iso);
+        renderLiturgyDetailsStrip(iso);
+        updateLiturgyDetails();
+        renderLiturgyHistoryForISO(iso);
+    }
+
+    function scrollToLiturgyCard(index) {
+        const strip = document.querySelector('.liturgy-details.is-strip');
+        if (!strip) return;
+        const target = strip.children[index];
+        target?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
+    }
+
+    function resetLiturgySelections() {
+        document.querySelectorAll('.church-btn').forEach(b => b.classList.remove('selected'));
+        selectedChurchName = '';
+        document.querySelectorAll('.donation-btn').forEach(b => b.classList.remove('selected'));
+        loadChurchActiveDays('');
+
+        if (customDonationBtn) {
+            customDonationBtn.textContent = 'Інше';
+            delete customDonationBtn.dataset.amount;
+        }
+
+        updateDonationButtonsLayout();
+        resetLiturgyStripPosition();
+        updateLiturgyDetails();
+
+        const iso = getSelectedISO();
+        if (iso) {
+            applyDateSelectionEffects(iso);
+            renderLiturgyDetailsStrip(iso);
+            renderLiturgyHistoryForISO(iso);
+        }
+    }
+
+    async function fetchLiturgyPaymentStatus(invoiceId) {
+        try {
+            const res = await fetch(`${API_URL}/api/liturgies/payment-status?invoiceId=${encodeURIComponent(invoiceId)}`);
+            if (!res.ok) return 'unknown';
+            const data = await res.json();
+            return (data.status || 'unknown').toString().toLowerCase();
+        } catch (e) {
+            console.error('Failed to fetch liturgy payment status:', e);
+            return 'unknown';
+        }
+    }
+
+    function openLiturgyResultModal(message) {
+        if (!liturgyResultModal || !liturgyResultText || !liturgyResultOk || !overlayEl) return;
+        liturgyResultText.textContent = message;
+        overlayEl.hidden = false;
+        liturgyResultModal.hidden = false;
+
+        const close = () => {
+            liturgyResultModal.hidden = true;
+            overlayEl.hidden = true;
+            resetLiturgySelections();
+        };
+
+        liturgyResultOk.onclick = close;
     }
 
     function applyDateSelectionEffects(iso) {
@@ -3678,95 +3982,88 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault(); // in case the button is inside a <form>
         const btn = e.currentTarget;
 
-        // Re-entrancy / double-click guard
-        if (btn.dataset.busy === '1') return;
-        btn.dataset.busy = '1';
-        btn.disabled = true;
+        if (btn?.dataset.busy === '1') return;
+        if (btn) {
+            btn.dataset.busy = '1';
+            btn.disabled = true;
+        }
 
-        (async () => {
-            try {
-                // UI selections
-                const selectedDateEl = document.querySelector('.selected-date');
-                const selectedDateText = getSelectedFullDate(selectedDateEl);
-                const selectedChurchEl = document.querySelector('.church-btn.selected');
-                const selectedDonationBtn = document.querySelector('.donation-btn.selected');
+        // UI selections
+        const selectedDateEl = document.querySelector('.selected-date');
+        const selectedDateText = getSelectedFullDate(selectedDateEl);
+        const selectedChurchEl = document.querySelector('.church-btn.selected');
+        const selectedDonationBtn = document.querySelector('.donation-btn.selected');
 
-                // Basic validation
-                if (!selectedDateText) return alert('Оберіть дату');
-                if (!selectedChurchEl) return alert('Оберіть церкву');
-                if (!selectedDonationBtn) return alert('Оберіть суму пожертви');
-                if (!personId) return alert('Не знайдено профіль (personId)');
+        if (!selectedDateText) {
+            alert('Оберіть дату');
+            releaseLiturgySubmitState();
+            return;
+        }
+        if (!selectedChurchEl) {
+            alert('Оберіть церкву');
+            releaseLiturgySubmitState();
+            return;
+        }
+        if (!selectedDonationBtn) {
+            alert('Оберіть суму пожертви');
+            releaseLiturgySubmitState();
+            return;
+        }
+        if (!personId) {
+            alert('Не знайдено профіль (personId)');
+            releaseLiturgySubmitState();
+            return;
+        }
 
-                // Parse date "DD.MM.YYYY" -> "YYYY-MM-DD"
-                let dateISO = selectedDateEl?.dataset?.iso || '';
-                if (!dateISO) {
-                    const m = selectedDateText.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-                    if (m) {
-                        const [, dd, mm, yyyy] = m;
-                        dateISO = `${yyyy}-${mm}-${dd}`;
-                    } else {
-                        const d = new Date(selectedDateText);
-                        if (!isNaN(d)) dateISO = d.toISOString().slice(0, 10);
-                    }
-                }
-                if (!dateISO) return alert('Невірний формат дати');
-
-                // Validate weekday against active schedule (if configured)
-                if (currentActiveWeekdays && currentActiveWeekdays.length) {
-                    const dt = new Date(`${dateISO}T00:00:00`);
-                    const weekday = dt.getDay(); // 0..6
-                    if (!currentActiveWeekdays.includes(weekday)) {
-                        alert('На цю дату в обраній церкві немає богослужінь. Оберіть інший день.');
-                        return;
-                    }
-                }
-
-                // churchName
-                const churchName = selectedChurchEl.textContent.trim();
-
-                // price: prefer data-amount (для "Інше"), інакше парсимо з тексту ("200 грн")
-                let price = 0;
-                if (selectedDonationBtn.dataset.amount) {
-                    price = parseInt(selectedDonationBtn.dataset.amount, 10) || 0;
-                } else {
-                    price = parseInt((selectedDonationBtn.textContent || '').replace(/[^\d]/g, ''), 10) || 0;
-                }
-                if (price <= 0) return alert('Введіть коректну суму пожертви');
-
-                // Build payload for the endpoint
-                const payload = {
-                    date: dateISO,       // server stores as serviceDate
-                    churchName,          // string
-                    personId,            // current profile id
-                    price,               // number
-                };
-
-                // POST
-                const res = await fetch(`${API_URL}/api/liturgies`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-                if (!res.ok) {
-                    const text = await res.text().catch(() => '');
-                    throw new Error(text || `HTTP ${res.status}`);
-                }
-
-                // Success UX + refresh calendar & history
-                try { showToast?.('Записку надіслано. Дякуємо за пожертву!'); } catch { }
-                await loadLiturgies();
-                markDatesWithLiturgies();
-                const iso = getSelectedISO();
-                if (iso) applyDateSelectionEffects(iso);
-                renderLiturgyDetailsStrip(iso);
-            } catch (err) {
-                console.error('Create liturgy failed:', err);
-                alert('Не вдалося надіслати записку. Спробуйте ще раз.');
-            } finally {
-                btn.disabled = false;
-                delete btn.dataset.busy;
+        let dateISO = selectedDateEl?.dataset?.iso || '';
+        if (!dateISO) {
+            const m = selectedDateText.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+            if (m) {
+                const [, dd, mm, yyyy] = m;
+                dateISO = `${yyyy}-${mm}-${dd}`;
+            } else {
+                const d = new Date(selectedDateText);
+                if (!isNaN(d)) dateISO = d.toISOString().slice(0, 10);
             }
-        })();
+        }
+        if (!dateISO) {
+            alert('Невірний формат дати');
+            releaseLiturgySubmitState();
+            return;
+        }
+
+        if (currentActiveWeekdays && currentActiveWeekdays.length) {
+            const dt = new Date(`${dateISO}T00:00:00`);
+            const weekday = dt.getDay();
+            if (!currentActiveWeekdays.includes(weekday)) {
+                alert('На цю дату в обраній церкві немає богослужінь. Оберіть інший день.');
+                releaseLiturgySubmitState();
+                return;
+            }
+        }
+
+        const churchName = selectedChurchEl.textContent.trim();
+        let price = 0;
+        if (selectedDonationBtn.dataset.amount) {
+            price = parseInt(selectedDonationBtn.dataset.amount, 10) || 0;
+        } else {
+            price = parseInt((selectedDonationBtn.textContent || '').replace(/[^\d]/g, ''), 10) || 0;
+        }
+        if (price <= 0) {
+            alert('Введіть коректну суму пожертви');
+            releaseLiturgySubmitState();
+            return;
+        }
+
+        if (!liturgyPhoneModal) {
+            alert('Неможливо відкрити форму оплати');
+            releaseLiturgySubmitState();
+            return;
+        }
+
+        pendingLiturgyPayload = { dateISO, churchName, price };
+        pendingLiturgyBtn = btn;
+        openLiturgyPhoneModal();
     }
 
     const liturgySubmitBtn = document.querySelector('.liturgy-submit');

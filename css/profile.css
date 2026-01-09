@@ -2970,6 +2970,24 @@ input[type="number"] {
     outline: none;
 }
 
+#liturgy-phone-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: #F1F3F5;
+    border: none;
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-size: 16px;
+    font-weight: 460;
+    font-family: 'Montserrat', sans-serif;
+    margin: 8px 0 0 0;
+    outline: none;
+}
+
+#liturgy-result-modal .modal-text {
+    margin-bottom: 10px;
+}
+
 /* Shared album: завжди ховаємо інлайнову кнопку "Добавити" —
    запускатимемо її лише з меню (3 крапки) */
 #shared-add-btn {
