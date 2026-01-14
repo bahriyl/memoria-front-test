@@ -2,6 +2,17 @@ const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
 const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Auto-scroll textareas to keep bottom padding visible while typing
+    const enableTextareaAutoScroll = window.enableTextareaAutoScroll || function (textarea) {
+        if (!textarea || textarea.dataset.autoscroll === '1') return;
+        const scrollToBottom = () => { textarea.scrollTop = textarea.scrollHeight; };
+        textarea.addEventListener('input', () => requestAnimationFrame(scrollToBottom));
+        requestAnimationFrame(scrollToBottom);
+        textarea.dataset.autoscroll = '1';
+    };
+    window.enableTextareaAutoScroll = enableTextareaAutoScroll;
+    document.querySelectorAll('textarea').forEach(enableTextareaAutoScroll);
+
     // ===== DOM =====
     const btnGeo = document.getElementById('btn-geo');
     const fileInput = document.getElementById('file-input');
@@ -11,7 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnEditLandmarks = document.getElementById('btn-edit-landmarks');
     const btnAdd = document.getElementById('btn-add-photo');
     const btnSelect = document.getElementById('btn-select-photo');
-    const btnSubmit = document.getElementById('btn-submit');
     const geoCard = document.querySelector('.geo-card');
     const btnRow = document.getElementById('photo-btn-row');
     const errorBox = document.getElementById('form-error');
@@ -55,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentLocation = { coords: null, landmarks: '', photos: [] };
     let hadCoordsOnLoad = false;
     let initialHasData = false;
-    let changesMade = false;
 
     // Photo selection mode
     let isSelecting = false;
@@ -72,7 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let isEditingLandmarks = false;
     let prevLandmarksText = '';
-    let initialLocationSnapshot = { coords: '', landmarks: '', photos: [] };
     const MAX_PHOTOS = 10;
 
     // ===== UTIL =====
@@ -97,87 +105,23 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const clonePhotos = (arr) => Array.isArray(arr) ? arr.slice() : [];
 
-    const normalizeLandmarks = (value) => (value || '').trim();
-
-    const photosEqual = (a = [], b = []) => {
-        if (a.length !== b.length) return false;
-        for (let i = 0; i < a.length; i += 1) {
-            if (a[i] !== b[i]) return false;
-        }
-        return true;
-    };
-
-    const captureInitialSnapshot = () => {
-        initialLocationSnapshot = {
-            coords: currentLocation.coords || '',
-            landmarks: normalizeLandmarks(currentLocation.landmarks),
-            photos: clonePhotos(currentLocation.photos),
-        };
-        if (initialHasData) {
-            changesMade = false;
-        }
-    };
-
-    const computeChangesMade = () => {
-        if (!initialHasData) return;
-        const sameCoords = (initialLocationSnapshot.coords || '') === (currentLocation.coords || '');
-        const sameLandmarks = initialLocationSnapshot.landmarks === normalizeLandmarks(currentLocation.landmarks);
-        const samePhotos = photosEqual(initialLocationSnapshot.photos, currentLocation.photos);
-        changesMade = !(sameCoords && sameLandmarks && samePhotos);
-    };
-
-    const markChanged = () => {
-        if (!initialHasData) {
-            changesMade = true;
-            return;
-        }
-        computeChangesMade();
-        if (!changesMade) {
-            // if nothing actually changed (same values), keep current flag
-            changesMade = false;
-        }
-    };
 
     const nonBlobPhotos = () =>
         (currentLocation.photos || []).filter(
             (u) => typeof u === 'string' && u && !u.startsWith('blob:')
         );
 
-    function isComplete() {
-        return Boolean(
-            currentLocation.coords &&
-            (currentLocation.landmarks || '').trim() &&
-            nonBlobPhotos().length > 0
-        );
-    }
-
-    function missingFields() {
-        const miss = [];
-        if (!currentLocation.coords) miss.push('геолокація');
-        if (!(currentLocation.landmarks || '').trim()) miss.push('орієнтири');
-        if (nonBlobPhotos().length === 0) miss.push('фото');
-        return miss;
-    }
-
     function showErrors(msg) {
         if (!errorBox) return;
         errorBox.textContent = msg;
         errorBox.style.display = '';
-        const container = document.querySelector('.container');
-        if (container) container.style.paddingBottom = '80px';
     }
 
     function hideErrors() {
         if (!errorBox) return;
         errorBox.textContent = '';
         errorBox.style.display = 'none';
-        const container = document.querySelector('.container');
-        if (container) {
-            const submitVisible = btnSubmit && getComputedStyle(btnSubmit).display !== 'none';
-            container.style.paddingBottom = submitVisible ? '80px' : '25px';
-        }
     }
 
     function updateLandmarksMargin() {
@@ -282,20 +226,9 @@ document.addEventListener('DOMContentLoaded', () => {
             requestGeolocation();
         });
 
-    // Set submit label depending on whether there was data initially
-    function setSubmitLabel() {
-        if (!btnSubmit) return;
-        btnSubmit.textContent = initialHasData ? 'Зберегти зміни' : 'Додати локацію';
-    }
-
     function applyPremiumLock() {
         if (!premiumLocked) return;
         console.log('premium lock');
-
-        // Always hide submit UI
-        if (btnSubmit) btnSubmit.style.display = 'none';
-        const container = document.querySelector('.container');
-        if (container) container.style.paddingBottom = '16px';
 
         // If there is already any location data → hide only dots buttons (view-only)
         const hasAny =
@@ -347,9 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!res.ok) throw new Error(await res.text());
             hideErrors?.();
-            captureInitialSnapshot();
-            computeChangesMade();
-            maybeUpdateSubmit();
+            initialHasData = true;
             if (showSuccess) showUpdateModal();
         } catch (e) {
             console.error('Update failed', e);
@@ -357,55 +288,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function updateSubmitButtonVisibility() {
-        if (premiumLocked) {
-            if (btnSubmit) btnSubmit.style.display = 'none';
-            const container = document.querySelector('.container');
-            if (container) container.style.paddingBottom = '16px';
-            return;
-        }
-
-        if (!btnSubmit) return;
-        const container = document.querySelector('.container');
-
-        const hasCoords = Boolean(currentLocation.coords);
-        // беримо «живе» значення з textarea, навіть якщо ще не натиснули "Готово"
-        const liveLandmarks = ((currentLocation.landmarks || '').trim()) ||
-            ((landmarksEl && landmarksEl.style.display !== 'none') ? (landmarksEl.value || '').trim() : '');
-        const hasLandmarks = Boolean(liveLandmarks);
-        const hasAnyPhoto = currentLocation.photos.length > 0;
-
-        // показуємо Submit, коли дані заповнюються вперше або є зміни
-        const showBtn = hasCoords && hasLandmarks && hasAnyPhoto && (!initialHasData || changesMade);
-        btnSubmit.style.display = showBtn ? '' : 'none';
-
-        if (container) container.style.paddingBottom = showBtn ? '80px' : '25px';
-
-        // можна тиснути лише коли фото вже завантажені (без blob:) і все заповнено
-        const canReallySubmit = hasCoords && hasLandmarks && nonBlobPhotos().length > 0 && pendingUploads === 0;
-        btnSubmit.disabled = !canReallySubmit;
-
-        if (showBtn) {
-            if (pendingUploads > 0) {
-                showErrors('Фото ще завантажуються. Будь ласка, дочекайтесь завершення.');
-                return;
-            }
-            if (!(hasCoords && hasLandmarks && nonBlobPhotos().length > 0)) {
-                const miss = [];
-                if (!hasCoords) miss.push('геолокація');
-                if (!hasLandmarks) miss.push('орієнтири');
-                if (nonBlobPhotos().length === 0) miss.push('фото');
-                showErrors(`Заповніть усі поля: ${miss.join(', ')}.`);
-                return;
-            }
-        }
-        if (showBtn && canReallySubmit) hideErrors();
-    }
-
-    function maybeUpdateSubmit() {
-        if (!initialHasData) updateSubmitButtonVisibility();
-        else if (btnSubmit) btnSubmit.style.display = 'none';
-    }
 
     function positionMenuFor(btn, menu) {
         if (!btn || !menu) return;
@@ -520,8 +402,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLandmarksMargin();
 
         isEditingLandmarks = false;   // <<< important
-        computeChangesMade();
-        updateSubmitButtonVisibility?.();
     });
 
     landmarksDone?.addEventListener('click', async (e) => {
@@ -553,22 +433,10 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLandmarksMargin();
 
         isEditingLandmarks = false;
-        markChanged();
-        maybeUpdateSubmit();
-
-        // NEW: завжди пушимо оновлення на бек, навіть у creation flow
-        try {
-            await pushUpdate({ showSuccess: initialHasData });
-            hideErrors?.();
-        } catch {
-            // pushUpdate() вже показує помилку через showErrors(), тож можна нічого не робити
-        }
+        await pushUpdate({ showSuccess: initialHasData });
     });
 
     // ===== LOAD EXISTING DATA =====
-    // hide submit until we know initial state
-    if (btnSubmit) btnSubmit.style.display = 'none';
-
     fetch(`${API_URL}/api/people/${personId}`)
         .then((r) => r.json())
         .then((data) => {
@@ -610,12 +478,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentLocation.photos.length
             );
 
-            // when there is already some location data — remove submit UX
-            if (initialHasData && btnSubmit) {
-                btnSubmit.style.display = 'none';
-            }
-
-            setSubmitLabel();
         })
         .catch((e) => {
             console.error('Failed to load person:', e);
@@ -662,10 +524,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             refreshPlaceholders();
             updatePhotosHeaderSpacing();
-            setSubmitLabel();
-            captureInitialSnapshot();
-            computeChangesMade();
-            maybeUpdateSubmit();
 
             if (premiumLocked) applyPremiumLock();
         });
@@ -683,17 +541,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!initialHasData) {
                 // CREATION: live-commit, no confirmation UI, keep dots-menu hidden
                 currentLocation.landmarks = val;
-                markChanged();
 
                 if (landmarksMenuBtn) landmarksMenuBtn.style.display = 'none';
                 updateLandmarksMargin();
                 if (landmarksMenu) landmarksMenu.classList.add('hidden');
 
                 hideErrors();
-                maybeUpdateSubmit(); // first-time button visibility logic
             } else {
                 // EDITING: don't commit yet → require "Готово"
-                changesMade = true;
                 hideErrors();
             }
         });
@@ -707,8 +562,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btnEditLandmarks.style.display = 'none';
             landmarksEl.style.display = '';
             landmarksEl.focus();
-            changesMade = true;
-            maybeUpdateSubmit();
         });
 
     // ===== SLIDESHOW =====
@@ -968,14 +821,13 @@ document.addEventListener('DOMContentLoaded', () => {
             (pos) => {
                 const coordsStr = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
                 currentLocation.coords = coordsStr;
-                markChanged();
 
                 if (geoCard) geoCard.style.display = 'none';
                 renderMap(pos.coords.latitude, pos.coords.longitude);
                 updatePhotosHeaderSpacing();
+                if (locMenuBtn && !premiumLocked) locMenuBtn.style.display = '';
 
-                if (initialHasData) pushUpdate({ showSuccess: true });
-                else maybeUpdateSubmit();
+                pushUpdate({ showSuccess: initialHasData });
 
                 if (btnGeo) btnGeo.disabled = false;
                 if (mapChangeBtn) mapChangeBtn.disabled = false;
@@ -1025,12 +877,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // show previews immediately
             previewUrls.forEach((url) => currentLocation.photos.push(url));
             refreshPlaceholders();
-            markChanged();
-            maybeUpdateSubmit();
             fileInput.value = '';
 
             pendingUploads += files.length;
-            maybeUpdateSubmit();
 
             // upload each and replace blobs with real URLs
             files.forEach(async (file, idx) => {
@@ -1049,16 +898,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         currentLocation.photos[i] = realUrl;
                         URL.revokeObjectURL(previewUrl);
                         refreshPlaceholders();
-                        maybeUpdateSubmit();
-
-                        if (initialHasData) await pushUpdate();
+                        await pushUpdate();
                     }
                 } catch {
                     alert('Не вдалося завантажити зображення.');
                 } finally {
                     pendingUploads = Math.max(0, pendingUploads - 1);
                     refreshPlaceholders();
-                    maybeUpdateSubmit();
                 }
             });
         });
@@ -1212,48 +1058,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ===== SUBMIT =====
-    if (btnSubmit)
-        btnSubmit.addEventListener('click', async () => {
-            if (premiumLocked && !initialHasData) {
-                e.preventDefault();
-                showErrors('Щоб додати локацію, увійдіть у профіль.');
-                return;
-            }
-
-            if (!isComplete()) {
-                const miss = missingFields();
-                showErrors(`Заповніть усі поля: ${miss.join(', ')}.`);
-                return;
-            }
-
-            const payload = {
-                location: [
-                    currentLocation.coords,
-                    (currentLocation.landmarks || '').trim(),
-                    nonBlobPhotos(),
-                ],
-            };
-
-            btnSubmit.disabled = true;
-            hideErrors();
-
-            try {
-                const res = await fetch(UPDATE_ENDPOINT, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-                if (!res.ok) throw new Error(await res.text());
-                showModal();
-            } catch (e) {
-                console.error('Update failed', e);
-                showErrors('Не вдалося оновити локацію. Спробуйте ще раз.');
-            } finally {
-                btnSubmit.disabled = false;
-            }
-        });
-
     // Confirm delete modal elements
     const confirmDeleteModal = document.getElementById('confirm-delete-modal');
     const confirmDeleteOk = document.getElementById('confirm-delete-ok');
@@ -1281,10 +1085,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentLocation.photos = currentLocation.photos.filter((u) => !toRemove.has(u));
             hideDeleteConfirm();
             exitSelectionMode();
-            markChanged();
-            maybeUpdateSubmit();
-
-            if (initialHasData) pushUpdate({ showSuccess: true });
+            pushUpdate({ showSuccess: initialHasData });
         });
     }
 });

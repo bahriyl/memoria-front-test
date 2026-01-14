@@ -438,10 +438,13 @@ main.container {
 /* Bubbles */
 .bubble {
     max-width: 80%;
+    width: fit-content;
+    box-sizing: border-box;
     padding: 1px 16px;
     margin-bottom: 16px;
     border-radius: 14px;
     word-wrap: break-word;
+    overflow-wrap: anywhere;
 }
 
 .bubble p {
@@ -467,6 +470,25 @@ main.container {
     margin-top: 8px;
     border-radius: 8px;
     display: block;
+}
+
+.bubble.image-only {
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+    width: 260px;
+    max-width: 80%;
+}
+
+.bubble.image-only img {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 0;
+    border-radius: 16px;
+}
+
+.bubble.image-only .msg-time {
+    display: none;
 }
 
 /* Input bar */
@@ -583,8 +605,8 @@ main.container {
 }
 
 .preview-container .thumb img {
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     object-fit: cover;
     border-radius: 4px;
 }

@@ -46,13 +46,7 @@ body {
     margin: 0 auto 24px;
     padding: 17px 16px 0;
     position: relative;
-    padding-bottom: calc(49px
-            /*btn-height*/
-            + 21px
-            /*gap*/
-            + 16px
-            /*optional extra*/
-        );
+    padding-bottom: 17px;
 }
 
 h2 {
@@ -301,14 +295,14 @@ textarea {
 
 /* Activity dropdown chevron */
 .input-with-chevron {
-    background: #EFF2F5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 14px center !important;
-    background-size: 18px 18px !important;
+    background: #EFF2F5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 16px center !important;
+    background-size: 20px 20px !important;
     padding-right: 44px !important;
 }
 
 .input-with-chevron.open {
-    background: #EFF2F5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='18 15 12 9 6 15'/%3E%3C/svg%3E") no-repeat right 14px center !important;
-    background-size: 18px 18px !important;
+    background: #EFF2F5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 16px center !important;
+    background-size: 20px 20px !important;
 }
 
 .input-with-chevron.has-value {
@@ -373,11 +367,11 @@ textarea {
 
 /* Submit button */
 .submit-btn {
-    position: fixed;
+    position: sticky;
     bottom: 21px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 32px);
+    left: auto;
+    transform: none;
+    width: 100%;
     max-width: 400px;
     height: 49px;
     background: #1B8B59;
@@ -388,7 +382,6 @@ textarea {
     font-size: 17px;
     font-weight: 600;
     cursor: pointer;
-    z-index: 1000;
 }
 
 /* Error message */
@@ -546,7 +539,7 @@ textarea {
     --year-visible-count: 4;
     position: absolute;
     z-index: 9999 !important;
-    top: calc(100% + 12px);
+    top: calc(100% + 2px);
     left: 0;
     right: 0;
     background: #ffffff;

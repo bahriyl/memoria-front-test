@@ -5,6 +5,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const D = (...args) => console.log('[YEARS]', ...args);
     let submitAttempted = false;
 
+    // Auto-scroll textareas to keep bottom padding visible while typing
+    const enableTextareaAutoScroll = window.enableTextareaAutoScroll || function (textarea) {
+        if (!textarea || textarea.dataset.autoscroll === '1') return;
+        const scrollToBottom = () => { textarea.scrollTop = textarea.scrollHeight; };
+        textarea.addEventListener('input', () => requestAnimationFrame(scrollToBottom));
+        requestAnimationFrame(scrollToBottom);
+        textarea.dataset.autoscroll = '1';
+    };
+    window.enableTextareaAutoScroll = enableTextareaAutoScroll;
+    document.querySelectorAll('textarea').forEach(enableTextareaAutoScroll);
+
     // ——— Drawer menu ———
     const menuBtn = document.getElementById('menu-btn');
     const sideMenu = document.getElementById('side-menu');
@@ -171,13 +182,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (birthYear > deathYear) {
             if (source === 'death') {
-                D('enforceChronology(): adjusting birth down to match death', { birthYear, deathYear, source });
-                birthWheel.setValue(String(deathYear), { silent: true, behavior });
-                selectedBirth = deathYear;
-            } else {
                 D('enforceChronology(): adjusting death up to match birth', { birthYear, deathYear, source });
                 deathWheel.setValue(String(birthYear), { silent: true, behavior });
                 selectedDeath = birthYear;
+            } else {
+                D('enforceChronology(): adjusting birth down to match death', { birthYear, deathYear, source });
+                birthWheel.setValue(String(deathYear), { silent: true, behavior });
+                selectedBirth = deathYear;
             }
             return true;
         }
@@ -235,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     deathWheel = window.createYearWheel(deathUl, {
         initialValue: selectedDeath ? String(selectedDeath) : '',
+        snapBehavior: 'smooth',
         onChange: (value) => {
             const prev = selectedDeath;
             selectedDeath = value ? Number(value) : undefined;
@@ -352,6 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let cityTimer, cemTimer;
     let selectedCity = '';
     let selectedCemetery = '';
+    let areaId = '';
 
     const normalizeValue = (value) => (value || '').trim();
     const isSameValue = (a, b) =>
@@ -375,11 +388,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchCemeteries(search = '', opts = {}) {
         const includeName = (opts.includeName || '').trim();
-        const params = new URLSearchParams({
-            search,
-            // якщо бек досі підтримує фільтр area — залишаємо; інакше бек проігнорує
-            area: cityInput.value || ''
-        });
+        const params = new URLSearchParams({ search });
+        if (areaId) {
+            params.set('areaId', areaId);
+        } else {
+            params.set('area', cityInput.value || '');
+        }
 
         try {
             const res = await fetch(`${API_URL}/api/cemeteries?${params}`);
@@ -389,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (includeName) {
                 const hasSelected = items.some((c) => (c?.name || '').trim().toLowerCase() === includeName.toLowerCase());
                 if (!hasSelected) {
-                    items.unshift({ name: includeName, area: cityInput.value || '' });
+                    items.unshift({ name: includeName, area: cityInput.value || '', areaId });
                 }
             }
 
@@ -397,7 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? items.map(c => {
                     const name = esc(c.name);
                     const area = esc(c.area);
-                    return `<li data-name="${name}" data-area="${area}">${name}</li>`;
+                    const rawAreaId = c.areaId != null ? String(c.areaId) : '';
+                    const areaIdAttr = rawAreaId ? ` data-area-id="${esc(rawAreaId)}"` : '';
+                    return `<li data-name="${name}" data-area="${area}"${areaIdAttr}>${name}</li>`;
                 }).join('')
                 : `<li class="no-results">Збігів не знайдено</li>`;
             cemSuggest.style.display = 'block';
@@ -411,6 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cityInput.addEventListener('input', () => {
         selectedCity = '';
         selectedCemetery = '';
+        areaId = '';
         if (cemInput) {
             cemInput.value = '';
             clearCemBtn.style.display = 'none';
@@ -451,6 +468,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (li && !li.classList.contains('no-results')) {
             cityInput.value = li.textContent.trim();
             selectedCity = cityInput.value.trim();
+            const rawAreaId = li.dataset.areaId || '';
+            areaId = rawAreaId && rawAreaId !== 'undefined' ? rawAreaId : '';
             citySuggest.style.display = 'none';
             clearCityBtn.style.display = 'flex';
             if (cemInput) {
@@ -467,6 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // очистити місто
         cityInput.value = '';
         selectedCity = '';
+        areaId = '';
         clearCityBtn.style.display = 'none';
         citySuggest.innerHTML = '';
         citySuggest.style.display = 'none';
@@ -504,6 +524,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const name = li.getAttribute('data-name') || li.textContent.trim();
         const area = li.getAttribute('data-area') || '';
+        const rawAreaId = li.getAttribute('data-area-id') || '';
+        const cemAreaId = rawAreaId && rawAreaId !== 'undefined' ? rawAreaId : '';
 
         // Заповнюємо поле "Кладовище"
         cemInput.value = name;
@@ -515,7 +537,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!cityInput.value && area) {
             cityInput.value = area;
             selectedCity = cityInput.value.trim();
+            areaId = cemAreaId || '';
             clearCityBtn.style.display = 'flex';
+        }
+        if (!areaId && cemAreaId) {
+            areaId = cemAreaId;
         }
     });
     cemInput.addEventListener('blur', () => { setTimeout(() => cemSuggest.style.display = 'none', 200); });
@@ -686,11 +712,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openConfirm(payload) {
         pendingPayload = payload;
+        const cemeteryFirstWord = (payload.cemetery || '').toString().trim().split(/\s+/)[0] || '';
         const rows = [
             ['ПІБ', payload.name],
             ['Роки життя', `${payload.birthYear} - ${payload.deathYear}`],
             ['Населений пункт', payload.area],
-            ['Кладовище', payload.cemetery]
+            ['Кладовище', cemeteryFirstWord]
         ];
         if (payload.occupation) rows.push(['Сфера діяльності', payload.occupation]);
         if (payload.link) rows.push(['Посилання', payload.link]);
@@ -754,7 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = fullNameInput.value.trim();
 
         if (!name) {
-            fullNameError.textContent = "Введіть ПІБ";
+            fullNameError.textContent = "Введіть повне прізвище імʼя та по-батькові";
             fullNameError.style.display = 'block';
             hasError = true;
         }
@@ -802,6 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
             birthYear: selectedBirth,
             deathYear: selectedDeath,
             area: city.value.trim(),
+            areaId,
             cemetery: cemetery.value.trim(),
             occupation,
             link,
@@ -827,6 +855,7 @@ document.addEventListener('DOMContentLoaded', () => {
         submitAttempted = false;
         selectedCity = '';
         selectedCemetery = '';
+        areaId = '';
 
         // reset suggestions & clear buttons
         document.getElementById('clear-city').style.display = 'none';

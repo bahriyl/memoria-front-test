@@ -15,6 +15,17 @@
   const maxPhotos = 5;
   let selectedFiles = [];
 
+  // Auto-scroll textareas to keep bottom padding visible while typing
+  const enableTextareaAutoScroll = window.enableTextareaAutoScroll || function (textarea) {
+    if (!textarea || textarea.dataset.autoscroll === "1") return;
+    const scrollToBottom = () => { textarea.scrollTop = textarea.scrollHeight; };
+    textarea.addEventListener("input", () => requestAnimationFrame(scrollToBottom));
+    requestAnimationFrame(scrollToBottom);
+    textarea.dataset.autoscroll = "1";
+  };
+  window.enableTextareaAutoScroll = enableTextareaAutoScroll;
+  enableTextareaAutoScroll(input);
+
   function updateSpacer() {
     const bar = document.querySelector(".input-bar");
     const spacer = document.getElementById("bottomSpacer");
@@ -92,6 +103,48 @@
     return imageData ? [imageData] : [];
   }
 
+  function appendMessageTime(bubble, createdAt) {
+    if (!createdAt) return;
+    const raw = String(createdAt);
+    const hasTz = /[zZ]|[+-]\d{2}:\d{2}$/.test(raw);
+    const time = new Date(hasTz ? raw : `${raw}Z`);
+    const timeDiv = document.createElement("div");
+    timeDiv.className = "msg-time";
+    timeDiv.textContent = time.toLocaleTimeString("uk-UA", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "Europe/Kyiv"
+    });
+    bubble.append(timeDiv);
+  }
+
+  function createBubble(sender, extraClass = "") {
+    const bubble = document.createElement("div");
+    const base = sender === "user" ? "user" : "admin";
+    bubble.className = `bubble ${base}${extraClass ? ` ${extraClass}` : ""}`;
+    return bubble;
+  }
+
+  function renderTextBubble(msg) {
+    const bubble = createBubble(msg.sender);
+    const p = document.createElement("p");
+    p.textContent = msg.text;
+    bubble.append(p);
+    appendMessageTime(bubble, msg.createdAt);
+    msgsDiv.append(bubble);
+  }
+
+  function renderImageBubble({ sender, src, createdAt }) {
+    const bubble = createBubble(sender, "image-only");
+    const img = document.createElement("img");
+    img.src = src;
+    bubble.append(img);
+    attachChatImagePreview(img, [src], 0);
+    appendMessageTime(bubble, createdAt);
+    msgsDiv.append(bubble);
+  }
+
   function render(msg) {
     // якщо це повідомлення від адміна — додаємо лейбл «Memoria»
     if (msg.sender === "admin") {
@@ -101,67 +154,48 @@
       msgsDiv.append(label);
     }
 
-    // головна бульбашка
-    const bubble = document.createElement("div");
-    bubble.className = `bubble ${msg.sender === "user" ? "user" : "admin"}`;
-
-    // текст
-    if (msg.text) {
-      const p = document.createElement("p");
-      p.textContent = msg.text;
-      bubble.append(p);
-    }
-
-    // фото
     const images = normalizeImages(msg.imageData);
-    images.forEach((src, index) => {
-      const img = document.createElement("img");
-      img.src = src;
-      bubble.append(img);
-      attachChatImagePreview(img, images, index);
-    });
-
-    // час створення
-    if (msg.createdAt) {
-      const raw = String(msg.createdAt);
-      const hasTz = /[zZ]|[+-]\d{2}:\d{2}$/.test(raw);
-      const time = new Date(hasTz ? raw : `${raw}Z`);
-      const timeDiv = document.createElement("div");
-      timeDiv.className = "msg-time";
-      timeDiv.textContent = time.toLocaleTimeString("uk-UA", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-        timeZone: "Europe/Kyiv"
+    const text = (msg.text || "").trim();
+    if (text) renderTextBubble({ ...msg, text });
+    if (images.length) {
+      images.forEach((src) => {
+        renderImageBubble({ sender: msg.sender, src, createdAt: msg.createdAt });
       });
-      bubble.append(timeDiv);
     }
-
-    msgsDiv.append(bubble);
     scrollToBottom();
   }
 
   // Render "pending" bubble while sending
-  function renderPending({ text, imageData, sender = "user", pendingId }) {
-    if (sender === "admin") return; // нам треба лише для юзера
-
-    const bubble = document.createElement("div");
-    bubble.className = `bubble user pending`;
+  function renderPendingText({ text, pendingId }) {
+    const bubble = createBubble("user", "pending");
     bubble.dataset.pendingId = pendingId;
 
-    if (text) {
-      const p = document.createElement("p");
-      p.textContent = text;
-      bubble.append(p);
-    }
+    const p = document.createElement("p");
+    p.textContent = text;
+    bubble.append(p);
 
-    const images = normalizeImages(imageData);
-    images.forEach((src, index) => {
-      const img = document.createElement("img");
-      img.src = src;
-      bubble.append(img);
-      attachChatImagePreview(img, images, index);
-    });
+    const status = document.createElement("div");
+    status.className = "sending-status";
+    status.innerHTML = `
+      <span class="typing">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </span>
+    `;
+    bubble.append(status);
+
+    msgsDiv.append(bubble);
+    scrollToBottom();
+    return bubble;
+  }
+
+  function renderPendingImage({ src, pendingId }) {
+    const bubble = createBubble("user", "image-only pending");
+    bubble.dataset.pendingId = pendingId;
+
+    const img = document.createElement("img");
+    img.src = src;
+    bubble.append(img);
+    attachChatImagePreview(img, [src], 0);
 
     const status = document.createElement("div");
     status.className = "sending-status";
@@ -342,18 +376,16 @@
       );
     }
 
-    let imagesPendingBubble = null;
+    let imagePendingBubbles = [];
     let textPendingBubble = null;
     if (hasImages) {
-      imagesPendingBubble = renderPending({
-        text: "",
-        imageData: previewData,
-        pendingId: uid()
-      });
-    } else if (hasText) {
-      textPendingBubble = renderPending({
+      imagePendingBubbles = previewData.map((src) =>
+        renderPendingImage({ src, pendingId: uid() })
+      );
+    }
+    if (hasText) {
+      textPendingBubble = renderPendingText({
         text,
-        imageData: null,
         pendingId: uid()
       });
     }
@@ -388,22 +420,21 @@
     };
 
     if (hasImages) {
-      const imagesForm = new FormData();
-      imagesForm.append("sender", "user");
-      imagesForm.append("text", "");
-      filesToSend.forEach((file) => {
-        imagesForm.append("image", file);
-      });
+      for (let i = 0; i < filesToSend.length; i += 1) {
+        const imagesForm = new FormData();
+        imagesForm.append("sender", "user");
+        imagesForm.append("text", "");
+        imagesForm.append("image", filesToSend[i]);
 
-      const ok = await sendFormData(imagesForm, imagesPendingBubble);
-      if (!ok) return;
+        await sendFormData(imagesForm, imagePendingBubbles[i]);
+      }
     }
 
     if (hasText) {
       const textForm = new FormData();
       textForm.append("sender", "user");
       textForm.append("text", text);
-      await sendFormData(textForm, hasImages ? null : textPendingBubble);
+      await sendFormData(textForm, textPendingBubble);
     }
   });
 

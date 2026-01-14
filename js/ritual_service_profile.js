@@ -2,7 +2,8 @@
 (() => {
   const params = new URLSearchParams(location.search);
   const ritualId = params.get("id") || "";
-  if (localStorage.getItem("token")) {
+  const tokenKey = ritualId ? `ritual_token_${ritualId}` : "ritual_token";
+  if (localStorage.getItem(tokenKey)) {
     window.location.replace(`/ritual_service_edit.html?id=${ritualId}`);
   }
 })();
@@ -11,7 +12,8 @@
 window.addEventListener("pageshow", () => {
   const params = new URLSearchParams(location.search);
   const ritualId = params.get("id") || "";
-  if (localStorage.getItem("token")) {
+  const tokenKey = ritualId ? `ritual_token_${ritualId}` : "ritual_token";
+  if (localStorage.getItem(tokenKey)) {
     window.location.replace(`/ritual_service_edit.html?id=${ritualId}`);
   }
 });
@@ -33,8 +35,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  const tokenKey = ritualId ? `ritual_token_${ritualId}` : "ritual_token";
+
   function doLogout() {
-    localStorage.removeItem("token");
+    localStorage.removeItem(tokenKey);
     // повертаємо на публічну сторінку профілю/логіна
     window.location.href = `/ritual_service_profile.html?id=${new URLSearchParams(location.search).get("id") || ""}`;
   }
@@ -48,7 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function checkTokenAndSchedule() {
-    const t = localStorage.getItem("token");
+    const t = localStorage.getItem(tokenKey);
     if (!t) return;
     const { exp } = parseJwt(t);
     if (!exp) return;                  // якщо бекенд не додає exp
@@ -63,7 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // If exp is missing (parse failed), confirm with server; 401 → logout
   (async () => {
-    const t = localStorage.getItem("token");
+    const t = localStorage.getItem(tokenKey);
     if (!t) return;
     const { exp } = parseJwt(t) || {};
     if (typeof exp === "number") return;
@@ -163,7 +167,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       expanded = true;
       // expanded: interleave lines into address block, clear phone text
       const lines = makeInterleaved(addresses, phones);
-      addressText.textContent = lines.join(joiner);
+      const blocks = [];
+      for (let i = 0; i < lines.length; i += 2) {
+        blocks.push(lines.slice(i, i + 2).join(joiner));
+      }
+      addressText.textContent = blocks.join("\n\n");
       phoneText.textContent = ""; // avoid duplicated content
       btn.textContent = "... менше";
       btn.setAttribute("aria-expanded", "true");
@@ -440,7 +448,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!res.ok) throw new Error("Невірні дані");
       const result = await res.json();
       // 1) Persist token
-      localStorage.setItem("token", result.token);
+      localStorage.setItem(tokenKey, result.token);
 
       const payload = parseJwt(result.token);
       if (payload?.exp) scheduleLogout(payload.exp);

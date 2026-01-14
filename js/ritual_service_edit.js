@@ -4,10 +4,11 @@ const IMGBB_API_KEY = "726ae764867cf6b3a259967071cbdd80";
 
 const urlParams = new URLSearchParams(window.location.search);
 const ritualId = urlParams.get("id");
-let token = urlParams.get("token") || localStorage.getItem("token");
+const tokenKey = ritualId ? `ritual_token_${ritualId}` : "ritual_token";
+let token = urlParams.get("token") || localStorage.getItem(tokenKey);
 if (urlParams.get("token")) {
   // persist token if it was passed once in the URL
-  localStorage.setItem("token", token);
+  localStorage.setItem(tokenKey, token);
 }
 
 function parseJwt(t) {
@@ -22,7 +23,7 @@ function parseJwt(t) {
 }
 
 function doLogout() {
-  localStorage.removeItem("token");
+  localStorage.removeItem(tokenKey);
   window.location.replace(`/ritual_service_profile.html?id=${ritualId}`);
 }
 
@@ -46,7 +47,7 @@ function scheduleLogout(expSeconds) {
 
 // Fallback: if exp couldn't be parsed, ask backend to verify and 401 → logout
 (async () => {
-  const t = localStorage.getItem("token");
+  const t = localStorage.getItem(tokenKey);
   if (!t) return;
   const { exp } = parseJwt(t) || {};
   if (typeof exp === "number") return; // already handled
@@ -62,9 +63,22 @@ function scheduleLogout(expSeconds) {
   }
 })();
 
+// Auto-scroll textareas to keep bottom padding visible while typing
+const enableTextareaAutoScroll = window.enableTextareaAutoScroll || function (textarea) {
+  if (!textarea || textarea.dataset.autoscroll === "1") return;
+  const scrollToBottom = () => { textarea.scrollTop = textarea.scrollHeight; };
+  textarea.addEventListener("input", () => requestAnimationFrame(scrollToBottom));
+  requestAnimationFrame(scrollToBottom);
+  textarea.dataset.autoscroll = "1";
+};
+window.enableTextareaAutoScroll = enableTextareaAutoScroll;
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("textarea").forEach(enableTextareaAutoScroll);
+});
+
 // Wrap fetch to always attach Authorization and auto-logout on 401/403
 async function fetchWithAuth(url, opts = {}) {
-  const t = localStorage.getItem("token");
+  const t = localStorage.getItem(tokenKey);
   const headers = { ...(opts.headers || {}) };
   if (t) headers.Authorization = `Bearer ${t}`;
   const res = await fetch(url, { ...opts, headers });
@@ -76,6 +90,8 @@ async function fetchWithAuth(url, opts = {}) {
 }
 
 let ritualData = null;
+const MAX_PHOTOS = 500;
+const MAX_VIDEO_SECONDS = 30 * 60;
 
 if (!ritualId) {
   alert("Відсутній ID сервісу.");
@@ -88,7 +104,7 @@ if (!token) {
 const logoutBtn = document.querySelector(".ritual-login-btn");
 if (logoutBtn) {
   logoutBtn.addEventListener("click", () => {
-    localStorage.removeItem("token");
+    localStorage.removeItem(tokenKey);
     window.location.replace(`/ritual_service_profile.html?id=${ritualId}`);
   });
 }
@@ -109,6 +125,89 @@ function normalizeItems(struct) {
     return [title, albums];
   });
   return struct;
+}
+
+function countTotalPhotos(items) {
+  if (!Array.isArray(items)) return 0;
+  let total = 0;
+  items.forEach((entry) => {
+    const albums = Array.isArray(entry?.[1]) ? entry[1] : [];
+    albums.forEach((album) => {
+      const photos = Array.isArray(album?.photos) ? album.photos : [];
+      total += photos.length;
+    });
+  });
+  return total;
+}
+
+function sumExistingVideoSeconds(items) {
+  if (!Array.isArray(items)) return 0;
+  let total = 0;
+  items.forEach((entry) => {
+    const albums = Array.isArray(entry?.[1]) ? entry[1] : [];
+    albums.forEach((album) => {
+      const photos = Array.isArray(album?.photos) ? album.photos : [];
+      photos.forEach((p) => {
+        const duration = Number(p?.video?.duration ?? p?.duration ?? 0);
+        if (Number.isFinite(duration) && duration > 0) total += duration;
+      });
+    });
+  });
+  return total;
+}
+
+function getVideoDuration(file, timeoutMs = 8000) {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    const objectUrl = URL.createObjectURL(file);
+
+    const cleanup = () => {
+      URL.revokeObjectURL(objectUrl);
+      video.removeAttribute("src");
+      if (typeof video.load === "function") video.load();
+    };
+
+    const finalize = (duration) => {
+      cleanup();
+      resolve(Number.isFinite(duration) ? duration : 0);
+    };
+
+    const onLoaded = () => finalize(video.duration);
+    const onError = () => finalize(0);
+
+    const timer = setTimeout(() => {
+      video.removeEventListener("loadedmetadata", onLoaded);
+      video.removeEventListener("error", onError);
+      finalize(0);
+    }, timeoutMs);
+
+    video.addEventListener("loadedmetadata", () => {
+      clearTimeout(timer);
+      onLoaded();
+    }, { once: true });
+    video.addEventListener("error", () => {
+      clearTimeout(timer);
+      onError();
+    }, { once: true });
+
+    video.src = objectUrl;
+  });
+}
+
+function photoLimitMessage(available) {
+  if (available > 0) {
+    return `<b>Фото не додано</b><br><br>Досягнуто ліміт у ${MAX_PHOTOS} фото.<br>Доступно для публікації: ${available} шт.`;
+  }
+  return `Досягнуто ліміт у ${MAX_PHOTOS} фото.`;
+}
+
+function videoLimitMessage(availableMinutes) {
+  const limitMinutes = Math.round(MAX_VIDEO_SECONDS / 60);
+  if (availableMinutes > 0) {
+    return `<b>Відео не додано</b><br><br>Досягнуто ліміт ${limitMinutes} хв для відео.<br>Доступно для публікації: ${availableMinutes} хв`;
+  }
+  return `Досягнуто ліміт ${limitMinutes} хв для відео`;
 }
 
 async function fetchRitualService() {
@@ -189,7 +288,11 @@ function renderJointContacts(addressEl, phoneEl, rawAddresses, rawPhones) {
     expanded = true;
     // expanded: interleave lines into address block, clear phone text
     const lines = makeInterleaved(addresses, phones);
-    addressText.textContent = lines.join(joiner);
+    const blocks = [];
+    for (let i = 0; i < lines.length; i += 2) {
+      blocks.push(lines.slice(i, i + 2).join(joiner));
+    }
+    addressText.textContent = blocks.join("\n\n");
     phoneText.textContent = ""; // avoid duplicated content
     btn.textContent = "... менше";
     btn.setAttribute("aria-expanded", "true");
@@ -413,11 +516,8 @@ function renderData(data) {
     // === Images container (single row) ===
     const imagesContainer = document.createElement("div");
     imagesContainer.className = "item-images";
-    let canReorder = false;
-
     function renderImages() {
       imagesContainer.innerHTML = "";
-      canReorder = albums.length > 1;
 
       if (albums.length === 1) {
         imagesContainer.className = "item-images single-image";
@@ -425,248 +525,6 @@ function renderData(data) {
         imagesContainer.className = "item-images multiple-images";
       } else {
         imagesContainer.className = "item-images";
-      }
-
-      let dragSession = null;
-      let scrollLocked = false;
-      let prevBodyOverflow = "";
-      let prevBodyTouchAction = "";
-      let prevContainerTouchAction = "";
-      let prevHtmlOverflow = "";
-      let prevBodyPosition = "";
-      let prevBodyTop = "";
-      let prevBodyWidth = "";
-      let scrollLockScrollY = 0;
-
-      const preventTouchScroll = (ev) => {
-        if (dragSession && typeof ev.preventDefault === "function") {
-          ev.preventDefault();
-        }
-      };
-
-      const removeGlobalDragListeners = () => {
-        document.removeEventListener("pointermove", handleDragPointerMove);
-        document.removeEventListener("pointerup", handleDragPointerUp);
-        document.removeEventListener("pointercancel", handleDragPointerCancel);
-      };
-
-      const lockPageScroll = () => {
-        if (scrollLocked) return;
-        scrollLocked = true;
-        prevBodyOverflow = document.body.style.overflow;
-        prevBodyTouchAction = document.body.style.touchAction;
-        prevContainerTouchAction = imagesContainer.style.touchAction;
-        prevHtmlOverflow = document.documentElement.style.overflow;
-        prevBodyPosition = document.body.style.position;
-        prevBodyTop = document.body.style.top;
-        prevBodyWidth = document.body.style.width;
-
-        scrollLockScrollY = window.scrollY || window.pageYOffset || 0;
-
-        document.body.style.overflow = "hidden";
-        document.documentElement.style.overflow = "hidden";
-        document.body.style.touchAction = "none";
-        imagesContainer.style.touchAction = "none";
-        document.body.style.position = "fixed";
-        document.body.style.top = `-${scrollLockScrollY}px`;
-        document.body.style.width = "100%";
-
-        document.addEventListener("touchmove", preventTouchScroll, { passive: false });
-        document.addEventListener("wheel", preventTouchScroll, { passive: false });
-      };
-
-      const unlockPageScroll = () => {
-        if (!scrollLocked) return;
-        scrollLocked = false;
-        document.body.style.overflow = prevBodyOverflow;
-        document.documentElement.style.overflow = prevHtmlOverflow;
-        document.body.style.touchAction = prevBodyTouchAction;
-        imagesContainer.style.touchAction = prevContainerTouchAction;
-        document.body.style.position = prevBodyPosition;
-        document.body.style.top = prevBodyTop;
-        document.body.style.width = prevBodyWidth;
-        window.scrollTo(0, scrollLockScrollY);
-
-        document.removeEventListener("touchmove", preventTouchScroll, { passive: false });
-        document.removeEventListener("wheel", preventTouchScroll, { passive: false });
-
-        prevBodyOverflow = "";
-        prevBodyTouchAction = "";
-        prevContainerTouchAction = "";
-        prevHtmlOverflow = "";
-        prevBodyPosition = "";
-        prevBodyTop = "";
-        prevBodyWidth = "";
-        scrollLockScrollY = 0;
-      };
-
-      function handleDragPointerMove(e) {
-        if (!dragSession || e.pointerId !== dragSession.pointerId) return;
-        if (typeof e.preventDefault === "function") {
-          e.preventDefault();
-        }
-
-        const { wrap, placeholder, offsetX, offsetY } = dragSession;
-
-        wrap.style.left = `${e.clientX - offsetX}px`;
-        wrap.style.top = `${e.clientY - offsetY}px`;
-
-        const containerRect = imagesContainer.getBoundingClientRect();
-        const SCROLL_ZONE = 48;
-        if (e.clientX < containerRect.left + SCROLL_ZONE) {
-          imagesContainer.scrollLeft -= 12;
-        } else if (e.clientX > containerRect.right - SCROLL_ZONE) {
-          imagesContainer.scrollLeft += 12;
-        }
-
-        wrap.style.visibility = "hidden";
-        const el = document.elementFromPoint(e.clientX, e.clientY);
-        wrap.style.visibility = "";
-
-        if (el) {
-          let target = el.closest?.(".image-wrap");
-          if (target === wrap) target = null;
-
-          if (target && imagesContainer.contains(target)) {
-            const rect = target.getBoundingClientRect();
-            const before = e.clientY < rect.top + rect.height / 2;
-            imagesContainer.insertBefore(placeholder, before ? target : target.nextSibling);
-            return;
-          }
-
-          const placeholderHit = el.closest?.(".drag-placeholder");
-          if (placeholderHit && placeholderHit !== placeholder && imagesContainer.contains(placeholderHit)) {
-            imagesContainer.insertBefore(placeholder, placeholderHit);
-            return;
-          }
-        }
-
-        if (e.clientX <= containerRect.left) {
-          imagesContainer.insertBefore(placeholder, imagesContainer.firstChild);
-        } else if (e.clientX >= containerRect.right) {
-          imagesContainer.appendChild(placeholder);
-        } else if (e.clientY <= containerRect.top) {
-          imagesContainer.insertBefore(placeholder, imagesContainer.firstChild);
-        } else if (e.clientY >= containerRect.bottom) {
-          imagesContainer.appendChild(placeholder);
-        }
-      }
-
-      async function finalizeDragSession(cancelled = false) {
-        if (!dragSession) return;
-        removeGlobalDragListeners();
-
-        const { wrap, placeholder, helpers } = dragSession;
-
-        unlockPageScroll();
-
-        try {
-          wrap.releasePointerCapture?.(dragSession.pointerId);
-        } catch { }
-
-        wrap.style.pointerEvents = "";
-        wrap.style.position = "";
-        wrap.style.left = "";
-        wrap.style.top = "";
-        wrap.style.width = "";
-        wrap.style.height = "";
-        wrap.style.zIndex = "";
-        wrap.style.touchAction = "";
-        wrap.style.cursor = "";
-        wrap.classList.remove("dragging");
-        wrap.classList.remove("holding");
-
-        if (placeholder.parentNode) {
-          placeholder.parentNode.insertBefore(wrap, placeholder);
-          placeholder.remove();
-        } else {
-          imagesContainer.appendChild(wrap);
-        }
-
-        const wrapOrder = [...imagesContainer.querySelectorAll(".image-wrap")];
-        const order = wrapOrder.map(w => Number(w.dataset.idx));
-        const orderChanged = order.some((idx, pos) => idx !== pos);
-
-        if (orderChanged) {
-          const reordered = order.map(idx => albums[idx]);
-          albums.splice(0, albums.length, ...reordered);
-          wrapOrder.forEach((w, i) => { w.dataset.idx = String(i); });
-          try {
-            await updateItems(ritualData.items, false);
-          } catch (err) {
-            console.error("Failed to update photo order", err);
-          }
-        }
-
-        helpers?.resetHold?.();
-
-        if (helpers?.markDragged) {
-          setTimeout(() => helpers.markDragged(false), 100);
-        }
-
-        dragSession = null;
-      }
-
-      function handleDragPointerUp(e) {
-        if (!dragSession || e.pointerId !== dragSession.pointerId) return;
-        if (typeof e.preventDefault === "function") {
-          e.preventDefault();
-        }
-        finalizeDragSession(false);
-      }
-
-      function handleDragPointerCancel(e) {
-        if (!dragSession || e.pointerId !== dragSession.pointerId) return;
-        if (typeof e.preventDefault === "function") {
-          e.preventDefault();
-        }
-        finalizeDragSession(true);
-      }
-
-      function startDragSession(wrap, e, helpers) {
-        if (!canReorder || dragSession || !isSelecting) return;
-        helpers?.stopHoldTimer?.();
-        helpers?.onStart?.();
-
-        const rect = wrap.getBoundingClientRect();
-        const placeholder = document.createElement("div");
-        placeholder.className = "drag-placeholder";
-        placeholder.style.width = `${rect.width}px`;
-        placeholder.style.height = `${rect.height}px`;
-        placeholder.style.flexShrink = "0";
-
-        imagesContainer.insertBefore(placeholder, wrap);
-
-        lockPageScroll();
-
-        wrap.classList.add("holding");
-        wrap.classList.add("dragging");
-        wrap.style.position = "fixed";
-        wrap.style.left = `${rect.left}px`;
-        wrap.style.top = `${rect.top}px`;
-        wrap.style.width = `${rect.width}px`;
-        wrap.style.height = `${rect.height}px`;
-        wrap.style.zIndex = "1000";
-        wrap.style.pointerEvents = "none";
-        wrap.style.touchAction = "none";
-        wrap.style.cursor = "grabbing";
-
-        dragSession = {
-          wrap,
-          placeholder,
-          pointerId: e.pointerId,
-          offsetX: e.clientX - rect.left,
-          offsetY: e.clientY - rect.top,
-          helpers,
-        };
-
-        helpers?.markDragged?.(true);
-
-        document.addEventListener("pointermove", handleDragPointerMove, { passive: false });
-        document.addEventListener("pointerup", handleDragPointerUp, { passive: false });
-        document.addEventListener("pointercancel", handleDragPointerCancel, { passive: false });
-
-        handleDragPointerMove(e);
       }
 
       albums.forEach((album, albumIdx) => {
@@ -677,14 +535,6 @@ function renderData(data) {
         wrap.className = "image-wrap";
         wrap.dataset.idx = String(albumIdx);
         wrap.draggable = false;
-
-        const handle = document.createElement("button");
-        handle.type = "button";
-        handle.className = "drag-handle";
-        handle.title = "Перетягнути для зміни порядку";
-        /*handle.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-text-align-start-icon lucide-text-align-start"><path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/></svg>
-        `;*/
 
         const img = document.createElement("img");
         img.src = cover;
@@ -698,125 +548,6 @@ function renderData(data) {
         // Вимкнути нативний drag саме у <img> (щоб тягнувся wrap)
         img.draggable = false;               // залишаємо wrap.draggable = false
         img.style.webkitUserDrag = "none";   // дублюємо CSS для старих iOS
-
-        let draggedRecently = false;
-        const LONG_PRESS_MS = 220;
-        const MOVE_THRESHOLD = 6; // px
-        let holdTimer = null;
-        let holding = false;
-        let startXY = { x: 0, y: 0 };
-
-        const stopHoldTimer = () => {
-          if (holdTimer) {
-            clearTimeout(holdTimer);
-            holdTimer = null;
-          }
-        };
-
-        const resetHoldState = () => {
-          stopHoldTimer();
-          holding = false;
-          wrap.classList.remove("holding");
-          wrap.style.touchAction = "";
-        };
-
-        let activePointerEvent = null;
-
-        const dragHelpers = {
-          markDragged: (flag) => { draggedRecently = flag; },
-          resetHold: resetHoldState,
-          stopHoldTimer,
-          onStart: () => { holding = false; },
-        };
-
-        wrap.addEventListener("pointerdown", (e) => {
-          if (!canReorder || dragSession) return;
-          if (e.pointerType === "mouse" && e.button !== 0) return;
-
-          startXY = { x: e.clientX, y: e.clientY };
-          draggedRecently = false;
-          activePointerEvent = e;
-
-          if (!isSelecting) {
-            resetHoldState();
-            return;
-          }
-
-          try {
-            wrap.setPointerCapture?.(e.pointerId);
-          } catch { }
-
-          if (e.pointerType === "mouse") {
-            wrap.classList.add("holding");
-            startDragSession(wrap, e, dragHelpers);
-            return;
-          }
-
-          stopHoldTimer();
-          holdTimer = setTimeout(() => {
-            holding = true;
-            wrap.classList.add("holding");
-            wrap.style.touchAction = "none";
-            draggedRecently = true;
-            try {
-              if (navigator.vibrate) navigator.vibrate(10);
-            } catch { }
-            if (!dragSession && isSelecting) {
-              const startEvent = activePointerEvent || e;
-              if (startEvent) {
-                startDragSession(wrap, startEvent, dragHelpers);
-              }
-            }
-          }, LONG_PRESS_MS);
-        });
-
-        wrap.addEventListener("pointermove", (e) => {
-          activePointerEvent = e;
-          if (!isSelecting) return;
-          if (!canReorder || dragSession || (!holding && !holdTimer)) return;
-
-          const dx = e.clientX - startXY.x;
-          const dy = e.clientY - startXY.y;
-          const distSq = dx * dx + dy * dy;
-
-          if (!holding && distSq > (MOVE_THRESHOLD * MOVE_THRESHOLD)) {
-            stopHoldTimer();
-            draggedRecently = false;
-            return;
-          }
-
-          if (holding && distSq > (MOVE_THRESHOLD * MOVE_THRESHOLD)) {
-            startDragSession(wrap, e, dragHelpers);
-          }
-        });
-
-        wrap.addEventListener("pointerup", (e) => {
-          activePointerEvent = null;
-          try {
-            wrap.releasePointerCapture?.(e.pointerId);
-          } catch { }
-          if (dragSession && dragSession.wrap === wrap) return;
-          if (holding) {
-            setTimeout(() => { draggedRecently = false; }, 100);
-          }
-          resetHoldState();
-        });
-
-        wrap.addEventListener("pointercancel", (e) => {
-          activePointerEvent = null;
-          try {
-            wrap.releasePointerCapture?.(e.pointerId);
-          } catch { }
-          if (dragSession && dragSession.wrap === wrap) return;
-          resetHoldState();
-          draggedRecently = false;
-        });
-
-        wrap.addEventListener("lostpointercapture", () => {
-          if (!dragSession) {
-            unlockPageScroll();
-          }
-        });
 
         // Image counter badge
         if (album.photos.length > 1) {
@@ -832,9 +563,6 @@ function renderData(data) {
         wrap.addEventListener("click", (e) => {
           e.preventDefault();
 
-          // якщо щойно був drag — ігноруємо клік
-          if (draggedRecently || dragSession) return;
-
           if (isSelecting) {
             toggleSelect(wrap);
             return;
@@ -843,7 +571,7 @@ function renderData(data) {
           openSlideshow(album.photos, 0, captions);
         });
 
-        wrap.append(handle, img, badge);
+        wrap.append(img, badge);
         imagesContainer.appendChild(wrap);
       });
 
@@ -983,6 +711,43 @@ function renderData(data) {
       const files = Array.from(e.target.files || []);
       if (!files.length) return;
 
+      const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+      const videoFiles = files.filter((f) => f.type.startsWith("video/"));
+      const currentPhotoCount = countTotalPhotos(ritualData?.items);
+      const availablePhotos = Math.max(0, MAX_PHOTOS - currentPhotoCount);
+
+      if (imageFiles.length) {
+        if (availablePhotos <= 0) {
+          openLimitModal(photoLimitMessage(0));
+          e.target.value = "";
+          return;
+        }
+        if (currentPhotoCount + imageFiles.length > MAX_PHOTOS) {
+          openLimitModal(photoLimitMessage(availablePhotos));
+          e.target.value = "";
+          return;
+        }
+      }
+
+      if (videoFiles.length) {
+        const existingSeconds = sumExistingVideoSeconds(ritualData?.items);
+        const availableSeconds = Math.max(0, MAX_VIDEO_SECONDS - existingSeconds);
+        if (availableSeconds <= 0) {
+          openLimitModal(videoLimitMessage(0));
+          e.target.value = "";
+          return;
+        }
+
+        const durations = await Promise.all(videoFiles.map((f) => getVideoDuration(f)));
+        const addedSeconds = durations.reduce((sum, s) => sum + s, 0);
+        if (existingSeconds + addedSeconds > MAX_VIDEO_SECONDS) {
+          const availableMinutes = Math.floor(availableSeconds / 60);
+          openLimitModal(videoLimitMessage(availableMinutes));
+          e.target.value = "";
+          return;
+        }
+      }
+
       // create local blob previews and temp captions
       const previews = files.map(f => URL.createObjectURL(f));
       const tempCaptions = new Array(previews.length).fill("");
@@ -995,6 +760,7 @@ function renderData(data) {
       const textEl = document.getElementById("photo-desc-text");
       const countEl = document.getElementById("photo-desc-count");
       const okBtn = document.getElementById("photo-desc-add");
+      enableTextareaAutoScroll(textEl);
       const modeAlbum = document.getElementById("mode-album");
       const modeAlbumWrap = document.getElementById("modeAlbumWrap");
       const modePhoto = document.getElementById("mode-photo");
@@ -1031,7 +797,7 @@ function renderData(data) {
           const wrap = document.createElement("div");
           wrap.className = "photo-desc-thumb" + (!disabled && i === sel ? " is-selected" : "");
           wrap.dataset.i = String(i);
-          wrap.draggable = true;
+          wrap.draggable = false;
 
           // хендл для перетягу (можна тягнути і саму картинку)
           // const handle = document.createElement("button");
@@ -1058,99 +824,21 @@ function renderData(data) {
           </svg>
         `;
 
-          // drag’n’drop
-          let draggedRecently = false;
-
           // Prevent native image drag & context menu (iOS Safari etc.)
           wrap.addEventListener("contextmenu", e => e.preventDefault());
           img.addEventListener("contextmenu", e => e.preventDefault());
           img.draggable = false;
           img.style.webkitUserDrag = "none";
 
-          // Skip DnD when disabled (album mode shows only reordering on confirm, not per-photo edits)
-          if (!disabled) {
-            let holdTimer = null;
-            let holding = false;
-            let draggedRecently = false;
-            const LONG_PRESS_MS = 220;
-            const MOVE_THRESHOLD = 6;
-            let startXY = { x: 0, y: 0 };
-            let activePointer = null;
-
-            const stopHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
-            const resetHold = () => { stopHold(); holding = false; wrap.classList.remove("holding"); wrap.style.touchAction = ""; };
-
-            wrap.addEventListener("pointerdown", (e) => {
-              if (thumbDrag) return;
-              if (e.pointerType === "mouse" && e.button !== 0) return;
-
-              startXY = { x: e.clientX, y: e.clientY };
-              activePointer = e;
-              draggedRecently = false;
-
-              try { wrap.setPointerCapture?.(e.pointerId); } catch { }
-
-              if (e.pointerType === "mouse") {
-                wrap.classList.add("holding");
-                startThumbDrag(wrap, e);
-                return;
-              }
-
-              stopHold();
-              holdTimer = setTimeout(() => {
-                holding = true;
-                wrap.classList.add("holding");
-                wrap.style.touchAction = "none";
-                draggedRecently = true;
-                try { if (navigator.vibrate) navigator.vibrate(10); } catch { }
-                if (!thumbDrag) startThumbDrag(wrap, activePointer || e);
-              }, LONG_PRESS_MS);
-            });
-
-            wrap.addEventListener("pointermove", (e) => {
-              activePointer = e;
-              const dx = e.clientX - startXY.x;
-              const dy = e.clientY - startXY.y;
-              const dist2 = dx * dx + dy * dy;
-
-              if (!holding && dist2 > MOVE_THRESHOLD * MOVE_THRESHOLD) {
-                stopHold();
-                draggedRecently = false;
-                return;
-              }
-              if (holding && !thumbDrag && dist2 > MOVE_THRESHOLD * MOVE_THRESHOLD) {
-                startThumbDrag(wrap, e);
-              }
-            });
-
-            wrap.addEventListener("pointerup", (e) => {
-              try { wrap.releasePointerCapture?.(e.pointerId); } catch { }
-              if (thumbDrag && thumbDrag.wrap === wrap) return; // finish handler will run globally
-              if (holding) setTimeout(() => { draggedRecently = false; }, 100);
-              resetHold();
-            });
-
-            wrap.addEventListener("pointercancel", () => {
-              resetHold();
-              draggedRecently = false;
-            });
-
-            // Avoid click after drag
-            wrap.addEventListener("click", (ev) => {
-              if (draggedRecently || thumbDrag) { ev.preventDefault(); return; }
-              // your existing selection or focus logic continues...
-            });
-          }
-
           if (!disabled) {
             // клік по прев’ю — вибір активного для опису (PHOTO-mode)
             wrap.addEventListener("click", (ev) => {
               if (ev.target.closest(".thumb-x")) return; // ігноруємо клік по хрестикові
-              if (draggedRecently) return;               // не відкриваємо після drag
               commitCurrent();                           // зберегти попередній текст
               sel = Number(wrap.dataset.i);
               renderThumbs(false);
               textEl.value = tempCaptions[sel] || "";
+              requestAnimationFrame(() => { textEl.scrollTop = textEl.scrollHeight; });
             });
           }
 
@@ -1159,198 +847,6 @@ function renderData(data) {
           thumbsEl.appendChild(wrap);
         });
         countEl.textContent = String(previews.length);
-      }
-
-      // ===== Modal DnD helpers (same behavior as grid) =====
-      let thumbDrag = null;
-      let thumbScrollLocked = false;
-      let prevBodyOverflow = "", prevHtmlOverflow = "", prevBodyTouchAction = "", prevBodyPos = "", prevBodyTop = "", prevBodyWidth = "";
-      let scrollLockY = 0;
-
-      function lockModalScroll() {
-        if (thumbScrollLocked) return;
-        thumbScrollLocked = true;
-
-        prevBodyOverflow = document.body.style.overflow;
-        prevHtmlOverflow = document.documentElement.style.overflow;
-        prevBodyTouchAction = document.body.style.touchAction;
-        prevBodyPos = document.body.style.position;
-        prevBodyTop = document.body.style.top;
-        prevBodyWidth = document.body.style.width;
-
-        scrollLockY = window.scrollY || window.pageYOffset || 0;
-
-        document.body.style.overflow = "hidden";
-        document.documentElement.style.overflow = "hidden";
-        document.body.style.touchAction = "none";
-        document.body.style.position = "fixed";
-        document.body.style.top = `-${scrollLockY}px`;
-        document.body.style.width = "100%";
-      }
-
-      function unlockModalScroll() {
-        if (!thumbScrollLocked) return;
-        thumbScrollLocked = false;
-
-        document.body.style.overflow = prevBodyOverflow;
-        document.documentElement.style.overflow = prevHtmlOverflow;
-        document.body.style.touchAction = prevBodyTouchAction;
-        document.body.style.position = prevBodyPos;
-        document.body.style.top = prevBodyTop;
-        document.body.style.width = prevBodyWidth;
-
-        window.scrollTo(0, scrollLockY);
-
-        prevBodyOverflow = prevHtmlOverflow = prevBodyTouchAction = prevBodyPos = prevBodyTop = prevBodyWidth = "";
-        scrollLockY = 0;
-      }
-
-      function removeThumbDragListeners() {
-        document.removeEventListener("pointermove", onThumbPointerMove);
-        document.removeEventListener("pointerup", onThumbPointerUp);
-        document.removeEventListener("pointercancel", onThumbPointerCancel);
-      }
-
-      function onThumbPointerMove(e) {
-        if (!thumbDrag || e.pointerId !== thumbDrag.pointerId) return;
-        e.preventDefault?.();
-
-        const { wrap, placeholder, offsetX, offsetY } = thumbDrag;
-
-        // Move the fixed tile under the pointer
-        wrap.style.left = `${e.clientX - offsetX}px`;
-        wrap.style.top = `${e.clientY - offsetY}px`;
-
-        // Auto-scroll the thumbs strip horizontally when near edges
-        const r = thumbsEl.getBoundingClientRect();
-        const SCROLL_ZONE = 48;
-        const SCROLL_STEP = 12;
-        if (e.clientX < r.left + SCROLL_ZONE) thumbsEl.scrollLeft -= SCROLL_STEP;
-        else if (e.clientX > r.right - SCROLL_ZONE) thumbsEl.scrollLeft += SCROLL_STEP;
-
-        // Reposition placeholder by hit-testing neighbors
-        wrap.style.visibility = "hidden";
-        const hit = document.elementFromPoint(e.clientX, e.clientY);
-        wrap.style.visibility = "";
-
-        let target = hit?.closest?.(".photo-desc-thumb");
-        if (target === wrap) target = null;
-
-        if (target && thumbsEl.contains(target)) {
-          const rect = target.getBoundingClientRect();
-          const before = e.clientX < rect.left + rect.width / 2;
-          thumbsEl.insertBefore(placeholder, before ? target : target.nextSibling);
-          return;
-        }
-
-        // Fallbacks: to start / end if outside
-        if (e.clientX <= r.left) thumbsEl.insertBefore(placeholder, thumbsEl.firstChild);
-        else if (e.clientX >= r.right) thumbsEl.appendChild(placeholder);
-      }
-
-      async function finishThumbDrag(cancelled = false) {
-        if (!thumbDrag) return;
-        removeThumbDragListeners();
-        unlockModalScroll();
-
-        const { wrap, placeholder } = thumbDrag;
-
-        try { wrap.releasePointerCapture?.(thumbDrag.pointerId); } catch { }
-
-        wrap.style.pointerEvents = "";
-        wrap.style.position = "";
-        wrap.style.left = "";
-        wrap.style.top = "";
-        wrap.style.width = "";
-        wrap.style.height = "";
-        wrap.style.zIndex = "";
-        wrap.style.touchAction = "";
-        wrap.style.cursor = "";
-        wrap.classList.remove("dragging", "holding");
-
-        if (placeholder.parentNode) {
-          placeholder.parentNode.insertBefore(wrap, placeholder);
-          placeholder.remove();
-        } else {
-          thumbsEl.appendChild(wrap);
-        }
-
-        // Persist new order to arrays (uses your existing function)
-        applyNewOrder();
-
-        thumbDrag = null;
-      }
-
-      function onThumbPointerUp(e) {
-        if (!thumbDrag || e.pointerId !== thumbDrag.pointerId) return;
-        e.preventDefault?.();
-        finishThumbDrag(false);
-      }
-
-      function onThumbPointerCancel(e) {
-        if (!thumbDrag || e.pointerId !== thumbDrag.pointerId) return;
-        e.preventDefault?.();
-        finishThumbDrag(true);
-      }
-
-      function startThumbDrag(wrap, e) {
-        if (thumbDrag) return;
-
-        const rect = wrap.getBoundingClientRect();
-
-        const placeholder = document.createElement("div");
-        placeholder.className = "thumb-placeholder";
-        placeholder.style.width = `${rect.width}px`;
-        placeholder.style.height = `${rect.height}px`;
-        thumbsEl.insertBefore(placeholder, wrap);
-
-        lockModalScroll();
-
-        wrap.classList.add("holding", "dragging");
-        wrap.style.position = "fixed";
-        wrap.style.left = `${rect.left}px`;
-        wrap.style.top = `${rect.top}px`;
-        wrap.style.width = `${rect.width}px`;
-        wrap.style.height = `${rect.height}px`;
-        wrap.style.zIndex = "1000";
-        wrap.style.pointerEvents = "none";
-        wrap.style.touchAction = "none";
-        wrap.style.cursor = "grabbing";
-
-        thumbDrag = {
-          wrap,
-          placeholder,
-          pointerId: e.pointerId,
-          offsetX: e.clientX - rect.left,
-          offsetY: e.clientY - rect.top
-        };
-
-        document.addEventListener("pointermove", onThumbPointerMove, { passive: false });
-        document.addEventListener("pointerup", onThumbPointerUp, { passive: false });
-        document.addEventListener("pointercancel", onThumbPointerCancel, { passive: false });
-
-        onThumbPointerMove(e);
-      }
-
-      // Перекладає порядок у DOM → на масиви previews/files/tempCaptions
-      function applyNewOrder() {
-        // порядок по data-i у поточному DOM
-        const order = [...thumbsEl.querySelectorAll(".photo-desc-thumb")].map(w => Number(w.dataset.i));
-        if (!order.length) return;
-
-        const newPreviews = order.map(i => previews[i]);
-        const newFiles = order.map(i => files[i]);
-        const newCaptions = order.map(i => tempCaptions[i]);
-
-        previews.splice(0, previews.length, ...newPreviews);
-        files.splice(0, files.length, ...newFiles);
-        tempCaptions.splice(0, tempCaptions.length, ...newCaptions);
-
-        // перемальовуємо з оновленими індексами та підсвіткою активного
-        if (sel >= previews.length) sel = Math.max(0, previews.length - 1);
-        const disabled = modeAlbum.checked; // у режимі альбому кліки/видалення заблоковані
-        renderThumbs(disabled);
-        textEl.value = tempCaptions[sel] || "";
       }
 
       // deletion of a preview in PHOTO mode
@@ -1393,6 +889,7 @@ function renderData(data) {
         // repaint and restore textarea
         renderThumbs(false);
         textEl.value = tempCaptions[sel] || '';
+        requestAnimationFrame(() => { textEl.scrollTop = textEl.scrollHeight; });
       };
 
       if (modeAlbum.checked) return;
@@ -1408,10 +905,12 @@ function renderData(data) {
           renderThumbs(true);
           sel = 0;
           textEl.value = tempCaptions[0] || "";
+          requestAnimationFrame(() => { textEl.scrollTop = textEl.scrollHeight; });
           textEl.placeholder = "Додати опис альбому...";
         } else {
           renderThumbs(false);
           textEl.value = tempCaptions[sel] || "";
+          requestAnimationFrame(() => { textEl.scrollTop = textEl.scrollHeight; });
           textEl.placeholder = "Додати опис...";
         }
       }
@@ -1420,7 +919,7 @@ function renderData(data) {
       openModal();
       applyModeUI();
 
-      closeX.onclick = () => { closeModal(); };
+      closeX?.addEventListener("click", () => { closeModal(); });
       overlay.addEventListener("click", closeModal, { once: true });
 
       okBtn.onclick = () => {
@@ -1810,6 +1309,50 @@ function openConfirmDeleteModal(config) {
   });
 }
 
+function openLimitModal(message) {
+  const overlay = ensureOverlay();
+  const dlg = document.getElementById("confirm-delete-modal");
+  const textEl = document.getElementById("confirm-delete-modal-text");
+  const closeBtn = document.getElementById("confirm-delete-close");
+  const cancelBtn = document.getElementById("confirm-delete-cancel");
+  const okBtn = document.getElementById("confirm-delete-ok");
+
+  if (!dlg || !textEl || !okBtn) {
+    alert(message);
+    return;
+  }
+
+  textEl.innerHTML = message;
+  if (cancelBtn) cancelBtn.style.display = "none";
+  okBtn.textContent = "Готово";
+
+  overlay.hidden = false;
+  dlg.hidden = false;
+
+  const close = () => {
+    dlg.hidden = true;
+    overlay.hidden = true;
+    if (cancelBtn) cancelBtn.style.display = "";
+    okBtn.textContent = "Видалити";
+    cleanup();
+  };
+
+  function cleanup() {
+    okBtn.removeEventListener("click", close);
+    closeBtn?.removeEventListener("click", close);
+    overlay.removeEventListener("click", onOverlay);
+    document.removeEventListener("keydown", onKey);
+  }
+
+  const onOverlay = (e) => { if (e.target === overlay) close(); };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+
+  okBtn.addEventListener("click", close);
+  closeBtn?.addEventListener("click", close);
+  overlay.addEventListener("click", onOverlay);
+  document.addEventListener("keydown", onKey);
+}
+
 function openRenameModal(titleEl) {
   const overlay = ensureOverlay();
 
@@ -1821,11 +1364,6 @@ function openRenameModal(titleEl) {
     dlg.hidden = true; // CSS handles [hidden]
 
     dlg.innerHTML = `
-      <button class="modal-close" aria-label="Закрити">
-        <svg viewBox="0 0 30 30" width="28" height="28" aria-hidden="true">
-          <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
-        </svg>
-      </button>
       <p class="modal-text">Змінити назву</p>
       <input id="rename-input" type="text" placeholder="Введіть назву категорії…" />
       <div class="modal-actions">
@@ -1836,10 +1374,9 @@ function openRenameModal(titleEl) {
   }
 
   const input = dlg.querySelector("#rename-input");
-  const closeBtn = dlg.querySelector(".modal-close");
   const okBtn = dlg.querySelector("#rename-ok");
 
-  if (!input || !closeBtn || !okBtn) {
+  if (!input || !okBtn) {
     console.error("Rename modal structure missing required nodes");
     return;
   }
@@ -1853,7 +1390,8 @@ function openRenameModal(titleEl) {
   const close = () => { dlg.hidden = true; overlay.hidden = true; };
 
   // Close handlers
-  closeBtn.onclick = close;
+  const closeBtn = dlg.querySelector(".modal-close");
+  if (closeBtn) closeBtn.onclick = close;
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
   const onKey = (ev) => { if (ev.key === "Escape") close(); };
   document.addEventListener("keydown", onKey, { once: true });
@@ -1893,11 +1431,6 @@ function openAddCategoryModal() {
     dlg.className = "modal";
     dlg.hidden = true;
     dlg.innerHTML = `
-      <button class="modal-close" aria-label="Закрити">
-        <svg viewBox="0 0 30 30" width="28" height="28" aria-hidden="true">
-          <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
-        </svg>
-      </button>
       <p class="modal-text">Нова категорія</p>
       <input type="text" id="newCatInput" placeholder="Введіть назву категорії..." />
       <div class="modal-actions">
@@ -1908,7 +1441,6 @@ function openAddCategoryModal() {
   }
 
   const input = dlg.querySelector("#newCatInput");
-  const closeBtn = dlg.querySelector(".modal-close");
   const okBtn = dlg.querySelector("#newcat-ok");
 
   const close = () => { dlg.hidden = true; overlay.hidden = true; };
@@ -1918,7 +1450,8 @@ function openAddCategoryModal() {
   input.value = "";
   input.focus();
 
-  closeBtn.onclick = close;
+  const closeBtn = dlg.querySelector(".modal-close");
+  if (closeBtn) closeBtn.onclick = close;
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") close(); }, { once: true });
 

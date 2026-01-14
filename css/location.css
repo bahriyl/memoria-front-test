@@ -499,7 +499,7 @@ textarea:focus {
     left: 50%;
     transform: translateX(-50%);
     bottom: calc(16px + env(safe-area-inset-bottom));
-    display: flex;
+    display: none;
     gap: 8px;
     z-index: 10001;
 }
@@ -890,6 +890,21 @@ textarea:focus {
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #fff rgba(255, 255, 255, 0.35);
+}
+
+.slideshow-track::-webkit-scrollbar {
+    height: 6px;
+}
+
+.slideshow-track::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.slideshow-track::-webkit-scrollbar-thumb {
+    background: #fff;
+    border-radius: 999px;
 }
 
 .slideshow-slide {
@@ -912,7 +927,7 @@ textarea:focus {
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    display: flex;
+    display: none;
     gap: 8px;
     z-index: 10;
 }

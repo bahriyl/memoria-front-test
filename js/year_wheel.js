@@ -1,7 +1,8 @@
 (() => {
     const defaultOptions = {
         initialValue: '',
-        onChange: () => { }
+        onChange: () => { },
+        snapBehavior: 'auto'
     };
 
     const wheelInstances = new WeakMap();
@@ -200,12 +201,12 @@
         }
 
         syncToClosest(opts = {}) {
-            const { silent = false } = opts;
+            const { silent = false, behavior = this.options.snapBehavior || 'auto' } = opts;
             const closest = this.findClosestToCenter();
             if (!closest) return;
             // If we’re correcting away from a disabled center, also move the wheel.
             const shouldScroll = true; // safe default for a crisp snap experience
-            this.applySelection(closest, { silent, scroll: shouldScroll, behavior: 'auto' });
+            this.applySelection(closest, { silent, scroll: shouldScroll, behavior });
         }
 
         findClosestToCenter() {
@@ -307,12 +308,12 @@
         }
 
         refresh(opts = {}) {
-            const { silent = true } = opts;
+            const { silent = true, behavior = this.options.snapBehavior || 'auto' } = opts;
             let current = this.currentItem && this.list.contains(this.currentItem) ? this.currentItem : null;
             if (current && !this.isSelectable(current)) {
                 const fallback = this.findNearestSelectable(current);
                 if (fallback) {
-                    this.applySelection(fallback, { silent, scroll: true, behavior: 'auto' });
+                    this.applySelection(fallback, { silent, scroll: true, behavior });
                 } else {
                     this.clear({ silent, keepActive: false });
                 }
@@ -321,12 +322,12 @@
             if (!current) {
                 const byValue = this.findItemByValue(this.value);
                 if (byValue && this.isSelectable(byValue)) {
-                    this.applySelection(byValue, { silent: true, scroll: false, behavior: 'auto' });
+                    this.applySelection(byValue, { silent: true, scroll: false, behavior });
                     return;
                 }
                 const fallback = this.findClosestToCenter();
                 if (fallback) {
-                    this.applySelection(fallback, { silent, scroll: false, behavior: 'auto' });
+                    this.applySelection(fallback, { silent, scroll: false, behavior });
                 }
                 return;
             }

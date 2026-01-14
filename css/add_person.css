@@ -588,7 +588,7 @@ input[type="checkbox"] {
 
 .error-message {
     color: red;
-    font-size: .875rem;
+    font-size: 13px;
     margin-top: 4px;
 }
 

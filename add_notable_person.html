@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Додати видатну особу</title>
     <link rel="stylesheet" href="css/add_notable_person.css" />
 </head>
@@ -31,7 +31,6 @@
                     </svg>
                 </button>
             </div>
-            <div id="searchNameError" class="error-message" hidden></div>
         </div>
 
             <!-- 2) Рік народження / смерті -->
@@ -146,10 +145,6 @@
         <!-- Success Modal -->
         <div id="modal-overlay" class="modal-overlay" hidden></div>
         <div id="success-modal" class="modal" hidden>
-            <button id="modal-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
-                height="28" aria-hidden="true">
-                <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-            </svg></button>
             <p class="modal-text">
                 Успішно відправлено на модерацію. Після перевірки статус видатної особи буде підтверджений.
             </p>

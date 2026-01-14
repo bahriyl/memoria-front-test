@@ -224,7 +224,7 @@ body::-webkit-scrollbar {
     background: none;
     border: 0;
     color: #000;
-    font-weight: 600;
+    font-weight: 540;
     white-space: nowrap;
     cursor: pointer;
     vertical-align: baseline;
@@ -1194,6 +1194,10 @@ body::-webkit-scrollbar {
     z-index: 301;
 }
 
+#liturgy-phone-modal {
+    padding-top: 12px;
+}
+
 .modal-close {
     position: absolute;
     top: 12px;
@@ -1243,7 +1247,11 @@ body::-webkit-scrollbar {
     display: flex;
     gap: 12px;
     justify-content: center;
-    margin-top: 14px;
+    margin-top: 18px;
+}
+
+#liturgy-phone-modal .modal-actions {
+    margin-top: 26px;
 }
 
 .modal-ok {
@@ -2081,6 +2089,10 @@ body::-webkit-scrollbar {
     /* drop under the pill */
 }
 
+#relativesModal .rel-role-list {
+    max-height: clamp(140px, 24vh, 220px);
+}
+
 /* Optional: highlight current value in the list */
 .rel-role-list li.is-active {
     background: #F2F4F7;
@@ -2727,14 +2739,14 @@ input[type="number"] {
 
 /* ── Photo Description Modal (unified) ───────────────────────── */
 .modal-title {
-    margin: 0 0 20px;
+    margin: 4px 0 20px;
     text-align: center;
     font-weight: 600;
 }
 
 .photo-desc-thumbs {
     display: flex !important;
-    gap: 12px;
+    gap: 8px;
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
@@ -2750,10 +2762,10 @@ input[type="number"] {
 }
 
 .photo-desc-thumb {
-    flex: 0 0 129px;
+    flex: 0 0 134px;
     scroll-snap-align: start;
-    height: 152px !important;
-    width: 129px !important;
+    height: 158px !important;
+    width: 134px !important;
     position: relative;
     border-radius: 4px;
     overflow: hidden;
@@ -2763,8 +2775,8 @@ input[type="number"] {
 }
 
 .photo-desc-thumb img {
-    width: 129px;
-    height: 152px;
+    width: 134px;
+    height: 158px;
     object-fit: cover;
 }
 
@@ -2972,6 +2984,7 @@ input[type="number"] {
 
 #liturgy-phone-input {
     width: 100%;
+    height: 50px;
     box-sizing: border-box;
     background: #F1F3F5;
     border: none;
@@ -2984,8 +2997,15 @@ input[type="number"] {
     outline: none;
 }
 
+#liturgy-phone-input::placeholder {
+    color: #72767D;
+}
+
 #liturgy-result-modal .modal-text {
     margin-bottom: 10px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 480;
+    font-size: 15px;
 }
 
 /* Shared album: завжди ховаємо інлайнову кнопку "Добавити" —

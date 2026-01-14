@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
     <title>Memoria — Профіль</title>
 
     <link rel="stylesheet" href="css/premium_qr_person.css">
@@ -242,10 +242,6 @@
         <div id="avatar-cropper-overlay" class="avatar-cropper-overlay" hidden></div>
         <div id="avatar-cropper" class="avatar-cropper" hidden role="dialog" aria-modal="true"
             aria-labelledby="avatar-cropper-title">
-            <button id="avatar-cropper-cancel" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30"
-                    width="28" height="28" aria-hidden="true">
-                    <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
-                </svg></button>
             <div class="avatar-cropper-header">
                 <h3 id="avatar-cropper-title">Розмістіть фото</h3>
             </div>
@@ -347,10 +343,13 @@
     </div>
 
     <div id="liturgy-phone-modal" class="modal" hidden>
-        <button id="liturgy-phone-close" class="modal-close" aria-label="Закрити"></button>
-        <p class="modal-text">Введіть номер телефону</p>
+        <button id="liturgy-phone-close" class="modal-close" aria-label="Закрити"><svg viewBox="0 0 30 30" width="28"
+                height="28" aria-hidden="true">
+                <path d="M7 7l10 10M17 7L7 17" stroke="#90959C" stroke-width="2" stroke-linecap="round"></path>
+            </svg></button>
+        <p class="modal-text">Вкажіть ваш номер телефону</p>
         <input id="liturgy-phone-input" class="liturgy-phone-input" type="tel" inputmode="numeric"
-            autocomplete="tel" maxlength="17" placeholder="+380(__)-___-____">
+            autocomplete="tel" maxlength="17" placeholder="Введіть номер телефону...">
         <p id="liturgy-phone-error" class="error-message donation-error" hidden></p>
         <div class="modal-actions">
             <button id="liturgy-phone-submit" class="modal-ok">Перейти до оплати</button>
@@ -447,7 +446,7 @@
 
 
             <!-- Обрані / Знайдені -->
-            <div class="modal-subtitle" style="text-align:left">Вибрано (<span id="relSelectedCount">0</span>) :</div>
+            <div class="modal-subtitle is-selected-count" style="text-align:left">Вибрано (<span id="relSelectedCount">0</span>) :</div>
             <ul id="relSelectedList" class="people-list"></ul>
 
             <div class="modal-subtitle" style="text-align:left">Знайдено (<span id="relFoundCount">0</span>) :</div>

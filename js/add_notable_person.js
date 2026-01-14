@@ -11,22 +11,18 @@ function debounce(fn, ms) {
 
 document.addEventListener('DOMContentLoaded', () => {
     const searchNameInput = document.getElementById('searchName');
-    const searchNameError = document.getElementById('searchNameError');
 
-    searchNameInput.addEventListener('blur', () => {
-        const name = searchNameInput.value.trim();
-        const parts = name.split(/\s+/).filter(Boolean);
+    // Auto-scroll textareas to keep bottom padding visible while typing
+    const enableTextareaAutoScroll = window.enableTextareaAutoScroll || function (textarea) {
+        if (!textarea || textarea.dataset.autoscroll === '1') return;
+        const scrollToBottom = () => { textarea.scrollTop = textarea.scrollHeight; };
+        textarea.addEventListener('input', () => requestAnimationFrame(scrollToBottom));
+        requestAnimationFrame(scrollToBottom);
+        textarea.dataset.autoscroll = '1';
+    };
+    window.enableTextareaAutoScroll = enableTextareaAutoScroll;
+    document.querySelectorAll('textarea').forEach(enableTextareaAutoScroll);
 
-        if (!name) {
-            searchNameError.textContent = "Введіть ПІБ";
-            searchNameError.hidden = false;
-        } else if (name.includes('.') || parts.some(p => p.length <= 1)) {
-            searchNameError.textContent = "Введіть повне ім'я та по-батькові";
-            searchNameError.hidden = false;
-        } else {
-            searchNameError.hidden = true;
-        }
-    });
 
     // Filters & results
     const nameInput = document.getElementById('searchName');
@@ -70,6 +66,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitError = document.getElementById('submitError');
 
     let selectedPerson = null;
+    const updateSubmitVisibility = () => {
+        if (!submitBtn) return;
+        submitBtn.style.display = selectedPerson ? 'block' : 'none';
+    };
+    updateSubmitVisibility();
 
     // ==== Unified lifeYearsPicker (injects a single picker, keeps selects in sync) ====
     // Existing references:
@@ -81,8 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!name) return false;
         const q = query.trim().toLowerCase();
         if (!q) return true;
+        const tokens = q.split(/\s+/).filter(Boolean);
+        if (!tokens.length) return true;
         const parts = name.toLowerCase().trim().split(/\s+/).filter(Boolean);
-        return parts.some(part => part.startsWith(q));
+        return tokens.every(token => parts.some(part => part.startsWith(token)));
     }
 
     // 0) Hide the two select pills (we'll keep their values in sync for fetchPeople)
@@ -186,11 +189,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (selectedBirth > selectedDeath) {
             if (source === 'death') {
-                birthWheel.setValue(String(selectedDeath), { silent: true, behavior });
-                selectedBirth = selectedDeath;
-            } else {
                 deathWheel.setValue(String(selectedBirth), { silent: true, behavior });
                 selectedDeath = selectedBirth;
+            } else {
+                birthWheel.setValue(String(selectedDeath), { silent: true, behavior });
+                selectedBirth = selectedDeath;
             }
             return true;
         }
@@ -261,6 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     deathWheel = window.createYearWheel(deathUl, {
         initialValue: selectedDeath ? String(selectedDeath) : '',
+        snapBehavior: 'smooth',
         onChange: (value) => {
             selectedDeath = value ? Number(value) : undefined;
             enforceChronology('death');
@@ -277,10 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
     display.addEventListener('click', () => {
         const willOpen = panel.hidden;
         panel.hidden = !panel.hidden;
-        const submitBtn = document.querySelector('.submit-btn');
-        if (submitBtn) {
-            submitBtn.style.display = panel.hidden ? 'block' : 'none';
-        }
         if (willOpen) {
             storeYearsState();
             const hasBirth = !!birthWheel.getValue();
@@ -300,16 +300,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (panel.hidden || picker.contains(e.target)) return;
         panel.hidden = true;
         restoreYearsState();
-        const submitBtn = document.querySelector('.submit-btn');
-        if (submitBtn) submitBtn.style.display = 'block';
     };
     document.addEventListener('click', closePanel);
     const closePanelEsc = (e) => {
         if (panel.hidden || e.key !== 'Escape') return;
         panel.hidden = true;
         restoreYearsState();
-        const submitBtn = document.querySelector('.submit-btn');
-        if (submitBtn) submitBtn.style.display = 'block';
     };
     document.addEventListener('keydown', closePanelEsc);
 
@@ -326,9 +322,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDisplay();
         panel.hidden = true;
         yearsPanelBackup = null;
-
-        const submitBtn = document.querySelector('.submit-btn');
-        if (submitBtn) submitBtn.style.display = 'block';
 
         triggerFetch();
     });
@@ -394,6 +387,13 @@ document.addEventListener('DOMContentLoaded', () => {
         input.addEventListener('input', () => {
             if (endpoint === 'locations') areaId = '';
             clearBtn.style.display = input.value ? 'flex' : 'none';
+            if (endpoint === 'locations' && !input.value.trim()) {
+                // clearing city should also clear cemetery selection and suggestions
+                cemInput.value = '';
+                clearCemBtn.style.display = 'none';
+                cemSuggest.innerHTML = '';
+                cemSuggest.style.display = 'none';
+            }
             doFetch();
             triggerFetch();
         });
@@ -401,7 +401,13 @@ document.addEventListener('DOMContentLoaded', () => {
             input.value = '';
             clearBtn.style.display = 'none';
             listEl.style.display = 'none';
-            if (endpoint === 'locations') areaId = '';
+            if (endpoint === 'locations') {
+                areaId = '';
+                cemInput.value = '';
+                clearCemBtn.style.display = 'none';
+                cemSuggest.innerHTML = '';
+                cemSuggest.style.display = 'none';
+            }
             triggerFetch();
         });
         listEl.addEventListener('click', e => {
@@ -605,10 +611,23 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedContainer.hidden = true;
             foundContainer.hidden = false;
             submitError.hidden = true;
+            const occupationSelect = document.getElementById('activityArea');
+            const linkInput = document.getElementById('internetLinks');
+            const bioInput = document.getElementById('achievements');
+            if (occupationSelect) occupationSelect.selectedIndex = 0;
+            if (linkInput) linkInput.value = '';
+            if (bioInput) bioInput.value = '';
+            document.querySelectorAll('#occupationError, #linkError, #bioError').forEach(el => {
+                el.hidden = true;
+            });
+            const clearActivityBtn = document.getElementById('clear-activity');
+            if (clearActivityBtn) clearActivityBtn.style.display = 'none';
+            updateSubmitVisibility();
         });
         foundContainer.hidden = true;
         selectedContainer.hidden = false;
         submitError.hidden = true;
+        updateSubmitVisibility();
     }
 
     // “Додати особу” fallback
@@ -633,7 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = "notable.html";
     }
 
-    closeBtn.addEventListener('click', hideModal);
+    closeBtn?.addEventListener('click', hideModal);
     okBtn.addEventListener('click', hideModal);
 
     submitBtn.addEventListener('click', async e => {
@@ -672,12 +691,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!link) {
             linkError.textContent = 'Введіть посилання';
             linkError.hidden = false;
-            hasError = true;
-        }
-
-        if (!bio) {
-            bioError.textContent = 'Введіть опис';
-            bioError.hidden = false;
             hasError = true;
         }
 

@@ -71,8 +71,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!name) return false;
         const q = query.trim().toLowerCase();
         if (!q) return true;
+        const tokens = q.split(/\s+/).filter(Boolean);
+        if (!tokens.length) return true;
         const parts = name.toLowerCase().trim().split(/\s+/).filter(Boolean);
-        return parts.some(part => part.startsWith(q));
+        return tokens.every(token => parts.some(part => part.startsWith(token)));
     }
     let yearsPanelBackup = null;
 
@@ -128,11 +130,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (birthYear > deathYear) {
             if (source === 'death') {
-                if (birthWheel) birthWheel.setValue(String(deathYear), { silent: true, behavior });
-                selectedBirth = deathYear;
-            } else {
                 if (deathWheel) deathWheel.setValue(String(birthYear), { silent: true, behavior });
                 selectedDeath = birthYear;
+            } else {
+                if (birthWheel) birthWheel.setValue(String(deathYear), { silent: true, behavior });
+                selectedBirth = deathYear;
             }
             return true;
         }
@@ -287,6 +289,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const areaInput = document.getElementById('areaFilter');
     const clearAreaBtn = document.getElementById('clearArea');
     const areaSuggest = document.getElementById('areaSuggestions');
+    const formatCemeteryLabel = (raw) => {
+        const text = (raw || '').toString();
+        const parts = text.split(',');
+        return (parts[0] || '').trim() || text.trim();
+    };
 
     const foundLabel = document.getElementById('foundLabel');
     const foundList = document.getElementById('foundList');
@@ -297,6 +304,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedList = document.getElementById('selectedList');
 
     const selectedPersons = [];
+    let selectedAreaName = '';
+    let selectedAreaId = '';
 
     // зберігати на будь-які зміни
     [nameInput, areaInput, cemInput].forEach(el => {
@@ -314,7 +323,8 @@ document.addEventListener('DOMContentLoaded', () => {
             name: (nameInput?.value || '').trim(),
             birth: birthInput?.value || (selectedBirth ?? ''),
             death: deathInput?.value || (selectedDeath ?? ''),
-            area: (areaInput?.value || '').trim(),
+            area: selectedAreaName || '',
+            areaId: selectedAreaId || '',
             cemetery: (cemInput?.value || '').trim(),
         };
         try { sessionStorage.setItem(FILTERS_KEY, JSON.stringify(payload)); } catch { }
@@ -330,7 +340,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (f.area) {
                 areaInput.value = f.area;
+                selectedAreaName = f.area;
+                selectedAreaId = f.areaId ? String(f.areaId) : '';
                 clearAreaBtn.style.display = 'flex';
+            } else {
+                selectedAreaName = '';
+                selectedAreaId = '';
             }
 
             if (f.cemetery) {
@@ -443,6 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     deathWheel = window.createYearWheel(deathList, {
         initialValue: selectedDeath ? String(selectedDeath) : '',
+        snapBehavior: 'smooth',
         onChange: (value) => {
             selectedDeath = value ? Number(value) : undefined;
             enforceChronology('death');
@@ -499,6 +515,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                 return `<li data-area-id="${(item.id ?? '').toString()}">${safe}</li>`;
                             })
                             .join('');
+                    } else if (endpoint === 'cemeteries') {
+                        listEl.innerHTML = items
+                            .map(item => {
+                                const nameRaw = typeof item === 'string'
+                                    ? item
+                                    : (item.name ?? item.display ?? '');
+                                const name = formatCemeteryLabel(nameRaw);
+                                return name ? `<li>${name}</li>` : '';
+                            })
+                            .filter(Boolean)
+                            .join('') || `<li class="no-results">Збігів не знайдено</li>`;
                     } else {
                         listEl.innerHTML = items
                             .map(item => {
@@ -530,6 +557,97 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function setupAreaSuggestions() {
+        if (!areaInput || !clearAreaBtn || !areaSuggest) return;
+
+        clearAreaBtn.style.display = selectedAreaName ? 'flex' : 'none';
+
+        const debouncedFetch = debounce(async () => {
+            const q = areaInput.value.trim();
+            if (!q) {
+                areaSuggest.innerHTML = '';
+                areaSuggest.style.display = 'none';
+                return;
+            }
+            try {
+                const res = await fetch(`${API_URL}/api/locations?search=${encodeURIComponent(q)}`);
+                const items = await res.json();
+                const list = Array.isArray(items) ? items : [];
+
+                if (!list.length) {
+                    areaSuggest.innerHTML = '<li class="no-results">Збігів не знайдено</li>';
+                } else {
+                    areaSuggest.innerHTML = list
+                        .map(item => {
+                            const display = (item.display ?? '').toString();
+                            const safe = display.replace(/"/g, '&quot;');
+                            return `<li data-area-id="${(item.id ?? '').toString()}" data-area="${safe}">${safe}</li>`;
+                        })
+                        .join('');
+                }
+
+                areaSuggest.style.display = 'block';
+            } catch (e) {
+                console.error(e);
+            }
+        }, 300);
+
+        areaInput.addEventListener('focus', () => {
+            if (areaInput.value.trim() && areaSuggest.children.length) {
+                areaSuggest.style.display = 'block';
+            }
+        });
+
+        areaInput.addEventListener('input', () => {
+            const q = areaInput.value.trim();
+            clearAreaBtn.style.display = q ? 'flex' : 'none';
+
+            if (selectedAreaName && q !== selectedAreaName) {
+                selectedAreaName = '';
+                selectedAreaId = '';
+                triggerFetch();
+                saveFilters();
+            }
+
+            if (!q) {
+                areaSuggest.innerHTML = '';
+                areaSuggest.style.display = 'none';
+                return;
+            }
+
+            debouncedFetch();
+        });
+
+        areaSuggest.addEventListener('mousedown', e => {
+            const li = e.target.closest('li');
+            if (!li || li.classList.contains('no-results')) return;
+            selectedAreaName = li.dataset.area || li.textContent.trim();
+            selectedAreaId = li.dataset.areaId || '';
+            areaInput.value = selectedAreaName;
+            areaSuggest.style.display = 'none';
+            clearAreaBtn.style.display = 'flex';
+            saveFilters();
+            triggerFetch();
+        });
+
+        areaInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                areaSuggest.style.display = 'none';
+            }, 200);
+        });
+
+        clearAreaBtn.addEventListener('click', () => {
+            areaInput.value = '';
+            selectedAreaName = '';
+            selectedAreaId = '';
+            areaSuggest.innerHTML = '';
+            areaSuggest.style.display = 'none';
+            clearAreaBtn.style.display = 'none';
+            saveFilters();
+            triggerFetch();
+        });
+    }
+
     // Resolve Area by Cemetery name using /api/people
     async function fetchAreaForCemetery(cemeteryName) {
         if (!cemeteryName) return null;
@@ -557,21 +675,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function tryAutoFillAreaFromCemetery(cemeteryName) {
         // Do not overwrite if user already set Area
-        if (!cemeteryName || areaInput.value.trim()) return;
+        if (!cemeteryName || selectedAreaName || areaInput.value.trim()) return;
         const area = await fetchAreaForCemetery(cemeteryName);
         if (area) {
             areaInput.value = area;
+            selectedAreaName = area;
             clearAreaBtn.style.display = 'flex';
             // propagate to your search
             areaInput.dispatchEvent(new Event('input', { bubbles: true }));
             areaInput.dispatchEvent(new Event('change', { bubbles: true }));
+            saveFilters();
+            triggerFetch();
         }
     }
 
     setupSuggestions(cemInput, clearCemBtn, cemSuggest, 'cemeteries', {
         onSelect: (val) => tryAutoFillAreaFromCemetery(val)
     });
-    setupSuggestions(areaInput, clearAreaBtn, areaSuggest, 'locations');
+    setupAreaSuggestions();
 
     cemInput.addEventListener('change', () => {
         tryAutoFillAreaFromCemetery(cemInput.value.trim());
@@ -581,10 +702,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 1) Отримати унікальні кладовища для обраної Area через /api/people
-    async function fetchCemeteriesForArea(area) {
-        if (!area) return [];
+    async function fetchCemeteriesForArea(area, areaId) {
+        if (!area && !areaId) return [];
         try {
-            const res = await fetch(`${API_URL}/api/people?area=${encodeURIComponent(area)}`);
+            const params = new URLSearchParams();
+            if (areaId) params.set('areaId', areaId);
+            if (area) params.set('area', area);
+            const res = await fetch(`${API_URL}/api/people?${params}`);
             if (!res.ok) return [];
             const data = await res.json();
             const cemSet = new Set(
@@ -601,7 +725,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2) Показати підказки кладовищ для вибраної Area, якщо інпут кладовища порожній
     async function showCemeteriesForSelectedAreaIfEmpty() {
-        const area = areaInput.value.trim();
+        const area = selectedAreaName || '';
+        const areaId = selectedAreaId || '';
         const cemVal = cemInput.value.trim();
         if (!area || cemVal) return;       // показуємо лише коли area є, а cemetery — порожній
 
@@ -609,11 +734,17 @@ document.addEventListener('DOMContentLoaded', () => {
         cemSuggest.innerHTML = '<li class="loading">Завантаження…</li>';
         cemSuggest.style.display = 'block';
 
-        const items = await fetchCemeteriesForArea(area);
+        const items = await fetchCemeteriesForArea(area, areaId);
         if (!items.length) {
             cemSuggest.innerHTML = '<li class="no-results">Нічого не знайдено</li>';
         } else {
-            cemSuggest.innerHTML = items.map(name => `<li>${name}</li>`).join('');
+            cemSuggest.innerHTML = items
+                .map(name => {
+                    const formatted = formatCemeteryLabel(name);
+                    return formatted ? `<li>${formatted}</li>` : '';
+                })
+                .filter(Boolean)
+                .join('') || '<li class="no-results">Нічого не знайдено</li>';
         }
         // кнопку «очистити» не показуємо — інпут ще порожній
     }
@@ -634,7 +765,7 @@ document.addEventListener('DOMContentLoaded', () => {
             birthInput.value ||
             deathInput.value ||
             cemInput.value.trim() ||
-            areaInput.value.trim();
+            selectedAreaName;
 
         if (!hasFilter) {
             // no filters → hide label + clear list
@@ -653,7 +784,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (birthInput.value) params.set('birthYear', birthInput.value);
         if (deathInput.value) params.set('deathYear', deathInput.value);
         if (cemInput.value.trim()) params.set('cemetery', cemInput.value.trim());
-        if (areaInput.value.trim()) params.set('area', areaInput.value.trim());
+        if (selectedAreaId) params.set('areaId', selectedAreaId);
+        if (selectedAreaName) params.set('area', selectedAreaName);
 
         const res = await fetch(`${API_URL}/api/people?${params}`);
         const data = await res.json();

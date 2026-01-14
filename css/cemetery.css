@@ -27,7 +27,6 @@
     z-index: 100;
     background: transparent;
     border: 0;
-    border-bottom: 1px solid #DCDCDC;
 }
 
 .back-btn {
@@ -67,7 +66,7 @@
 }
 
 main.container {
-    padding-top: 38px !important;
+    top: 58px;
 }
 
 

@@ -226,7 +226,7 @@ input[type="text"]::placeholder {
 .people-list {
     list-style: none;
     padding: 0;
-    margin: 0 0 14px;
+    margin: 0;
 }
 
 .people-list li {
@@ -418,7 +418,6 @@ input[type="text"]::placeholder {
 .no-results {
     text-align: center;
     margin: var(--spacing-md) 0 var(--spacing-md);
-    margin-top: 45px;
     color: var(--color-text);
     font-size: 1rem;
 }
@@ -549,11 +548,15 @@ input[type="text"]::placeholder {
 
 /* subtitle */
 .modal-subtitle {
-    margin: 20px 0 20px;
+    margin: 8px 0 8px;
     font-family: var(--font-base);
     font-size: 16px;
     font-weight: 600;
     text-align: center;
+}
+
+.modal-subtitle.is-selected-count {
+    margin-top: 0;
 }
 
 /* radio row */

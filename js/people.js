@@ -227,11 +227,11 @@ function renderFilterControls() {
 
         if (selectedBirth > selectedDeath) {
           if (source === 'death') {
-            birthWheel.setValue(String(selectedDeath), { silent: true, behavior });
-            selectedBirth = selectedDeath;
-          } else {
             deathWheel.setValue(String(selectedBirth), { silent: true, behavior });
             selectedDeath = selectedBirth;
+          } else {
+            birthWheel.setValue(String(selectedDeath), { silent: true, behavior });
+            selectedBirth = selectedDeath;
           }
           return true;
         }
@@ -301,6 +301,7 @@ function renderFilterControls() {
 
       deathWheel = window.createYearWheel(deathList, {
         initialValue: selectedDeath ? String(selectedDeath) : '',
+        snapBehavior: 'smooth',
         onChange: (value) => {
           selectedDeath = value ? Number(value) : undefined;
           enforceChronology('death');
@@ -952,11 +953,12 @@ async function fetchAndRender() {
     if (activeFilter === 'person') {
       const q = (filterState.search || '').trim().toLowerCase();
       if (q) {
+        const tokens = q.split(/\s+/).filter(Boolean);
         listToShow = listToShow.filter(p => {
           const name = (p.name || '').toLowerCase();
           if (!name) return false;
           const parts = name.split(/\s+/).filter(Boolean);
-          return parts.some(part => part.startsWith(q));
+          return tokens.every(token => parts.some(part => part.startsWith(token)));
         });
       }
     }

@@ -9,6 +9,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_BASE = `${API_URL}/api/people`;
     const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
 
+    // Auto-scroll textareas to keep bottom padding visible while typing
+    const enableTextareaAutoScroll = window.enableTextareaAutoScroll || function (textarea) {
+        if (!textarea || textarea.dataset.autoscroll === '1') return;
+        const scrollToBottom = () => { textarea.scrollTop = textarea.scrollHeight; };
+        textarea.addEventListener('input', () => requestAnimationFrame(scrollToBottom));
+        requestAnimationFrame(scrollToBottom);
+        textarea.dataset.autoscroll = '1';
+    };
+    window.enableTextareaAutoScroll = enableTextareaAutoScroll;
+    document.querySelectorAll('textarea').forEach(enableTextareaAutoScroll);
+
     const params = new URLSearchParams(window.location.search);
 
     const from = params.get('from');
@@ -620,6 +631,40 @@ document.addEventListener('DOMContentLoaded', () => {
         return formatted;
     }
 
+    function caretPosAfterDigits(formatted, digitsCount) {
+        if (digitsCount <= 0) return 0;
+        let count = 0;
+        for (let i = 0; i < formatted.length; i += 1) {
+            if (/\d/.test(formatted[i])) {
+                count += 1;
+                if (count === digitsCount) return i + 1;
+            }
+        }
+        return formatted.length;
+    }
+
+    function handlePhoneBackspace(inputEl) {
+        const start = inputEl.selectionStart;
+        const end = inputEl.selectionEnd;
+        if (start === null || end === null || start !== end) return false;
+        const digitsBefore = (inputEl.value.slice(0, start).match(/\d/g) || []).length;
+        if (!digitsBefore) return false;
+        const rawDigits = inputEl.value.replace(/\D/g, '');
+        const hasPrefix = rawDigits.startsWith('380');
+        let localDigits = rawDigits;
+        if (hasPrefix) localDigits = localDigits.slice(3);
+        if (localDigits.startsWith('0')) localDigits = localDigits.slice(1);
+        const digitIndex = digitsBefore - (hasPrefix ? 3 : 0) - 1;
+        if (digitIndex < 0 || digitIndex >= localDigits.length) return false;
+        const nextDigits = localDigits.split('');
+        nextDigits.splice(digitIndex, 1);
+        const nextValue = formatUaPhone(nextDigits.join(''));
+        inputEl.value = nextValue;
+        const nextPos = caretPosAfterDigits(nextValue, digitsBefore - 1);
+        inputEl.setSelectionRange(nextPos, nextPos);
+        return true;
+    }
+
     function openLiturgyPhoneModal() {
         if (!liturgyPhoneModal || !overlayEl) return;
         if (liturgyPhoneError) {
@@ -672,6 +717,10 @@ document.addEventListener('DOMContentLoaded', () => {
             liturgyPhoneError.hidden = true;
         }
         liturgyPhoneInput.value = formatUaPhone(liturgyPhoneInput.value);
+    });
+    liturgyPhoneInput?.addEventListener('keydown', (e) => {
+        if (e.key !== 'Backspace') return;
+        if (handlePhoneBackspace(liturgyPhoneInput)) e.preventDefault();
     });
 
     liturgyPhoneInput?.addEventListener('blur', () => {
@@ -1070,7 +1119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const btnCancel = document.getElementById('avatar-cropper-cancel');
 
             // Fallback: повертаємо обидва як оригінал
-            if (!overlay || !modal || !stage || !img || !btnOk || !btnCancel) {
+            if (!overlay || !modal || !stage || !img || !btnOk) {
                 resolve({ cropped: file, original: file });
                 return;
             }
@@ -1083,6 +1132,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 requestAnimationFrame(tick);
             });
 
+            let overlayClickHandler;
+            let escHandler;
             const cleanup = () => {
                 stage.onpointerdown = null;
                 stage.onpointermove = null;
@@ -1091,7 +1142,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 stage.onwheel = null;
                 stage.ontouchmove = null;
                 btnOk.onclick = null;
-                btnCancel.onclick = null;
+                if (btnCancel) btnCancel.onclick = null;
+                if (overlayClickHandler) overlay.removeEventListener('click', overlayClickHandler);
+                if (escHandler) document.removeEventListener('keydown', escHandler);
             };
 
             const reader = new FileReader();
@@ -1126,12 +1179,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // ... (твій існуючий код для drag/pinch/zoom лишається без змін)
 
-                    btnCancel.onclick = () => {
+                    const cancel = () => {
                         overlay.hidden = true;
                         modal.hidden = true;
                         cleanup();
                         reject(new Error('cancelled'));
                     };
+
+                    if (btnCancel) btnCancel.onclick = cancel;
+                    overlayClickHandler = (e) => {
+                        if (e.target === overlay) cancel();
+                    };
+                    overlay.addEventListener('click', overlayClickHandler);
+                    escHandler = (e) => {
+                        if (e.key === 'Escape') cancel();
+                    };
+                    document.addEventListener('keydown', escHandler);
 
                     btnOk.onclick = () => {
                         try {
@@ -1815,6 +1878,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const textEl = document.getElementById('photo-desc-text');
         const countEl = document.getElementById('photo-desc-count');
         const okBtn = document.getElementById('photo-desc-add');
+        enableTextareaAutoScroll(textEl);
 
         let sel = 0;
         let confirmed = false;
@@ -1845,6 +1909,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     sel = i;
                     renderThumbs();
                     textEl.value = tempCaptions[sel] || '';
+                    requestAnimationFrame(() => { textEl.scrollTop = textEl.scrollHeight; });
                     // keep the selected card centered in the horizontal strip
                     thumbsEl.querySelector('.photo-desc-thumb.is-selected')
                         ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -1877,6 +1942,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             renderThumbs();
             textEl.value = tempCaptions[sel] || '';
+            requestAnimationFrame(() => { textEl.scrollTop = textEl.scrollHeight; });
         };
 
         function openModal() { overlay.hidden = false; dlg.hidden = false; }
@@ -1887,9 +1953,10 @@ document.addEventListener('DOMContentLoaded', () => {
             openModal();
             renderThumbs();
             textEl.value = tempCaptions[sel] || '';
+            requestAnimationFrame(() => { textEl.scrollTop = textEl.scrollHeight; });
         }, 0);
 
-        closeX.onclick = () => { commitCurrent(); closeModal(); };
+        closeX?.addEventListener('click', () => { commitCurrent(); closeModal(); });
         overlay.addEventListener('click', () => { commitCurrent(); closeModal(); }, { once: true });
 
         okBtn.onclick = () => {
@@ -3102,6 +3169,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const textEl = document.getElementById('photo-desc-text');
                 const countEl = document.getElementById('photo-desc-count');
                 const okBtn = document.getElementById('photo-desc-add');
+                enableTextareaAutoScroll(textEl);
 
                 let sel = 0;
                 let confirmed = false;
@@ -3131,6 +3199,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             sel = i;
                             renderThumbs();
                             textEl.value = tempCaptions[sel] || '';
+                            requestAnimationFrame(() => { textEl.scrollTop = textEl.scrollHeight; });
                         });
                         thumbsEl.appendChild(wrap);
                     });
@@ -3161,6 +3230,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     renderThumbs();
                     textEl.value = tempCaptions[sel] || '';
+                    requestAnimationFrame(() => { textEl.scrollTop = textEl.scrollHeight; });
                     refreshPhotosUI();
                 };
 
@@ -3168,7 +3238,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 function closeModal() { overlay.hidden = true; dlg.hidden = true; }
 
                 overlay.addEventListener('click', closeModal, { once: true });
-                closeX.onclick = () => { closeModal(); };
+                closeX?.addEventListener('click', () => { closeModal(); });
 
                 okBtn.onclick = () => {
                     commitCurrent();
@@ -3179,6 +3249,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 openModal();
                 renderThumbs();
                 textEl.value = tempCaptions[0] || '';
+                requestAnimationFrame(() => { textEl.scrollTop = textEl.scrollHeight; });
 
                 // wait until modal closes
                 await new Promise((resolve) => {
@@ -3687,6 +3758,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const bioBody = document.querySelector('.profile-bio .bio-body');
                 if (!bioBody) return;
                 bioBody.innerHTML = `<textarea id="bio-editor" placeholder="Додайте життєпис...">${fullBio || ''}</textarea>`;
+                enableTextareaAutoScroll(document.getElementById('bio-editor'));
 
                 const btnsWrap = document.querySelector('.profile-bio .bio-buttons');
                 if (btnsWrap) {
@@ -4622,8 +4694,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!name) return false;
             const q = query.trim().toLowerCase();
             if (!q) return true;
+            const tokens = q.split(/\s+/).filter(Boolean);
+            if (!tokens.length) return true;
             const parts = name.toLowerCase().trim().split(/\s+/).filter(Boolean);
-            return parts.some(part => part.startsWith(q));
+            return tokens.every(token => parts.some(part => part.startsWith(token)));
         }
 
         const debounce = (fn, ms = 300) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
@@ -4713,11 +4787,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (birthYear > deathYear) {
                 if (source === 'death') {
-                    birthWheel.setValue(String(deathYear), { silent: true, behavior });
-                    selectedBirth = deathYear;
-                } else {
                     deathWheel.setValue(String(birthYear), { silent: true, behavior });
                     selectedDeath = birthYear;
+                } else {
+                    birthWheel.setValue(String(deathYear), { silent: true, behavior });
+                    selectedBirth = deathYear;
                 }
                 return true;
             }
@@ -4762,6 +4836,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         deathWheel = window.createYearWheel(deathList, {
             initialValue: deathInput.value || selectedDeath || '',
+            snapBehavior: 'smooth',
             onChange: (value) => {
                 selectedDeath = value ? Number(value) : undefined;
                 enforceRelChronology('death');
@@ -5168,7 +5243,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ───────────────── Render "Selected" (Fix #4: hide count row when 0)
         function renderSelected() {
-            submitBtn.style.display = selected.length > 0 ? 'block' : 'none';
+            const hasSelected = selected.length > 0;
+            submitBtn.style.display = hasSelected ? 'block' : 'none';
 
             selectedList.innerHTML = selected.map(p => {
                 const rel = p.relationship || '';
@@ -5193,10 +5269,21 @@ document.addEventListener('DOMContentLoaded', () => {
           
                         <!-- reuse the same look as your search suggestions -->
                         <ul class="suggestions-list rel-role-list">
-                          <li data-val="Батько">Батько</li>
-                          <li data-val="Мати">Мати</li>
-                          <li data-val="Брат">Брат</li>
-                          <li data-val="Сестра">Сестра</li>
+                            <li data-val="Без статусу">Без статусу</li>
+                            <li data-val="Мати">Мати</li>
+                            <li data-val="Батько">Батько</li>
+                            <li data-val="Брат">Брат</li>
+                            <li data-val="Сестра">Сестра</li>
+                            <li data-val="Чоловік">Чоловік</li>
+                            <li data-val="Дружина">Дружина</li>
+                            <li data-val="Син">Син</li>
+                            <li data-val="Донька">Донька</li>
+                            <li data-val="Дідусь">Дідусь</li>
+                            <li data-val="Бабуся">Бабуся</li>
+                            <li data-val="Онук">Онук</li>
+                            <li data-val="Онука">Онука</li>
+                            <li data-val="Дядько">Дядько</li>
+                            <li data-val="Тітка">Тітка</li>
                         </ul>
                       </div>
                     </div>
@@ -5206,8 +5293,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
 
             selCountEl.textContent = selected.length;
-            if (selectedCountRow) selectedCountRow.style.display = selected.length ? '' : 'none';
-            overlay.classList.toggle('relatives-no-selected', selected.length === 0);
+            selectedList.hidden = !hasSelected;
+            if (selectedCountRow) selectedCountRow.style.display = hasSelected ? '' : 'none';
+            overlay.classList.toggle('relatives-no-selected', !hasSelected);
 
             // Remove item
             selectedList.querySelectorAll('li button.select-btn').forEach(btn => {

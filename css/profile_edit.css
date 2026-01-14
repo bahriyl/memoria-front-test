@@ -223,24 +223,41 @@
 /* Relatives modal — keep the submit button fixed like on profile */
 #relativesModal .modal-content {
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-height: 65vh;
   max-height: 90vh;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: 0;
 }
 
-/* make the submit button float like on profile */
+#relativesModal .rel-role-list {
+  max-height: clamp(140px, 24vh, 220px);
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+/* keep submit inside modal */
+#relativesModal .rel-submit-bar {
+  position: sticky;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  background: #fff;
+  display: flex;
+  justify-content: center;
+  z-index: 2;
+  margin-top: auto;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+}
+
 #relativesModal .modal-submit-btn {
-  position: fixed;
-  /* fixed to viewport */
-  bottom: 48px;
-  /* uniform offset */
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  width: 80%;
-  max-width: 480px;
+  position: static;
+  width: 100%;
   margin: 0 !important;
 }
 
@@ -259,8 +276,8 @@
 
 /* iOS safe-area support (same as profile) */
 @supports (padding: max(0px)) {
-  #relativesModal .modal-submit-btn {
-    bottom: max(60px, env(safe-area-inset-bottom));
+  #relativesModal .rel-submit-bar {
+    padding-bottom: max(26px, env(safe-area-inset-bottom));
   }
 }
 

@@ -46,9 +46,13 @@
 }
 
 .no-results p {
-    margin: 4px 0;
+    margin: 6px 0;
     font-family: 'Montserrat', sans-serif;
     font-size: 1rem;
+}
+
+.no-results p + p {
+    font-weight: 510;
 }
 
 /* Категорія */
@@ -147,8 +151,6 @@
     padding: 0.5em 1em;
     cursor: pointer;
     font-family: var(--font-base);
-    margin-top: 12px;
-    margin-bottom: 12px;
 }
 
 .suggestions-list li:hover {
