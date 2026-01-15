@@ -126,6 +126,48 @@
     return bubble;
   }
 
+  function isMultilineText(el) {
+    if (!el) return false;
+    const style = getComputedStyle(el);
+    let lineHeight = parseFloat(style.lineHeight);
+    if (Number.isNaN(lineHeight)) {
+      const fontSize = parseFloat(style.fontSize) || 16;
+      lineHeight = fontSize * 1.4;
+    }
+    return el.scrollHeight > lineHeight * 1.5;
+  }
+
+  function updateMultilineBubbleWidth(bubble) {
+    const p = bubble.querySelector("p");
+    if (!p) return;
+    requestAnimationFrame(() => {
+      const isMulti = isMultilineText(p);
+      if (!isMulti) {
+        bubble.classList.remove("is-multiline");
+        bubble.style.removeProperty("width");
+        return;
+      }
+
+      const range = document.createRange();
+      range.selectNodeContents(p);
+      const rects = Array.from(range.getClientRects());
+      range.detach();
+      if (!rects.length) return;
+
+      const maxLineWidth = rects.reduce((max, rect) => Math.max(max, rect.width), 0);
+      const bubbleStyle = getComputedStyle(bubble);
+      const paddingLeft = parseFloat(bubbleStyle.paddingLeft) || 0;
+      const paddingRight = parseFloat(bubbleStyle.paddingRight) || 0;
+      let targetWidth = Math.ceil(maxLineWidth + paddingLeft + paddingRight);
+      const containerWidth = msgsDiv?.clientWidth || bubble.parentElement?.clientWidth || window.innerWidth;
+      const maxWidth = Math.floor(containerWidth * 0.8);
+      if (maxWidth > 0) targetWidth = Math.min(targetWidth, maxWidth);
+
+      bubble.classList.add("is-multiline");
+      bubble.style.width = `${targetWidth}px`;
+    });
+  }
+
   function renderTextBubble(msg) {
     const bubble = createBubble(msg.sender);
     const p = document.createElement("p");
@@ -133,6 +175,7 @@
     bubble.append(p);
     appendMessageTime(bubble, msg.createdAt);
     msgsDiv.append(bubble);
+    updateMultilineBubbleWidth(bubble);
   }
 
   function renderImageBubble({ sender, src, createdAt }) {
@@ -185,6 +228,7 @@
 
     msgsDiv.append(bubble);
     scrollToBottom();
+    updateMultilineBubbleWidth(bubble);
     return bubble;
   }
 

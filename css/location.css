@@ -166,9 +166,8 @@ h2 {
 }
 
 .section-photos h2 {
-    padding-top: 20px;
-    padding-right: 56px;
-    margin-bottom: 0;
+    padding: 0;
+    margin: 0;
 }
 
 .photo-actions {
@@ -742,6 +741,7 @@ textarea:focus {
 }
 
 .section-location,
+.section-photos,
 .section-landmarks {
     position: relative;
 }
@@ -759,41 +759,26 @@ textarea:focus {
     justify-content: space-between;
     gap: 12px;
     position: relative;
+    margin-bottom: 16px;
     /* щоб меню випливало під шапкою */
 }
 
 .section-titlebar h1,
 .section-titlebar h2 {
-    margin: 0;
+    margin: 0 !important;
     padding: 0;
 }
 
-/* Кнопка крапок всередині шапки більше НЕ absolute */
+/* Кнопка крапок всередині шапки */
 .section-titlebar .dots-btn {
     position: relative;
+    top: 0;
+    right: 0;
     width: 40px;
     height: 40px;
     flex: 0 0 auto;
-    margin-bottom: 15px;
-}
-
-.section-location .dots-btn {
-    position: relative;
-    right: -10px;
-    margin-bottom: 20px;
-}
-
-.section-photos .dots-btn {
-    position: relative;
-    right: 20px;
-    padding-bottom: 15px;
-}
-
-.section-landmarks .dots-btn {
-    position: relative;
-    right: -10px;
-    padding-bottom: 15px;
-    padding-top: 15px;
+    margin: 0;
+    padding: 0;
 }
 
 /* Попап тепер прив’язаний до шапки секції */

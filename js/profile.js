@@ -3664,15 +3664,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pendingDateISO) {
             selectDateByISO(pendingDateISO);
             iso = pendingDateISO;
-            const items = liturgiesIndex[iso] || [];
-            if (items.length) {
-                let targetIndex = 1;
-                if (pendingInvoiceId) {
-                    const found = items.findIndex((it) => it.invoiceId === pendingInvoiceId);
-                    if (found >= 0) targetIndex = found + 1;
-                }
-                requestAnimationFrame(() => scrollToLiturgyCard(targetIndex));
-            }
+            scrollToLatestLiturgyCard(iso, pendingInvoiceId);
         }
 
         if (pendingInvoiceId) {
@@ -3738,6 +3730,18 @@ document.addEventListener('DOMContentLoaded', () => {
         target?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
     }
 
+    function scrollToLatestLiturgyCard(iso, invoiceId = null) {
+        if (!iso) return;
+        const items = liturgiesIndex[iso] || [];
+        if (!items.length) return;
+        let targetIndex = items.length;
+        if (invoiceId) {
+            const found = items.findIndex((it) => it.invoiceId === invoiceId);
+            if (found >= 0) targetIndex = found + 1;
+        }
+        requestAnimationFrame(() => scrollToLiturgyCard(targetIndex));
+    }
+
     function resetLiturgySelections() {
         document.querySelectorAll('.church-btn').forEach(b => b.classList.remove('selected'));
         selectedChurchName = '';
@@ -3758,6 +3762,9 @@ document.addEventListener('DOMContentLoaded', () => {
             applyDateSelectionEffects(iso);
             renderLiturgyDetailsStrip(iso);
             renderLiturgyHistoryForISO(iso);
+            if (pendingDateISO && iso === pendingDateISO) {
+                scrollToLatestLiturgyCard(iso, pendingInvoiceId);
+            }
         }
     }
 

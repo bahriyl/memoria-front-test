@@ -447,6 +447,20 @@ main.container {
     overflow-wrap: anywhere;
 }
 
+.bubble.is-multiline {
+    max-width: 80%;
+}
+
+.bubble.user.is-multiline {
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.bubble.admin.is-multiline {
+    padding-right: 16px;
+    padding-left: 16px;
+}
+
 .bubble p {
     white-space: pre-wrap;
 }

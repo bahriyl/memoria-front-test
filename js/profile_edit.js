@@ -55,6 +55,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function scrollToLiturgyCard(index) {
+        const strip = document.querySelector('.liturgy-details.is-strip');
+        if (!strip) return;
+        const target = strip.children[index];
+        target?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
+    }
+
+    function scrollToLatestLiturgyCard(iso, invoiceId = null) {
+        if (!iso) return;
+        const items = liturgiesIndex[iso] || [];
+        if (!items.length) return;
+        let targetIndex = items.length;
+        if (invoiceId) {
+            const found = items.findIndex((it) => it.invoiceId === invoiceId);
+            if (found >= 0) targetIndex = found + 1;
+        }
+        requestAnimationFrame(() => scrollToLiturgyCard(targetIndex));
+    }
+
     const personId = params.get('personId');
     if (!personId) return;
 
@@ -4015,6 +4034,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (pendingDateISO) {
             selectDateByISO(pendingDateISO);
+            scrollToLatestLiturgyCard(pendingDateISO, liturgyPaymentState?.invoiceId || null);
             if (liturgyPaymentState) {
                 try { sessionStorage.removeItem('liturgyPaymentState'); } catch { }
             }
