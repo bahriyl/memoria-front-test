@@ -44,6 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const summaryQty = document.getElementById('summaryQty');
     const summaryTotal = document.getElementById('summaryTotal');
     const certList = document.getElementById('certList');
+    const certMenuBtn = document.getElementById('certMenuBtn');
+    const certMenu = document.getElementById('certMenu');
 
     const fullNameInput = document.getElementById('fullName');
     const phoneInput = document.getElementById('phone');
@@ -99,10 +101,103 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const certState = new Array(count).fill(null);
+    const certInputs = [];
+    const certSync = [];
+    let activeCertIndex = null;
 
-    function closeAllCertMenus() {
-        certList.querySelectorAll('.cert-menu-popover').forEach(pop => {
-            pop.hidden = true;
+    function updateCertMenuVisibility() {
+        const hasAny = certState.some(Boolean);
+        if (certMenuBtn) certMenuBtn.hidden = !hasAny;
+        if (!hasAny) {
+            certMenu?.classList.add('hidden');
+            activeCertIndex = null;
+        }
+    }
+
+    function getActiveCertIndex() {
+        if (activeCertIndex !== null && certState[activeCertIndex]) return activeCertIndex;
+        const first = certState.findIndex(Boolean);
+        if (first !== -1) {
+            activeCertIndex = first;
+            return first;
+        }
+        return null;
+    }
+
+    function openCertMenu() {
+        if (!certMenu) return;
+        if (getActiveCertIndex() === null) return;
+        certMenu.classList.remove('hidden');
+    }
+
+    function toggleCertMenu() {
+        if (!certMenu) return;
+        if (getActiveCertIndex() === null) return;
+        certMenu.classList.toggle('hidden');
+    }
+
+    function openSlideshow(images, startIndex = 0) {
+        if (!images.length) return;
+        const modal = document.createElement('div');
+        modal.className = 'slideshow-modal';
+
+        const closeBtnX = document.createElement('span');
+        closeBtnX.textContent = '✕';
+        closeBtnX.className = 'close-slideshow';
+        closeBtnX.onclick = () => document.body.removeChild(modal);
+
+        const track = document.createElement('div');
+        track.className = 'slideshow-track';
+
+        images.forEach((url) => {
+            const slide = document.createElement('div');
+            slide.className = 'slideshow-slide';
+            const slideImg = document.createElement('img');
+            slideImg.src = url;
+            slideImg.className = 'slideshow-img';
+            slide.appendChild(slideImg);
+            track.appendChild(slide);
+        });
+
+        const indicator = document.createElement('div');
+        indicator.className = 'slideshow-indicators';
+        images.forEach((_, idx) => {
+            const dot = document.createElement('span');
+            dot.className = 'slideshow-indicator';
+            dot.addEventListener('click', () => {
+                changeSlide(idx);
+            });
+            indicator.appendChild(dot);
+        });
+
+        function updateIndicators(index) {
+            indicator.querySelectorAll('.slideshow-indicator').forEach((dot, i) => {
+                dot.classList.toggle('active', i === index);
+            });
+        }
+
+        function changeSlide(newIndex) {
+            const slides = track.querySelectorAll('.slideshow-slide');
+            if (slides[newIndex]) {
+                slides[newIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }
+        }
+
+        track.addEventListener('scroll', () => {
+            const slideWidth = track.clientWidth;
+            const index = Math.round(track.scrollLeft / slideWidth);
+            updateIndicators(index);
+        });
+
+        modal.append(closeBtnX, track, indicator);
+        document.body.appendChild(modal);
+
+        requestAnimationFrame(() => {
+            const prev = track.style.scrollBehavior;
+            track.style.scrollBehavior = 'auto';
+            track.scrollLeft = startIndex * track.clientWidth;
+            track.style.scrollBehavior = prev;
+            updateIndicators(startIndex);
         });
     }
 
@@ -126,34 +221,18 @@ document.addEventListener('DOMContentLoaded', () => {
             img.className = 'cert-image';
             img.hidden = true;
 
-            const menuBtn = document.createElement('button');
-            menuBtn.type = 'button';
-            menuBtn.className = 'cert-menu';
-            menuBtn.textContent = '⋮';
-            menuBtn.hidden = true;
-
-            const popover = document.createElement('div');
-            popover.className = 'cert-menu-popover';
-            popover.hidden = true;
-
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.textContent = 'Видалити';
-            popover.appendChild(removeBtn);
-
             function syncView() {
                 const src = certState[idx];
                 if (src) {
                     img.src = src;
                     img.hidden = false;
                     placeholder.hidden = true;
-                    menuBtn.hidden = false;
                 } else {
                     img.hidden = true;
                     placeholder.hidden = false;
-                    menuBtn.hidden = true;
                 }
-                popover.hidden = true;
+                if (!src && activeCertIndex === idx) activeCertIndex = null;
+                updateCertMenuVisibility();
             }
 
             input.addEventListener('change', () => {
@@ -162,31 +241,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 const reader = new FileReader();
                 reader.onload = () => {
                     certState[idx] = reader.result;
+                    activeCertIndex = idx;
                     syncView();
                 };
                 reader.readAsDataURL(file);
             });
 
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.cert-menu')) return;
-                if (e.target.closest('.cert-menu-popover')) return;
+                if (certState[idx]) {
+                    e.stopPropagation();
+                    const wasActive = activeCertIndex === idx;
+                    activeCertIndex = idx;
+                    if (certMenu && !certMenu.classList.contains('hidden') && wasActive) {
+                        certMenu.classList.add('hidden');
+                    } else {
+                        openCertMenu();
+                    }
+                    return;
+                }
                 input.click();
             });
 
-            menuBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                closeAllCertMenus();
-                popover.hidden = false;
-            });
+            certInputs[idx] = input;
+            certSync[idx] = syncView;
 
-            removeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                certState[idx] = null;
-                input.value = '';
-                syncView();
-            });
-
-            card.append(input, placeholder, img, menuBtn, popover);
+            card.append(input, placeholder, img);
             certList.appendChild(card);
             syncView();
         });
@@ -194,10 +273,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderCertCards();
 
+    if (certMenuBtn) {
+        certMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleCertMenu();
+        });
+    }
+
+    if (certMenu) {
+        certMenu.addEventListener('click', (e) => {
+            const option = e.target.closest('.popup-option');
+            if (!option) return;
+            const idx = getActiveCertIndex();
+            if (idx === null) return;
+
+            const action = option.dataset.action;
+            if (action === 'view') {
+                const items = certState
+                    .map((src, i) => ({ src, index: i }))
+                    .filter(item => item.src);
+                if (!items.length) return;
+                const startIndex = Math.max(0, items.findIndex(item => item.index === idx));
+                openSlideshow(items.map(item => item.src), startIndex);
+            }
+            if (action === 'change') {
+                certInputs[idx]?.click();
+            }
+            if (action === 'delete') {
+                certState[idx] = null;
+                if (certInputs[idx]) certInputs[idx].value = '';
+                certSync[idx]?.();
+            }
+            certMenu.classList.add('hidden');
+        });
+    }
+
     document.addEventListener('click', (e) => {
-        if (e.target.closest('.cert-menu')) return;
-        if (e.target.closest('.cert-menu-popover')) return;
-        closeAllCertMenus();
+        if (e.target.closest('#certMenuBtn')) return;
+        if (e.target.closest('#certMenu')) return;
+        certMenu?.classList.add('hidden');
     });
 
     if (phoneInput) {

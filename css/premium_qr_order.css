@@ -136,12 +136,156 @@ body {
     color: #333333;
 }
 
-.section-note {
-    margin: 0 0 14px;
-    font-size: 13px;
-    font-weight: 480;
-    color: #000000;
-    line-height: 23px;
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.section-header .section-title {
+    margin: 0;
+    padding-right: 8px;
+}
+
+.dots-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dots-btn[hidden] {
+    display: none;
+}
+
+.popup-menu {
+    position: absolute;
+    top: 36px;
+    right: 0;
+    background: #f7f7f7;
+    border: 0.5px solid #dcdcdc;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    min-width: 160px;
+    font-family: var(--font-base);
+}
+
+.popup-menu.hidden {
+    display: none;
+}
+
+.popup-option {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 510;
+    color: #1c170d;
+    position: relative;
+}
+
+.popup-option::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 5%;
+    width: 90%;
+    border-bottom: 0.5px solid #dcdcdc;
+}
+
+.popup-option:last-child::after {
+    display: none;
+}
+
+.popup-option:hover {
+    background-color: #f2f2f2;
+}
+
+/* Slideshow (match location photo viewer) */
+.slideshow-modal {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    z-index: 10000;
+}
+
+.slideshow-track {
+    display: flex;
+    flex: 1;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #fff rgba(255, 255, 255, 0.35);
+}
+
+.slideshow-track::-webkit-scrollbar {
+    height: 6px;
+}
+
+.slideshow-track::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.slideshow-track::-webkit-scrollbar-thumb {
+    background: #fff;
+    border-radius: 999px;
+}
+
+.slideshow-slide {
+    flex: 0 0 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    scroll-snap-align: center;
+}
+
+.slideshow-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.slideshow-indicators {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    gap: 8px;
+    z-index: 10;
+}
+
+.slideshow-indicator {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    transition: background-color .3s;
+}
+
+.slideshow-indicator.active {
+    background: #1B8B59;
+}
+
+.close-slideshow {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 10001;
 }
 
 .field {
@@ -155,12 +299,17 @@ body {
     border-radius: 14px;
     background: var(--color-field);
     padding: 0 16px;
-    height: 49px;
+    height: 50px;
     font-size: 16px;
     font-weight: 460;
     font-family: var(--font-base);
     outline: none;
     color: #202124;
+}
+
+.field input[type="text"]::placeholder,
+.field input[type="tel"]::placeholder {
+    color: #72767D;
 }
 
 .field-sms {
@@ -301,7 +450,7 @@ body {
 .suggestions-list li {
     padding: 10px 12px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 1rem;
 }
 
 .suggestions-list li:hover {

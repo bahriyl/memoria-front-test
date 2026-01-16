@@ -30,28 +30,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // grab everything
     const video = document.getElementById('premiumVideo');
     const overlayPlay = document.getElementById('overlayPlay');
-    const playPause = document.getElementById('playPause');
     const progress = document.getElementById('progress');
-    const timeLabel = document.getElementById('timeLabel');
     const controls = document.getElementById('controls');
 
     video.controls = false
 
-    // when video plays
-    video.addEventListener('play', () => {
+    function showPlayingUi() {
         overlayPlay.style.display = 'none';
         controls.classList.add('is-playing');   // show controls bar
-        setSmallIcon(true);
-    });
+    }
 
-    // when video pauses or ends
-    function hideUiForPause() {
+    function showPausedUi() {
         overlayPlay.style.display = 'flex';
         controls.classList.remove('is-playing'); // hide controls bar
-        setSmallIcon(false);
     }
-    video.addEventListener('pause', hideUiForPause);
-    video.addEventListener('ended', hideUiForPause);
+
+    video.addEventListener('play', showPlayingUi);
+    video.addEventListener('pause', showPausedUi);
+    video.addEventListener('ended', showPausedUi);
 
     // allow click-anywhere on the video to toggle
     video.addEventListener('click', () => {
@@ -60,17 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // initialize state
-    overlayPlay.style.display = 'flex';  // show big play
-    playPause.style.display = 'none';  // hide small button
-
-    // helper to swap small button icon
-    function setSmallIcon(isPlaying) {
-        if (isPlaying) {
-            playPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>';
-        } else {
-            playPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-        }
-    }
+    showPausedUi();
 
     // toggle play/pause
     function togglePlay() {
@@ -83,32 +69,12 @@ document.addEventListener('DOMContentLoaded', () => {
         togglePlay();
     });
 
-    // small button click → toggle
-    playPause.addEventListener('click', togglePlay);
-
-    // when video plays
-    video.addEventListener('play', () => {
-        overlayPlay.style.display = 'none';   // hide big
-        playPause.style.display = 'flex';   // show small
-        setSmallIcon(true);
-    });
-
-    // when video pauses
-    video.addEventListener('pause', () => {
-        overlayPlay.style.display = 'flex';   // show big
-        playPause.style.display = 'none';   // hide small
-        setSmallIcon(false);
-    });
-
-    // update progress bar + time
+    // update progress bar
     video.addEventListener('timeupdate', () => {
         const pct = video.duration
             ? (video.currentTime / video.duration) * 100
             : 0;
         progress.value = pct;
-        const m = Math.floor(video.currentTime / 60);
-        const s = String(Math.floor(video.currentTime % 60)).padStart(2, '0');
-        timeLabel.textContent = `${m}:${s}`;
     });
 
     // seeker

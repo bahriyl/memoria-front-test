@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.className = 'modal';
             modal.hidden = true;
             modal.innerHTML = `
-            <p class="modal-text" style="font-weight: 480; font-size: 15px;">Успішно відправлено на модерацію.<br>Після модераціі фото буде доступно для перегляду</p>
+            <p class="modal-text" style="font-weight: 480; font-size: 15px;">Успішно надіслано.<br>Після модерації фото буде доступно для перегляду</p>
             <div class="modal-actions">
                 <button id="shared-upload-ok" class="modal-ok">Готово</button>
             </div>
