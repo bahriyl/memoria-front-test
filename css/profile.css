@@ -1267,6 +1267,10 @@ body::-webkit-scrollbar {
     cursor: pointer;
 }
 
+#confirm-delete-modal .modal-ok {
+    width: 60%;
+}
+
 .modal-cancel {
     height: 42px;
     padding: 0 32px;

@@ -402,9 +402,46 @@ document.addEventListener('DOMContentLoaded', () => {
         return dt < today;
     }
 
+    function isTodayISO(iso) {
+        if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+        const today = new Date();
+        const [y, m, d] = iso.split('-').map(Number);
+        return y === today.getFullYear() && m === (today.getMonth() + 1) && d === today.getDate();
+    }
+
+    function getDateItemByISO(iso) {
+        if (!iso) return null;
+        const dateCalendar = document.querySelector('.date-calendar');
+        if (!dateCalendar) return null;
+        const [y, m, d] = iso.split('-').map(Number);
+        return Array.from(dateCalendar.querySelectorAll('.date-item')).find(
+            (item) =>
+                Number(item.dataset.day) === d &&
+                Number(item.dataset.month) === m &&
+                Number(item.dataset.year) === y
+        );
+    }
+
+    function isActiveDateISO(iso) {
+        const item = getDateItemByISO(iso);
+        if (item) return !item.classList.contains('date-item--inactive');
+        if (!currentActiveWeekdays || !currentActiveWeekdays.length) return true;
+        const weekday = new Date(`${iso}T00:00:00`).getDay();
+        return currentActiveWeekdays.includes(weekday);
+    }
+
+    function isTodayActiveISO(iso) {
+        return isTodayISO(iso) && isActiveDateISO(iso);
+    }
+
+    function isMiddayOrLater() {
+        const now = new Date();
+        return now.getHours() >= 12;
+    }
+
     // Use the existing .liturgy-details as:
-    //  - a swipeable strip for today/future dates (first card = compose, then existing),
-    //  - a single non-swipe block for past dates.
+    //  - a swipeable strip for future dates (first card = compose, then existing),
+    //  - a single non-swipe block for past dates and active today.
     // Adds a pager (.liturgy-pager) under the strip to match the mock.
     function renderLiturgyDetailsStrip(iso) {
         const box = document.querySelector('.liturgy-details');
@@ -414,6 +451,8 @@ document.addEventListener('DOMContentLoaded', () => {
         host?.querySelectorAll('.liturgy-pager').forEach(el => el.remove());
 
         const past = isPastISO(iso);
+        const todayActive = isTodayActiveISO(iso);
+        const locked = past || todayActive;
         const existing = Array.isArray(liturgiesIndex[iso]) ? liturgiesIndex[iso] : [];
         const sortedExisting = existing
             .slice()
@@ -449,7 +488,11 @@ document.addEventListener('DOMContentLoaded', () => {
             box.dataset.serviceInfo = infoText;
         }
 
-        if (past) {
+        if (locked) {
+            const statusDone = !todayActive || isMiddayOrLater();
+            const phrase = statusDone
+                ? 'Божественна Літургія за упокій відбулась'
+                : 'Божественна Літургія за упокій відбувається';
             box.classList.remove('is-strip');
             box.innerHTML = '';
 
@@ -457,8 +500,8 @@ document.addEventListener('DOMContentLoaded', () => {
             wrap.className = 'liturgy-details';
 
             const status = document.createElement('span');
-            status.className = 'liturgy-status is-done';
-            status.textContent = 'Завершено';
+            status.className = 'liturgy-status' + (statusDone ? ' is-done' : '');
+            status.textContent = statusDone ? 'Завершено' : 'В процесі';
 
             const pnEl = document.createElement('div');
             pnEl.className = 'person-name';
@@ -471,7 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const d = new Date(latest.serviceDate || latest.createdAt || iso);
                 const dateUa = d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
                 const churchName = latest.churchName || 'Церква';
-                siEl.innerHTML = `Божественна Літургія за упокій відбулась у <span style="font-weight:550;">${churchName}, ${dateUa} р.</span>`;
+                siEl.innerHTML = `${phrase} у <span style="font-weight:550;">${churchName}, ${dateUa} р.</span>`;
             } else {
                 siEl.textContent = infoText;
             }
@@ -2645,7 +2688,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const limit = typeof MAX_PHOTOS !== 'undefined'
             ? MAX_PHOTOS
             : (window.MAX_PHOTOS || 20);
-        return `Досягнуто ліміту ${limit} фото. <br>Для збільшення обсягу, придбайте <br><a href="premium_qr.html" style="color:black; font-size: 550;"><u>Преміум QR</u></a>.`;
+        return `Досягнуто ліміту ${limit} фото. <br>Для збільшення обсягу, придбайте <br><a href="premium_qr.html" style="color:black; font-size: 550;"><u>Преміум QR</u></a>`;
     }
 
     function openInfoModal(message) {
@@ -3807,11 +3850,11 @@ document.addEventListener('DOMContentLoaded', () => {
             updateChurchButtonsForWeekday(weekday);
         }
 
-        const isPast = isPastISO(iso);
-        if (submitBtn) submitBtn.style.display = isPast ? 'none' : '';
-        if (detailsEl) detailsEl.style.display = isPast ? 'none' : '';
-        if (liturgyDonationEl) liturgyDonationEl.style.display = isPast ? 'none' : '';
-        if (liturgyChurchEl) liturgyChurchEl.style.display = isPast ? 'none' : '';
+        const isLocked = isPastISO(iso) || isTodayActiveISO(iso);
+        if (submitBtn) submitBtn.style.display = isLocked ? 'none' : '';
+        if (detailsEl) detailsEl.style.display = isLocked ? 'none' : '';
+        if (liturgyDonationEl) liturgyDonationEl.style.display = isLocked ? 'none' : '';
+        if (liturgyChurchEl) liturgyChurchEl.style.display = isLocked ? 'none' : '';
 
         // Always show history section for the selected day
         renderLiturgyHistoryForISO(iso);
@@ -3937,21 +3980,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!history) return;
 
         const past = isPastISO(iso); // uses your helper
+        const todayActive = isTodayActiveISO(iso);
         // For future dates: remove history block + any timeline dot, then exit
-        if (!past) {
+        if (!past && !todayActive) {
             history.innerHTML = '';
             history.remove?.();
             return;
         }
 
-        // Past only → build history
+        // Past/active today → build history
         const items = (liturgiesIndex[iso] || [])
             .slice()
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         history.innerHTML = '';
 
-        const phrase = 'Божественна Літургія за упокій відбулась';
+        const statusDone = !todayActive || isMiddayOrLater();
+        const phrase = statusDone
+            ? 'Божественна Літургія за упокій відбулась'
+            : 'Божественна Літургія за упокій відбувається';
         const titleText = 'Історія';
 
         // Header
@@ -3987,8 +4034,8 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'liturgy-details liturgy-history-item';
 
             const status = document.createElement('span');
-            status.className = 'liturgy-status is-done';
-            status.textContent = 'Завершено';
+            status.className = 'liturgy-status' + (statusDone ? ' is-done' : '');
+            status.textContent = statusDone ? 'Завершено' : 'В процесі';
             card.appendChild(status);
 
             const nameDiv = document.createElement('div');
@@ -4106,6 +4153,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 releaseLiturgySubmitState();
                 return;
             }
+        }
+
+        if (isTodayActiveISO(dateISO)) {
+            alert('Записка на сьогоднішню дату недоступна');
+            releaseLiturgySubmitState();
+            return;
         }
 
         const churchName = selectedChurchEl.textContent.trim();
