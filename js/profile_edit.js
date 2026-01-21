@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_URL = 'https://memoria-test-app-ifisk.ondigitalocean.app';
     const API_BASE = `${API_URL}/api/people`;
     const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
+    const MAX_PHOTOS = 50;
+    const MAX_VIDEO_SECONDS = 30 * 60;
+    const MAX_SHARED_PENDING = 20;
+    const MAX_SHARED_ACCEPTED = 20;
 
     // Auto-scroll textareas to keep bottom padding visible while typing
     const enableTextareaAutoScroll = window.enableTextareaAutoScroll || function (textarea) {
@@ -1745,15 +1749,22 @@ document.addEventListener('DOMContentLoaded', () => {
     async function acceptPending(i) {
         const item = sharedPending[i];
         if (!item) return;
+        if (sharedPhotos.length >= MAX_SHARED_ACCEPTED) {
+            await showLimitModals([sharedAcceptedLimitMessage(0)]);
+            return;
+        }
         sharedPending.splice(i, 1);
         sharedPhotos.push({ url: item.url }); // додаємо в КІНЕЦЬ
         await saveSharedAlbum();
         refreshSharedUI();
+        await refreshProfileMedia();
     }
 
     async function declinePending(i) {
         sharedPending.splice(i, 1);
-        await saveSharedAlbum(); refreshSharedUI();
+        await saveSharedAlbum();
+        refreshSharedUI();
+        await refreshProfileMedia();
     }
 
     // delete for accepted (selection)
@@ -1786,6 +1797,7 @@ document.addEventListener('DOMContentLoaded', () => {
             closeSharedDeleteConfirm();
             exitSharedSelection();
             updateSharedEmptyState();
+            await refreshProfileMedia();
         });
     }
 
@@ -1909,21 +1921,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // додавання від редагування (залогінений теж може “додати” як гість → летить у pending)
-    sharedAddBtn?.addEventListener('click', () => sharedInput?.click());
+    sharedAddBtn?.addEventListener('click', async () => {
+        if (!sharedInput) return;
+        if (sharedPending.length >= MAX_SHARED_PENDING) {
+            await showLimitModals([sharedPendingLimitMessage(0)]);
+            return;
+        }
+        sharedInput.value = '';
+        sharedInput.click();
+    });
     sharedInput?.addEventListener('change', async (e) => {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
 
-        const current = totalPersistedCount();
-        const remaining = Math.max(0, MAX_PHOTOS - current);
-
+        const remaining = Math.max(0, MAX_SHARED_PENDING - sharedPending.length);
         if (remaining <= 0) {
-            openInfoModal(`Досягнуто ліміту ${MAX_PHOTOS} фото. Видаліть зайві або перейдіть на преміум.`);
+            await showLimitModals([sharedPendingLimitMessage(0)]);
             e.target.value = '';
             return;
         }
         if (files.length > remaining) {
-            openInfoModal(`Можна додати ще лише ${remaining} фото (загальний ліміт — ${MAX_PHOTOS}).`);
+            await showLimitModals([sharedPendingLimitMessage(remaining)]);
             e.target.value = '';
             return;
         }
@@ -2065,6 +2083,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             previews.forEach(p => { try { URL.revokeObjectURL(p); } catch { } });
             e.target.value = '';
+            await refreshProfileMedia();
         }
     });
 
@@ -3042,50 +3061,280 @@ document.addEventListener('DOMContentLoaded', () => {
         return { player: playerUrl, poster };
     }
 
-    // INFO modal на базі confirm-delete
-    function openInfoModal(message) {
+    function countMediaItems() {
+        return (photos || []).filter((item) => {
+            if (!item) return false;
+            if (typeof item === 'string') return item.trim() !== '';
+            if (item._temp) return true;
+            if (typeof item.url === 'string') return item.url.trim() !== '';
+            return Boolean(item.video && typeof item.video.player === 'string' && item.video.player.trim());
+        }).length;
+    }
+
+    function photoLimitMessage(available) {
+        if (available > 0) {
+            return `<b>Фото не додано</b><br><br>Досягнуто ліміт у ${MAX_PHOTOS} фото.<br>Доступно для публікації: ${available} шт.`;
+        }
+        return `Досягнуто ліміт у ${MAX_PHOTOS} фото.`;
+    }
+
+    function videoLimitMessage(availableMinutes) {
+        const limitMinutes = Math.round(MAX_VIDEO_SECONDS / 60);
+        if (availableMinutes > 0) {
+            return `<b>Відео не додано</b><br><br>Досягнуто ліміт ${limitMinutes} хв для відео.<br>Доступно для публікації: ${availableMinutes} хв`;
+        }
+        return `Досягнуто ліміт ${limitMinutes} хв для відео`;
+    }
+
+    function sharedPendingLimitMessage(available) {
+        if (available > 0) {
+            return `<b>Фото не додано</b><br><br>Досягнуто ліміт фото на модерації.<br>Доступно для публікації: ${available} шт.`;
+        }
+        return 'Досягнуто ліміт фото на модерації';
+    }
+
+    function sharedAcceptedLimitMessage(available) {
+        if (available > 0) {
+            return `<b>Фото не додано</b><br><br>Досягнуто ліміт у ${MAX_SHARED_ACCEPTED} фото.<br>Доступно для публікації: ${available} шт.`;
+        }
+        return `Досягнуто ліміт у ${MAX_SHARED_ACCEPTED} фото.`;
+    }
+
+    function openLimitModal(message) {
         const overlay = document.getElementById('modal-overlay');
         const dlg = document.getElementById('confirm-delete-modal');
-        if (!overlay || !dlg) { alert(message); return; }
-
-        // заголовок/текст
-        const titleEl = dlg.querySelector('.modal-title') || dlg.querySelector('#confirm-delete-title');
-        const textEl = dlg.querySelector('.modal-text') || dlg.querySelector('#confirm-delete-text');
-        if (titleEl) titleEl.textContent = 'Обмеження фото';
-        if (textEl) textEl.textContent = message;
-
-        // кнопки
+        const textEl = document.getElementById('confirm-delete-modal-text')
+            || dlg?.querySelector('.modal-text');
         const cancelBtn = document.getElementById('confirm-delete-cancel');
         const okBtn = document.getElementById('confirm-delete-ok');
+        const closeX = document.getElementById('confirm-delete-close');
 
-        // показуємо лише ОК, ховаємо "Скасувати"
+        if (!overlay || !dlg || !textEl || !okBtn) {
+            alert(message.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, ''));
+            return Promise.resolve();
+        }
+
+        const originalText = textEl.innerHTML;
+        const originalOk = okBtn.textContent;
+        const originalCancelDisplay = cancelBtn ? cancelBtn.style.display : '';
+
+        textEl.innerHTML = message;
         if (cancelBtn) cancelBtn.style.display = 'none';
-        if (okBtn) okBtn.textContent = 'Готово';
+        okBtn.textContent = 'Готово';
 
-        // відкрити
         overlay.hidden = false;
         dlg.hidden = false;
 
-        const close = () => {
-            overlay.hidden = true;
-            dlg.hidden = true;
-            // повернути стан кнопок
-            if (cancelBtn) cancelBtn.style.display = '';
-            if (okBtn) okBtn.textContent = 'Видалити';
-        };
+        return new Promise((resolve) => {
+            const close = () => {
+                overlay.hidden = true;
+                dlg.hidden = true;
+                textEl.innerHTML = originalText;
+                if (cancelBtn) cancelBtn.style.display = originalCancelDisplay;
+                okBtn.textContent = originalOk || 'Видалити';
+                cleanup();
+                resolve();
+            };
 
-        // закриття по overlay і ОК
-        overlay.onclick = close;
-        if (okBtn) okBtn.onclick = close;
-        // якщо є хрестик
-        const closeX = document.getElementById('confirm-delete-close');
-        if (closeX) closeX.onclick = close;
+            const onOverlay = (e) => {
+                if (e.target === overlay) close();
+            };
+            const onOk = (e) => {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                close();
+            };
+            const onKey = (e) => {
+                if (e.key === 'Escape') close();
+            };
+
+            function cleanup() {
+                okBtn.removeEventListener('click', onOk, true);
+                closeX?.removeEventListener('click', close);
+                overlay.removeEventListener('click', onOverlay);
+                document.removeEventListener('keydown', onKey);
+            }
+
+            okBtn.addEventListener('click', onOk, true);
+            closeX?.addEventListener('click', close);
+            overlay.addEventListener('click', onOverlay);
+            document.addEventListener('keydown', onKey);
+        });
+    }
+
+    async function showLimitModals(messages) {
+        for (const message of messages) {
+            await openLimitModal(message);
+        }
+    }
+
+    function getVideoDuration(file, timeoutMs = 8000) {
+        return new Promise((resolve) => {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.playsInline = true;
+            video.muted = true;
+            const objectUrl = URL.createObjectURL(file);
+
+            const cleanup = () => {
+                try { URL.revokeObjectURL(objectUrl); } catch { }
+                video.removeAttribute('src');
+                if (typeof video.load === 'function') video.load();
+            };
+
+            const finalize = (duration) => {
+                cleanup();
+                resolve(Number.isFinite(duration) ? duration : 0);
+            };
+
+            const onLoaded = () => finalize(video.duration);
+            const onError = () => finalize(0);
+
+            const timer = setTimeout(() => {
+                video.removeEventListener('loadedmetadata', onLoaded);
+                video.removeEventListener('error', onError);
+                finalize(0);
+            }, timeoutMs);
+
+            video.addEventListener('loadedmetadata', () => {
+                clearTimeout(timer);
+                onLoaded();
+            }, { once: true });
+            video.addEventListener('error', () => {
+                clearTimeout(timer);
+                onError();
+            }, { once: true });
+
+            video.src = objectUrl;
+        });
+    }
+
+    function getVideoDurationFromUrl(url, timeoutMs = 8000) {
+        return new Promise((resolve) => {
+            if (!url) {
+                resolve(0);
+                return;
+            }
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.playsInline = true;
+            video.crossOrigin = 'anonymous';
+
+            const cleanup = () => {
+                video.removeAttribute('src');
+                if (typeof video.load === 'function') video.load();
+            };
+
+            const finalize = (duration) => {
+                cleanup();
+                resolve(Number.isFinite(duration) ? duration : 0);
+            };
+
+            const onLoaded = () => finalize(video.duration);
+            const onError = () => finalize(0);
+
+            const timer = setTimeout(() => {
+                video.removeEventListener('loadedmetadata', onLoaded);
+                video.removeEventListener('error', onError);
+                finalize(0);
+            }, timeoutMs);
+
+            video.addEventListener('loadedmetadata', () => {
+                clearTimeout(timer);
+                onLoaded();
+            }, { once: true });
+            video.addEventListener('error', () => {
+                clearTimeout(timer);
+                onError();
+            }, { once: true });
+
+            video.src = url;
+        });
+    }
+
+    const videoDurationCache = new Map();
+
+    async function sumExistingVideoSeconds() {
+        const videoItems = (photos || []).filter((item) =>
+            item?._kind === 'video' || item?.video?.player
+        );
+        if (!videoItems.length) return 0;
+
+        let total = 0;
+        for (const item of videoItems) {
+            if (item?._kind === 'video' && !item.video) {
+                const tempDuration = Number(item._duration ?? 0);
+                if (Number.isFinite(tempDuration) && tempDuration > 0) {
+                    total += tempDuration;
+                }
+                continue;
+            }
+            const url = (item.video.player || '').trim();
+            if (!url) continue;
+            let duration = Number(item._duration ?? item.video.duration ?? 0);
+            if (!Number.isFinite(duration) || duration <= 0) {
+                if (videoDurationCache.has(url)) {
+                    duration = videoDurationCache.get(url);
+                } else {
+                    duration = await getVideoDurationFromUrl(url);
+                    videoDurationCache.set(url, duration);
+                }
+            }
+            if (Number.isFinite(duration) && duration > 0) {
+                item._duration = duration;
+                total += duration;
+            }
+        }
+
+        return total;
+    }
+
+    async function refreshProfileMedia() {
+        try {
+            const res = await fetch(`${API_BASE}/${personId}`);
+            if (!res.ok) throw new Error(res.statusText);
+            const data = await res.json();
+
+            photos = Array.isArray(data.photos) ? data.photos.filter(Boolean) : [];
+            refreshPhotosUI?.();
+
+            const sharedSection = document.querySelector('.profile-shared');
+            if (sharedSection && data.premium) {
+                sharedSection.removeAttribute('hidden');
+                sharedPending = Array.isArray(data.sharedPending)
+                    ? data.sharedPending.filter(p => p && typeof p.url === 'string' && p.url.trim())
+                    : [];
+                sharedPhotos = Array.isArray(data.sharedPhotos)
+                    ? data.sharedPhotos.filter(p => p && typeof p.url === 'string' && p.url.trim())
+                    : [];
+                sharedSelecting = false;
+                sharedSelectedOrder = [];
+                document.querySelector('.profile-shared')?.classList.remove('selection-mode');
+                refreshSharedUI?.();
+                updateSharedEmptyState?.();
+            } else if (sharedSection) {
+                sharedSection.setAttribute('hidden', 'hidden');
+            }
+        } catch (err) {
+            console.warn('Failed to refresh profile media:', err);
+        }
     }
 
     function hookPhotoButtons() {
         if (addPhotoBtn)
-            addPhotoBtn.addEventListener('click', () => {
+            addPhotoBtn.addEventListener('click', async () => {
                 if (fileInput) fileInput.value = "";
+
+                const currentCount = countMediaItems();
+                if (currentCount >= MAX_PHOTOS) {
+                    await showLimitModals([photoLimitMessage(0)]);
+                    const existingVideoSeconds = await sumExistingVideoSeconds();
+                    if (existingVideoSeconds >= MAX_VIDEO_SECONDS) {
+                        await showLimitModals([videoLimitMessage(0)]);
+                    }
+                    return;
+                }
+
                 fileInput?.click();
             });
 
@@ -3126,6 +3375,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await saveProfilePhotos();
                 closeConfirm();
                 exitSelectionMode();
+                await refreshProfileMedia();
             });
         }
 
@@ -3137,53 +3387,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 let files = Array.from(fileInput.files || []);
                 if (!files.length) return;
 
-                const currentCount = persistedMedia().length; // лише збережені (без blob)
-                const remaining = Math.max(0, (window.MAX_PHOTOS || 20) - currentCount);
+                const currentCount = countMediaItems(); // фото+відео (разом)
+                const remaining = Math.max(0, MAX_PHOTOS - currentCount);
+                const limitMessages = [];
 
                 if (remaining <= 0) {
-                    openInfoModal(`Досягнуто ліміту ${MAX_PHOTOS} фото. Видаліть зайві або перейдіть на преміум.`);
-                    e.target.value = '';
-                    return;
-                }
-                if (files.length > remaining) {
-                    openInfoModal(`Можна додати ще лише ${remaining} фото (загальний ліміт — ${MAX_PHOTOS}).`);
-                    e.target.value = '';
-                    return;
+                    limitMessages.push(photoLimitMessage(0));
+                } else if (currentCount + files.length > MAX_PHOTOS) {
+                    limitMessages.push(photoLimitMessage(remaining));
                 }
 
-                const existingVideoCount = photos.reduce((count, item) => {
-                    if (!item || typeof item !== 'object') return count;
-                    if (item.video) return count + 1;
-                    if (item._kind === 'video') return count + 1;
-                    return count;
-                }, 0);
-                const videoQuota = Math.max(0, 20 - existingVideoCount);
-                let acceptedVideos = 0;
-                let skippedVideos = 0;
+                const videoFiles = files.filter(f => f.type.startsWith("video/"));
+                const videoDurationByFile = new Map();
+                if (videoFiles.length) {
+                    const durations = await Promise.all(videoFiles.map((f) => getVideoDuration(f)));
+                    let addedSeconds = 0;
+                    durations.forEach((duration, idx) => {
+                        const safe = Number.isFinite(duration) ? duration : 0;
+                        addedSeconds += safe;
+                        videoDurationByFile.set(videoFiles[idx], safe);
+                    });
 
-                files = files.filter((file) => {
-                    if (!file.type.startsWith('video/')) return true;
-                    if (acceptedVideos < videoQuota) {
-                        acceptedVideos += 1;
-                        return true;
+                    const existingVideoSeconds = await sumExistingVideoSeconds();
+                    const availableSeconds = Math.max(0, MAX_VIDEO_SECONDS - existingVideoSeconds);
+
+                    if (availableSeconds <= 0) {
+                        limitMessages.push(videoLimitMessage(0));
+                    } else if (existingVideoSeconds + addedSeconds > MAX_VIDEO_SECONDS) {
+                        const availableMinutes = Math.floor(availableSeconds / 60);
+                        limitMessages.push(videoLimitMessage(availableMinutes));
                     }
-                    skippedVideos += 1;
-                    return false;
-                });
-
-                if (skippedVideos) {
-                    const remaining = Math.max(0, 20 - (existingVideoCount + acceptedVideos));
-                    alert(`Можна завантажити не більше 20 відео на профіль. Зайві відео не були додані. Залишилося вільних місць: ${remaining}.`);
                 }
 
-                if (!files.length) {
+                if (limitMessages.length) {
+                    await showLimitModals(limitMessages);
                     fileInput.value = '';
                     return;
                 }
 
                 // Split by type
                 const imageFiles = files.filter(f => f.type.startsWith("image/"));
-                const videoFiles = files.filter(f => f.type.startsWith("video/"));
                 // 0) Build preview list (images = blob URLs; videos = captured poster)
                 const previewItems = await Promise.all(files.map(async (f, idx) => {
                     if (f.type.startsWith("image/")) {
@@ -3192,13 +3435,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             const posterBlob = await capturePosterFromVideoFile(f, 0.6);
                             const posterUrl = URL.createObjectURL(posterBlob);
-                            return { kind: "video", idx, src: posterUrl };
+                            return { kind: "video", idx, src: posterUrl, duration: videoDurationByFile.get(f) || 0 };
                         } catch {
                             // (we rarely hit this now, since the helper always resolves)
                             const ph = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
                                 `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><rect width='100%' height='100%' fill='#e9eef3'/></svg>`
                             );
-                            return { kind: "video", idx, src: ph };
+                            return { kind: "video", idx, src: ph, duration: videoDurationByFile.get(f) || 0 };
                         }
                     } else {
                         return { kind: "other", idx, src: "" }; // will be ignored
@@ -3218,7 +3461,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // append new items at the end so indexes line up with startIndex
                 validPreviews.forEach((p) => {
-                    photos.push({ url: p.src, description: '', _temp: true, _kind: p.kind });
+                    const tempItem = { url: p.src, description: '', _temp: true, _kind: p.kind };
+                    if (p.kind === "video" && Number.isFinite(p.duration) && p.duration > 0) {
+                        tempItem._duration = p.duration;
+                    }
+                    photos.push(tempItem);
                 });
 
                 refreshPhotosUI();
@@ -3355,7 +3602,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             const { player, poster } = await uploadVideoToSpaces(file);
                             try { URL.revokeObjectURL(item.src); } catch { }
                             const desc = tempCaptions[i] || '';
-                            photos[listIndex] = { video: { player, poster }, description: desc };
+                            const nextItem = { video: { player, poster }, description: desc };
+                            if (Number.isFinite(item.duration) && item.duration > 0) {
+                                nextItem._duration = item.duration;
+                            }
+                            photos[listIndex] = nextItem;
                         } else {
                             photos.splice(listIndex, 1);
                         }
@@ -3371,6 +3622,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 2) persist profile with hosted URLs / video objects + captions
                 await saveProfilePhotos(); // make sure the backend accepts {video:{player,poster}} items
                 e.target.value = '';
+                await refreshProfileMedia();
             });
     }
 
@@ -3651,7 +3903,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error(res.statusText);
             const data = await res.json();
 
-            window.MAX_PHOTOS = data?.premium ? 120 : 20;
+            window.MAX_PHOTOS = MAX_PHOTOS;
 
             // ─── COMMENTS ───
             comments = Array.isArray(data.comments) ? data.comments : [];

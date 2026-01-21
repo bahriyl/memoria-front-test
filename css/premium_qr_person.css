@@ -313,16 +313,38 @@ input[type="text"]::placeholder {
     cursor: pointer;
 }
 
-/* inline-режим розміщення під вибраною особою */
-.submit-btn--inline {
+/* sticky submit bar like relatives modal */
+.premium-submit-bar {
+    position: sticky;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    z-index: 2;
+    margin-top: 12px;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    padding-top: 12px;
+}
+
+.premium-submit-bar .submit-btn {
     position: static;
     left: auto;
     bottom: auto;
     transform: none;
     width: 100%;
     max-width: none;
-    margin: 0 0 20px 0;
-    /* невеликий відступ зверху від списку */
+    margin: 0;
+}
+
+@supports (padding: max(0px)) {
+    .premium-submit-bar {
+        padding-bottom: max(26px, env(safe-area-inset-bottom));
+    }
 }
 
 /* ---- found label ---- */

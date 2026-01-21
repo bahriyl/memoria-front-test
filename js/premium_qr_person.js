@@ -191,9 +191,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCloseBtn = document.getElementById('deliveryModalClose');
     const modalSubmitBtn = document.getElementById('deliveryModalSubmit');
     const mainSubmitBtn = document.getElementById('submitBtn');
+    const submitBar = document.getElementById('submitBar');
 
     if (mainSubmitBtn) {
         mainSubmitBtn.style.display = 'none'; // приховано доти, доки не обрано особу
+    }
+    if (submitBar) {
+        submitBar.style.display = 'none';
     }
 
     const delEmailInput = document.getElementById('delEmail');
@@ -993,20 +997,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        if (selectedPersons.length > 0) {
-            // перемістити кнопку прямо під список вибраних
-            if (mainSubmitBtn) {
-                mainSubmitBtn.classList.add('submit-btn--inline');
-                mainSubmitBtn.style.display = ''; // показати
-                // вставити одразу після #selectedList
-                if (selectedList.parentNode) {
-                    selectedList.after(mainSubmitBtn);
-                }
-            }
-        } else {
-            if (mainSubmitBtn) {
-                mainSubmitBtn.style.display = 'none';
-            }
+        const hasSelected = selectedPersons.length > 0;
+        if (mainSubmitBtn) {
+            mainSubmitBtn.style.display = hasSelected ? '' : 'none';
+        }
+        if (submitBar) {
+            submitBar.style.display = hasSelected ? '' : 'none';
         }
 
         updateSelectedCount();
@@ -1094,13 +1090,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     modalCloseBtn.addEventListener('click', () => {
         deliveryModal.hidden = true;
-        mainSubmitBtn.style.display = '';       // SHOW again when modal closes
+        const hasSelected = selectedPersons.length > 0;
+        if (mainSubmitBtn) mainSubmitBtn.style.display = hasSelected ? '' : 'none';
+        if (submitBar) submitBar.style.display = hasSelected ? '' : 'none';
     });
 
     deliveryModal.addEventListener('click', e => {
         if (e.target === deliveryModal) {
             deliveryModal.hidden = true;
-            mainSubmitBtn.style.display = '';     // SHOW again when clicking outside
+            const hasSelected = selectedPersons.length > 0;
+            if (mainSubmitBtn) mainSubmitBtn.style.display = hasSelected ? '' : 'none';
+            if (submitBar) submitBar.style.display = hasSelected ? '' : 'none';
         }
     });
 

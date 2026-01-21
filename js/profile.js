@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const PREMIUM_AUTH = `${API_URL}/api/premium`;
 
     const IMGBB_API_KEY = '726ae764867cf6b3a259967071cbdd80';
+    const MAX_SHARED_PENDING = 20;
+    const MAX_SHARED_ACCEPTED = 20;
 
     const params = new URLSearchParams(window.location.search);
     const from = params.get('from');
@@ -1931,7 +1933,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Клік “Добавити” → file input
-    sharedAddBtn?.addEventListener('click', () => sharedInput?.click());
+    sharedAddBtn?.addEventListener('click', async () => {
+        if (!sharedInput) return;
+        const limitMessages = [];
+        if (sharedPhotos.length >= MAX_SHARED_ACCEPTED) {
+            limitMessages.push(sharedAcceptedLimitMessage(0));
+        }
+        if (sharedPending.length >= MAX_SHARED_PENDING) {
+            limitMessages.push(sharedPendingLimitMessage(0));
+        }
+        if (limitMessages.length) {
+            await showLimitModals(limitMessages);
+            return;
+        }
+        sharedInput.value = '';
+        sharedInput.click();
+    });
 
     // --- SHARED: keep photos-only (backend shared/offer expects {url}) ---
     if (sharedInput) sharedInput.accept = 'image/*';
@@ -1943,6 +1960,21 @@ document.addEventListener('DOMContentLoaded', () => {
         // не даємо відео
         const imageFiles = files.filter(f => f.type.startsWith('image/'));
         if (!imageFiles.length) {
+            sharedInput.value = '';
+            return;
+        }
+        const limitMessages = [];
+        if (sharedPhotos.length >= MAX_SHARED_ACCEPTED) {
+            limitMessages.push(sharedAcceptedLimitMessage(0));
+        }
+        const remaining = Math.max(0, MAX_SHARED_PENDING - sharedPending.length);
+        if (remaining <= 0) {
+            limitMessages.push(sharedPendingLimitMessage(0));
+        } else if (imageFiles.length > remaining) {
+            limitMessages.push(sharedPendingLimitMessage(remaining));
+        }
+        if (limitMessages.length) {
+            await showLimitModals(limitMessages);
             sharedInput.value = '';
             return;
         }
@@ -2010,6 +2042,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             // очистити інпут
             sharedInput.value = '';
+            await refreshProfileMedia();
         }
     });
 
@@ -2730,6 +2763,131 @@ document.addEventListener('DOMContentLoaded', () => {
         if (closeX) closeX.onclick = close;
     }
 
+    function sharedPendingLimitMessage(available) {
+        if (available > 0) {
+            return `<b>Фото не додано</b><br><br>Досягнуто ліміт фото на модерації.<br>Доступно для публікації: ${available} шт.`;
+        }
+        return 'Досягнуто ліміт фото на модерації';
+    }
+
+    function sharedAcceptedLimitMessage(available) {
+        if (available > 0) {
+            return `<b>Фото не додано</b><br><br>Досягнуто ліміт у ${MAX_SHARED_ACCEPTED} фото.<br>Доступно для публікації: ${available} шт.`;
+        }
+        return `Досягнуто ліміт у ${MAX_SHARED_ACCEPTED} фото.`;
+    }
+
+    function openLimitModal(message) {
+        const overlay = document.getElementById('modal-overlay');
+        const dlg = document.getElementById('confirm-delete-modal');
+        const textEl = document.getElementById('confirm-delete-modal-text')
+            || dlg?.querySelector('.modal-text');
+        const cancelBtn = document.getElementById('confirm-delete-cancel');
+        const okBtn = document.getElementById('confirm-delete-ok');
+        const closeX = document.getElementById('confirm-delete-close');
+
+        if (!overlay || !dlg || !textEl || !okBtn) {
+            alert(message.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, ''));
+            return Promise.resolve();
+        }
+
+        const originalText = textEl.innerHTML;
+        const originalOk = okBtn.textContent;
+        const originalCancelDisplay = cancelBtn ? cancelBtn.style.display : '';
+
+        textEl.innerHTML = message;
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        okBtn.textContent = 'Готово';
+
+        overlay.hidden = false;
+        dlg.hidden = false;
+
+        return new Promise((resolve) => {
+            const close = () => {
+                overlay.hidden = true;
+                dlg.hidden = true;
+                textEl.innerHTML = originalText;
+                if (cancelBtn) cancelBtn.style.display = originalCancelDisplay;
+                okBtn.textContent = originalOk || 'Видалити';
+                cleanup();
+                resolve();
+            };
+
+            const onOverlay = (e) => {
+                if (e.target !== overlay) return;
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                e.stopPropagation();
+                close();
+            };
+            const onOk = (e) => {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                e.stopPropagation();
+                close();
+            };
+            const onKey = (e) => {
+                if (e.key === 'Escape') close();
+            };
+
+            function cleanup() {
+                okBtn.removeEventListener('click', onOk, true);
+                closeX?.removeEventListener('click', close);
+                overlay.removeEventListener('click', onOverlay, true);
+                document.removeEventListener('keydown', onKey);
+            }
+
+            okBtn.addEventListener('click', onOk, true);
+            closeX?.addEventListener('click', close);
+            overlay.addEventListener('click', onOverlay, true);
+            document.addEventListener('keydown', onKey);
+        });
+    }
+
+    async function showLimitModals(messages) {
+        for (const message of messages) {
+            await openLimitModal(message);
+        }
+    }
+
+    async function refreshProfileMedia() {
+        try {
+            const res = await fetch(`${API_BASE}/${personId}`);
+            if (!res.ok) throw new Error(res.statusText);
+            const data = await res.json();
+
+            photos = Array.isArray(data.photos)
+                ? data.photos.map(normalizeMediaItem).filter(Boolean)
+                : [];
+            refreshPhotosUI?.();
+
+            const sharedSection = document.querySelector('.profile-shared');
+            const sharedChooseOpt = document.getElementById('shared-choose-option');
+            const sharedDeleteBtn = document.getElementById('shared-delete-btn');
+
+            if (sharedSection && data.premium) {
+                sharedSection.removeAttribute('hidden');
+                sharedPending = Array.isArray(data.sharedPending)
+                    ? data.sharedPending
+                        .filter(p => p && typeof p.url === 'string' && p.url.trim())
+                        .map(p => ({ url: p.url.trim() }))
+                    : [];
+                sharedPhotos = Array.isArray(data.sharedPhotos)
+                    ? data.sharedPhotos
+                        .filter(p => p && typeof p.url === 'string' && p.url.trim())
+                        .map(p => ({ url: p.url.trim(), description: (p.description ?? '').toString() }))
+                    : [];
+                sharedChooseOpt?.classList.add('hidden');
+                if (sharedDeleteBtn) sharedDeleteBtn.style.display = 'none';
+                refreshSharedUI?.();
+            } else if (sharedSection) {
+                sharedSection.setAttribute('hidden', 'hidden');
+            }
+        } catch (err) {
+            console.warn('Failed to refresh profile media:', err);
+        }
+    }
+
     function hookPhotoButtons() {
         if (addPhotoBtn)
             addPhotoBtn.addEventListener('click', () => {
@@ -2773,6 +2931,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await saveProfilePhotos();
                 closeConfirm();
                 exitSelectionMode();
+                await refreshProfileMedia();
             });
         }
 
@@ -2961,6 +3120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 2) persist profile with hosted URLs + captions
                 await saveProfilePhotos();
                 e.target.value = '';
+                await refreshProfileMedia();
             });
     }
 
